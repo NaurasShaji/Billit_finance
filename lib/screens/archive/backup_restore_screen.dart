@@ -1129,13 +1129,24 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
     final employeesBox = Hive.box<Employee>(Boxes.employees);
     final appSettingsBox = Hive.box<dynamic>('app_settings');
 
-    await usersBox.clear();
-    await productsBox.clear();
-    await salesBox.clear();
-    await expensesBox.clear();
-    await employeesBox.clear();
+    // Snapshot every affected box before changing live data. Hive does not
+    // provide a multi-box transaction, so rollback is best-effort if a write
+    // fails during restore.
+    final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
+    final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
+    final salesSnapshot = Map<dynamic, Sale>.from(salesBox.toMap());
+    final expensesSnapshot = Map<dynamic, Expense>.from(expensesBox.toMap());
+    final employeesSnapshot = Map<dynamic, Employee>.from(employeesBox.toMap());
+    final settingsSnapshot = Map<dynamic, dynamic>.from(appSettingsBox.toMap());
 
-    for (final u in (data['users'] as List? ?? const [])) {
+    try {
+      await usersBox.clear();
+      await productsBox.clear();
+      await salesBox.clear();
+      await expensesBox.clear();
+      await employeesBox.clear();
+
+      for (final u in (data['users'] as List? ?? const [])) {
       final user = User()
         ..id = u['id'] as String
         ..username = u['username'] as String
@@ -1234,8 +1245,30 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
     }
 
     final savedSettings = data['appSettings'];
-    if (savedSettings is Map) {
-      await appSettingsBox.putAll(Map<String, dynamic>.from(savedSettings));
+      if (savedSettings is Map) {
+        await appSettingsBox.putAll(Map<String, dynamic>.from(savedSettings));
+      }
+    } catch (restoreError, stackTrace) {
+      try {
+        await usersBox.clear();
+        await usersBox.putAll(usersSnapshot);
+        await productsBox.clear();
+        await productsBox.putAll(productsSnapshot);
+        await salesBox.clear();
+        await salesBox.putAll(salesSnapshot);
+        await expensesBox.clear();
+        await expensesBox.putAll(expensesSnapshot);
+        await employeesBox.clear();
+        await employeesBox.putAll(employeesSnapshot);
+        await appSettingsBox.clear();
+        await appSettingsBox.putAll(settingsSnapshot);
+      } catch (rollbackError) {
+        Error.throwWithStackTrace(
+          StateError('Restore failed ($restoreError) and rollback also failed ($rollbackError). Data may require recovery from a backup.'),
+          stackTrace,
+        );
+      }
+      Error.throwWithStackTrace(restoreError, stackTrace);
     }
   }
 }
