@@ -108,6 +108,16 @@ class BackupRestoreService {
     return _number(map, key, path);
   }
 
+  String? _nullableString(
+      Map<String, dynamic> map, String key, String path) {
+    final value = map[key];
+    if (value == null) return null;
+    if (value is! String) {
+      throw FormatException('$path.$key must be a string or null.');
+    }
+    return value;
+  }
+
   bool _boolean(Map<String, dynamic> map, String key, String path,
       {bool fallback = false}) {
     final value = map[key];
@@ -126,13 +136,16 @@ class BackupRestoreService {
   }
 
   User _parseUser(Map<String, dynamic> json) {
+    const path = 'users';
+    final userType = json['userType'];
+    if (userType is! String) {
+      throw const FormatException('users.userType must be a string.');
+    }
     return User()
-      ..id = _requiredString(json, 'id', 'users')
-      ..username = _requiredString(json, 'username', 'users')
-      ..password = _requiredString(json, 'password', 'users')
-      ..userType = json['userType'] == 'admin'
-          ? UserType.admin
-          : UserType.worker;
+      ..id = _requiredString(json, 'id', path)
+      ..username = _requiredString(json, 'username', path)
+      ..password = _requiredString(json, 'password', path)
+      ..userType = userType == 'admin' ? UserType.admin : UserType.worker;
   }
 
   Product _parseProduct(Map<String, dynamic> json) {
@@ -151,7 +164,7 @@ class BackupRestoreService {
       ..category = _optionalString(json, 'category', 'General', path)
       ..subCategory = _optionalString(json, 'subCategory', '', path)
       ..active = _boolean(json, 'active', path, fallback: true)
-      ..barcode = json['barcode'] as String?
+      ..barcode = _nullableString(json, 'barcode', path)
       ..hsnCode = _optionalString(json, 'hsnCode', '', path)
       ..gstRate = _optionalNumber(json, 'gstRate', path);
   }
@@ -187,7 +200,7 @@ class BackupRestoreService {
             ))
         .toList();
     final payment = json['payment'];
-    if (payment != null && payment is! String) {
+    if (payment is! String) {
       throw const FormatException('sales.payment must be a string.');
     }
 
