@@ -140,6 +140,22 @@ void main() {
   });
 
   group('PayrollService.summarize', () {
+    test('summary reports only the unpaid portion after a partial payment', () {
+      final employee =
+          Employee(id: 'partial-summary', name: 'Maya', type: 'monthly', wage: 20000);
+      final partial = PayrollService.buildPayment(
+        employee, 8000, DateTime(2026, 11, 5), 'partial-summary-payment');
+      final summary = PayrollService.summarize(
+        [employee],
+        [partial],
+        now,
+      );
+
+      expect(summary.monthlyUnpaid, 1);
+      expect(summary.monthlyDueAmount, 12000);
+      expect(summary.paidThisMonth, 8000);
+    });
+
     test('counts what is paid and what is still due', () {
       final staff = [
         Employee(id: 'm1', name: 'Meera', type: 'monthly', wage: 18000),
