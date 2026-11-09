@@ -186,9 +186,29 @@ class PayrollService {
 
   /// Records a salary/wage payment as an expense linked to the employee.
   static Future<Expense> recordPayment(Employee employee, double amount) async {
+    if (!amount.isFinite || amount <= 0) {
+      throw ArgumentError.value(amount, 'amount', 'Must be a positive finite amount');
+    }
+
+    final expensesBox = Hive.box<Expense>(Boxes.expenses);
+    final employeesBox = Hive.box<Employee>(Boxes.employees);
+    final outstanding = outstandingFor(
+      employee,
+      expensesBox.values,
+      DateTime.now(),
+      allEmployees: employeesBox.values,
+    );
+    if (amount > outstanding + 0.005) {
+      throw ArgumentError.value(
+        amount,
+        'amount',
+        'Cannot exceed the outstanding payroll balance of $outstanding',
+      );
+    }
+
     final payment =
         buildPayment(employee, amount, DateTime.now(), const Uuid().v4());
-    await Hive.box<Expense>(Boxes.expenses).put(payment.id, payment);
+    await expensesBox.put(payment.id, payment);
     return payment;
   }
 }
