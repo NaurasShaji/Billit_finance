@@ -179,14 +179,22 @@ class DailyWageScreen extends StatelessWidget {
                       itemCount: dailyEmployees.length,
                       itemBuilder: (context, index) {
                         final e = dailyEmployees[index];
-                        final controller = TextEditingController(
-                            text: e.wage.toStringAsFixed(2));
-                        final isPaidToday = PayrollService.isPaid(
+                        final paidAmount = PayrollService.paidAmountFor(
                           e,
                           expBox.values,
                           DateTime.now(),
                           allEmployees: empBox.values,
                         );
+                        final outstanding = PayrollService.outstandingFor(
+                          e,
+                          expBox.values,
+                          DateTime.now(),
+                          allEmployees: empBox.values,
+                        );
+                        final controller = TextEditingController(
+                            text: outstanding.toStringAsFixed(2));
+                        final isPaidToday = outstanding <= 0.005;
+                        final isPartiallyPaid = paidAmount > 0.005 && !isPaidToday;
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -273,7 +281,11 @@ class DailyWageScreen extends StatelessWidget {
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
-                                            isPaidToday ? 'Paid' : 'Pending',
+                                            isPaidToday
+                                                ? 'Paid'
+                                                : isPartiallyPaid
+                                                    ? 'Partially paid'
+                                                    : 'Pending',
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w600,
@@ -353,8 +365,11 @@ class DailyWageScreen extends StatelessWidget {
                                         icon: Icon(isPaidToday
                                             ? Icons.check
                                             : Icons.payment_outlined),
-                                        label: Text(
-                                            isPaidToday ? 'Paid' : 'Pay Now'),
+                                        label: Text(isPaidToday
+                                            ? 'Paid'
+                                            : isPartiallyPaid
+                                                ? 'Pay remaining'
+                                                : 'Pay Now'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: isPaidToday
                                               ? Theme.of(context).colorScheme.outline
