@@ -179,14 +179,22 @@ class MonthlySalaryScreen extends StatelessWidget {
                       itemCount: monthlyEmployees.length,
                       itemBuilder: (context, index) {
                         final e = monthlyEmployees[index];
-                        final controller = TextEditingController(
-                            text: e.wage.toStringAsFixed(2));
-                        final isPaidThisMonth = PayrollService.isPaid(
+                        final paidAmount = PayrollService.paidAmountFor(
                           e,
                           expBox.values,
                           DateTime.now(),
                           allEmployees: empBox.values,
                         );
+                        final outstanding = PayrollService.outstandingFor(
+                          e,
+                          expBox.values,
+                          DateTime.now(),
+                          allEmployees: empBox.values,
+                        );
+                        final controller = TextEditingController(
+                            text: outstanding.toStringAsFixed(2));
+                        final isPaidThisMonth = outstanding <= 0.005;
+                        final isPartiallyPaid = paidAmount > 0.005 && !isPaidThisMonth;
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -275,7 +283,9 @@ class MonthlySalaryScreen extends StatelessWidget {
                                           Text(
                                             isPaidThisMonth
                                                 ? 'Paid'
-                                                : 'Pending',
+                                                : isPartiallyPaid
+                                                    ? 'Partially paid'
+                                                    : 'Pending',
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w600,
@@ -357,7 +367,9 @@ class MonthlySalaryScreen extends StatelessWidget {
                                             : Icons.payment_outlined),
                                         label: Text(isPaidThisMonth
                                             ? 'Paid'
-                                            : 'Pay Salary'),
+                                            : isPartiallyPaid
+                                                ? 'Pay remaining'
+                                                : 'Pay Salary'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: isPaidThisMonth
                                               ? Theme.of(context).colorScheme.outline
