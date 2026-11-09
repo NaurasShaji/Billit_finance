@@ -3,6 +3,7 @@ import '../models/expense.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
 import '../models/user.dart';
+import 'package:hive/hive.dart';
 
 /// Fully parsed backup data. Constructing this object performs all validation,
 /// before the caller mutates any live Hive box.
@@ -26,6 +27,67 @@ class BackupRestorePayload {
 
 class BackupRestoreService {
   const BackupRestoreService();
+
+
+  /// Applies a previously validated payload. Hive does not provide a
+  /// multi-box transaction, so existing contents are snapshotted and restored
+  /// on a write failure (best effort).
+  Future<void> apply(
+    BackupRestorePayload payload, {
+    required Box<User> usersBox,
+    required Box<Product> productsBox,
+    required Box<Sale> salesBox,
+    required Box<Expense> expensesBox,
+    required Box<Employee> employeesBox,
+    required Box<dynamic> appSettingsBox,
+  }) async {
+    final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
+    final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
+    final salesSnapshot = Map<dynamic, Sale>.from(salesBox.toMap());
+    final expensesSnapshot = Map<dynamic, Expense>.from(expensesBox.toMap());
+    final employeesSnapshot = Map<dynamic, Employee>.from(employeesBox.toMap());
+    final settingsSnapshot = Map<dynamic, dynamic>.from(appSettingsBox.toMap());
+
+    try {
+      await usersBox.clear();
+      await usersBox.putAll({for (final item in payload.users) item.id: item});
+      await productsBox.clear();
+      await productsBox.putAll({for (final item in payload.products) item.id: item});
+      await salesBox.clear();
+      await salesBox.putAll({for (final item in payload.sales) item.id: item});
+      await expensesBox.clear();
+      await expensesBox.putAll({for (final item in payload.expenses) item.id: item});
+      await employeesBox.clear();
+      await employeesBox.putAll({for (final item in payload.employees) item.id: item});
+      if (payload.appSettings != null) {
+        await appSettingsBox.putAll(payload.appSettings!);
+      }
+    } catch (restoreError, stackTrace) {
+      try {
+        await usersBox.clear();
+        await usersBox.putAll(usersSnapshot);
+        await productsBox.clear();
+        await productsBox.putAll(productsSnapshot);
+        await salesBox.clear();
+        await salesBox.putAll(salesSnapshot);
+        await expensesBox.clear();
+        await expensesBox.putAll(expensesSnapshot);
+        await employeesBox.clear();
+        await employeesBox.putAll(employeesSnapshot);
+        await appSettingsBox.clear();
+        await appSettingsBox.putAll(settingsSnapshot);
+      } catch (rollbackError) {
+        Error.throwWithStackTrace(
+          StateError(
+            'Restore failed ($restoreError) and rollback also failed '
+            '($rollbackError). Data may require recovery from a backup.',
+          ),
+          stackTrace,
+        );
+      }
+      Error.throwWithStackTrace(restoreError, stackTrace);
+    }
+  }
 
   BackupRestorePayload parse(Map<String, dynamic> data) {
     return BackupRestorePayload(
