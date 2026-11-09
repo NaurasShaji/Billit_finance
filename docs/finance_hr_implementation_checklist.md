@@ -18,7 +18,8 @@ Work branch: `feature/finance-team-promotion`
 - Moved Hive apply/rollback into `BackupRestoreService` and added real Hive-box integration tests for successful replacement, app-settings merge, malformed payload rejection without data loss, and legacy settings preservation.
 - Restore now applies only the fully parsed payload, with snapshots retained for best-effort rollback if Hive writes fail.
 - Existing export format, backup filename, Google Drive sign-in/transport, session box, and app-settings merge behavior remain unchanged.
-- **Validation pending:** the new parser/Hive tests, rollback-failure test, Flutter test suite, static analysis, and builds have not been run.
+- Added deterministic write-failure injection to the restore service and a Hive integration test that throws after all replacement writes, then verifies that every original box and app settings are restored.
+- **Validation pending:** the parser/Hive tests (including the new rollback test), Flutter test suite, static analysis, and builds have not been run.
 - **Next:** inspect and test rollback behavior in a Flutter-enabled environment, then continue payroll and finance implementation.
 
 ## Phase 0 — Repository audit and safe foundation
@@ -35,7 +36,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Validate the complete backup payload before mutating live boxes.
 - [x] Add parser tests for legacy backup compatibility and malformed data.
 - [x] Add Hive integration tests for restore application, malformed-payload data preservation, and legacy settings behavior.
-- [ ] Add a deterministic failure-injection test for rollback after a Hive write failure.
+- [x] Add a deterministic failure-injection test for rollback after a Hive write failure (authored; execution pending).
 
 ## Phase 1 — Payroll correctness (in progress)
 
