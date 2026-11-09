@@ -62,7 +62,10 @@ void main() {
     }
   });
 
-  Future<void> restore(Map<String, dynamic> data) => service.restore(
+  Future<void> restore(
+    Map<String, dynamic> data, {
+    Future<void> Function(String stage)? afterWrite,
+  }) => service.restore(
         data,
         usersBox: users,
         productsBox: products,
@@ -70,6 +73,7 @@ void main() {
         expensesBox: expenses,
         employeesBox: employees,
         appSettingsBox: settings,
+        afterWrite: afterWrite,
       );
 
   test('replaces business records and merges app settings', () async {
@@ -145,6 +149,85 @@ void main() {
     expect(products.keys, ['old-product']);
     expect(products.get('old-product')!.name, 'Existing product');
     expect(settings.get('business_name'), 'Existing business');
+  });
+
+  test('rolls back every box when a Hive write sequence fails', () async {
+    final oldUser = User()
+      ..id = 'old-user'
+      ..username = 'old-user'
+      ..password = 'old-hash'
+      ..userType = UserType.worker;
+    final oldProduct = Product()
+      ..id = 'old-product'
+      ..name = 'Existing product'
+      ..sellingPrice = 20
+      ..costPrice = 10
+      ..stock = 5;
+    final oldSale = Sale()
+      ..id = 'old-sale'
+      ..date = DateTime(2026, 1, 2)
+      ..items = []
+      ..totalAmount = 20
+      ..totalCost = 10
+      ..profit = 10
+      ..payment = PaymentMethod.cash;
+    final oldExpense = Expense(
+      id: 'old-expense',
+      date: DateTime(2026, 1, 3),
+      category: 'Rent',
+      amount: 100,
+    );
+    final oldEmployee = Employee(
+      id: 'old-employee',
+      name: 'Existing employee',
+      type: 'Monthly',
+      wage: 1000,
+    );
+
+    await users.put(oldUser.id, oldUser);
+    await products.put(oldProduct.id, oldProduct);
+    await sales.put(oldSale.id, oldSale);
+    await expenses.put(oldExpense.id, oldExpense);
+    await employees.put(oldEmployee.id, oldEmployee);
+    await settings.put('business_name', 'Original business');
+
+    var injected = false;
+    await expectLater(
+      restore(
+        {
+          'users': [
+            {
+              'id': 'new-user',
+              'username': 'new-user',
+              'password': 'new-hash',
+              'userType': 'admin',
+            },
+          ],
+          'appSettings': {'business_name': 'Replacement business'},
+        },
+        afterWrite: (stage) async {
+          if (stage == 'appSettings.putAll' && !injected) {
+            injected = true;
+            throw StateError('Simulated Hive write failure');
+          }
+        },
+      ),
+      throwsA(isA<StateError>().having(
+        (error) => error.message,
+        'message',
+        'Simulated Hive write failure',
+      )),
+    );
+
+    expect(injected, isTrue);
+    expect(users.keys, ['old-user']);
+    expect(products.keys, ['old-product']);
+    expect(sales.keys, ['old-sale']);
+    expect(expenses.keys, ['old-expense']);
+    expect(employees.keys, ['old-employee']);
+    expect(settings.get('business_name'), 'Original business');
+    expect(users.get('old-user')!.username, 'old-user');
+    expect(products.get('old-product')!.name, 'Existing product');
   });
 
   test('legacy payload without app settings leaves current settings intact',
