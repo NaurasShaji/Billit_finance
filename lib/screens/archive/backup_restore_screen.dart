@@ -1123,12 +1123,8 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
   }
 
   Future<void> _importAllBoxesFromJson(Map<String, dynamic> data) async {
-    final service = const BackupRestoreService();
-    // Complete parsing and validation happens before any live box is changed.
-    final payload = service.parse(data);
-
-    await service.apply(
-      payload,
+    await const BackupRestoreService().restore(
+      data,
       usersBox: Hive.box<User>(Boxes.users),
       productsBox: Hive.box<Product>(Boxes.products),
       salesBox: Hive.box<Sale>(Boxes.sales),
