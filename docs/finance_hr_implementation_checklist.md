@@ -12,7 +12,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Identify branch divergence from latest main (this branch is currently 9 commits ahead and 5 behind; integration remains pending).
 - [x] Complete audit of Hive adapter registrations, box names, and startup initialization.
 - [x] Document existing Hive type IDs, field IDs, and migration constraints. See [persistence schema audit](persistence_schema_audit.md).
-- [ ] Decide and document persistence strategy for the full finance ledger.
+- [x] Decide and document persistence strategy for the full finance ledger. See [finance ledger persistence decision](finance_ledger_persistence_decision.md).
 - [ ] Add versioned schema migrations and migration tests.
 - [ ] Make restore transactional/safe against partial imports.
 - [ ] Preserve legacy backup restore compatibility.
