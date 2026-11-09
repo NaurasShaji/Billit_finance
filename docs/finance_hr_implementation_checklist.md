@@ -12,7 +12,10 @@ Work branch: `feature/finance-team-promotion`
 - Added `SchemaMigrationService` and invoked it during startup after existing Hive boxes are opened.
 - Added migration tests for legacy baseline assignment, sequential/idempotent execution, failed migrations, newer database versions, and missing migration steps.
 - **Validation pending:** the migration tests have not yet been run; Flutter analyze and platform builds have not been run.
-- **Next implementation task:** make Google Drive restore safe against partial imports while preserving legacy backup compatibility and existing Drive sign-in/transport behavior.
+- Added pre-restore snapshots for users, products, sales, expenses, employees, and app settings. If import or persistence fails, restore attempts to reinstate the snapshots; this is best-effort rollback, not an ACID multi-box transaction.
+- Existing export format, backup filename, Google Drive sign-in/transport, session box, and app-settings merge behavior were left unchanged.
+- **Validation pending:** malformed/legacy backup tests, rollback-failure tests, Flutter tests, static analysis, and builds have not been run.
+- **Next:** extract backup parsing into a testable service, validate the full payload before mutating live boxes, and add regression tests for legacy backups and rollback.
 
 ## Phase 0 — Repository audit and safe foundation
 
@@ -24,8 +27,9 @@ Work branch: `feature/finance-team-promotion`
 - [x] Document existing Hive type IDs, field IDs, and migration constraints. See [persistence schema audit](persistence_schema_audit.md).
 - [x] Decide and document persistence strategy for the full finance ledger. See [finance ledger persistence decision](finance_ledger_persistence_decision.md).
 - [x] Add versioned schema migration runner and migration tests (tests added; execution still pending).
-- [ ] Make restore transactional/safe against partial imports.
-- [ ] Preserve legacy backup restore compatibility.
+- [x] Add snapshot-based rollback protection for partial Google Drive restore failures (best-effort; Hive has no multi-box transaction).
+- [ ] Validate the complete backup payload before mutating live boxes.
+- [ ] Add regression tests proving legacy backup compatibility and rollback behavior.
 
 ## Phase 1 — Payroll correctness (in progress)
 
