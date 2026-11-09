@@ -9,7 +9,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Inspect current Finance and Team screens/services on this branch.
 - [x] Inspect employee and expense persistence models.
 - [x] Inspect Google Drive backup export/import compatibility.
-- [x] Identify branch divergence from latest main (this branch is 1 commit ahead and 5 behind; integration remains pending).
+- [x] Identify branch divergence from latest main (this branch is currently 9 commits ahead and 5 behind; integration remains pending).
 - [ ] Complete audit of all Hive box registrations and startup initialization.
 - [ ] Document existing schema/type IDs and migration constraints.
 - [ ] Decide and document persistence strategy for the full finance ledger.
