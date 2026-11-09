@@ -1123,66 +1123,18 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
   }
 
   Future<void> _importAllBoxesFromJson(Map<String, dynamic> data) async {
-    // Parse and validate the complete payload before touching live Hive data.
-    final payload = const BackupRestoreService().parse(data);
+    final service = const BackupRestoreService();
+    // Complete parsing and validation happens before any live box is changed.
+    final payload = service.parse(data);
 
-    final usersBox = Hive.box<User>(Boxes.users);
-    final productsBox = Hive.box<Product>(Boxes.products);
-    final salesBox = Hive.box<Sale>(Boxes.sales);
-    final expensesBox = Hive.box<Expense>(Boxes.expenses);
-    final employeesBox = Hive.box<Employee>(Boxes.employees);
-    final appSettingsBox = Hive.box<dynamic>('app_settings');
-
-    // Hive has no multi-box transaction. Keep snapshots so a failed write can
-    // be rolled back as far as the storage layer permits.
-    final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
-    final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
-    final salesSnapshot = Map<dynamic, Sale>.from(salesBox.toMap());
-    final expensesSnapshot = Map<dynamic, Expense>.from(expensesBox.toMap());
-    final employeesSnapshot = Map<dynamic, Employee>.from(employeesBox.toMap());
-    final settingsSnapshot = Map<dynamic, dynamic>.from(appSettingsBox.toMap());
-
-    try {
-      await usersBox.clear();
-      await usersBox.putAll({for (final item in payload.users) item.id: item});
-      await productsBox.clear();
-      await productsBox.putAll({for (final item in payload.products) item.id: item});
-      await salesBox.clear();
-      await salesBox.putAll({for (final item in payload.sales) item.id: item});
-      await expensesBox.clear();
-      await expensesBox.putAll({for (final item in payload.expenses) item.id: item});
-      await employeesBox.clear();
-      await employeesBox.putAll({for (final item in payload.employees) item.id: item});
-
-      // Preserve the historic merge behavior and do not clear settings when
-      // restoring a legacy backup that has no appSettings field.
-      if (payload.appSettings != null) {
-        await appSettingsBox.putAll(payload.appSettings!);
-      }
-    } catch (restoreError, stackTrace) {
-      try {
-        await usersBox.clear();
-        await usersBox.putAll(usersSnapshot);
-        await productsBox.clear();
-        await productsBox.putAll(productsSnapshot);
-        await salesBox.clear();
-        await salesBox.putAll(salesSnapshot);
-        await expensesBox.clear();
-        await expensesBox.putAll(expensesSnapshot);
-        await employeesBox.clear();
-        await employeesBox.putAll(employeesSnapshot);
-        await appSettingsBox.clear();
-        await appSettingsBox.putAll(settingsSnapshot);
-      } catch (rollbackError) {
-        Error.throwWithStackTrace(
-          StateError(
-            'Restore failed ($restoreError) and rollback also failed '
-            '($rollbackError). Data may require recovery from a backup.',
-          ),
-          stackTrace,
-        );
-      }
-      Error.throwWithStackTrace(restoreError, stackTrace);
-    }
+    await service.apply(
+      payload,
+      usersBox: Hive.box<User>(Boxes.users),
+      productsBox: Hive.box<Product>(Boxes.products),
+      salesBox: Hive.box<Sale>(Boxes.sales),
+      expensesBox: Hive.box<Expense>(Boxes.expenses),
+      employeesBox: Hive.box<Employee>(Boxes.employees),
+      appSettingsBox: Hive.box<dynamic>('app_settings'),
+    );
   }
 }
