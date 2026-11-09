@@ -90,8 +90,8 @@ class PayrollService {
     }).toList();
   }
 
-  /// Monthly staff: paid this month. Daily staff: paid today.
-  static bool isPaid(
+  /// Total amount paid to [employee] inside the applicable payroll period.
+  static double paidAmountFor(
     Employee employee,
     Iterable<Expense> expenses,
     DateTime now, {
@@ -102,8 +102,39 @@ class PayrollService {
       now,
     );
     return paymentsFor(employee, expenses, span, allEmployees: allEmployees)
-        .isNotEmpty;
+        .fold<double>(0, (total, payment) => total + payment.amount);
   }
+
+  /// Remaining amount due in the applicable payroll period.
+  static double outstandingFor(
+    Employee employee,
+    Iterable<Expense> expenses,
+    DateTime now, {
+    required Iterable<Employee> allEmployees,
+  }) {
+    final paid = paidAmountFor(
+      employee,
+      expenses,
+      now,
+      allEmployees: allEmployees,
+    );
+    return (employee.wage - paid).clamp(0.0, double.infinity).toDouble();
+  }
+
+  /// Monthly staff: fully paid this month. Daily staff: fully paid today.
+  /// A partial payment must not mark the entire wage as paid.
+  static bool isPaid(
+    Employee employee,
+    Iterable<Expense> expenses,
+    DateTime now, {
+    required Iterable<Employee> allEmployees,
+  }) =>
+      outstandingFor(
+        employee,
+        expenses,
+        now,
+        allEmployees: allEmployees,
+      ) <= 0.005;
 
   static PayrollSummary summarize(
     List<Employee> employees,
@@ -122,13 +153,13 @@ class PayrollService {
         dailyCount++;
         if (!paid) {
           dailyUnpaid++;
-          dailyDue += e.wage;
+          dailyDue += outstandingFor(e, expenses, now, allEmployees: employees);
         }
       } else {
         monthlyCount++;
         if (!paid) {
           monthlyUnpaid++;
-          monthlyDue += e.wage;
+          monthlyDue += outstandingFor(e, expenses, now, allEmployees: employees);
         }
       }
     }
