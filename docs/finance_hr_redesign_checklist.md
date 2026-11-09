@@ -131,6 +131,19 @@
 - All new persisted fields require migration and backup/restore coverage.
 - Do not claim a phase is complete until its tests and acceptance checks pass.
 
+## Initial audit findings
+
+These findings are confirmed from the current `main` and the older Finance/Team branch. They are not yet a complete repository audit.
+
+- Current persistence is Hive. Existing boxes include users, products, sales, expenses, employees, plus settings/session boxes.
+- The current `Employee` model stores only ID, name, daily/monthly type, a single wage value, attendance count, and a salary-paid flag.
+- The current `Expense` model stores ID, date, category, floating-point amount, and description. It has no employee link on `main`.
+- The older Finance/Team branch adds `employeeId` to expenses and introduces Finance/Payroll services, but that branch is diverged from `main` (one commit ahead and five behind). Do not merge it wholesale.
+- Current Google Drive backup export/import is manually serialized in the backup screen. Its payload does not currently include employee-linked expense IDs or any future Finance/HR records.
+- Current restore clears existing Hive boxes before importing records. A failure partway through import can leave partially restored data; this needs a safer restore strategy.
+- The existing payroll screens write salary payments as ordinary expenses. The old branch's payroll service improves employee linking, but it still treats any payment in a period as fully paid. Payroll runs and payment allocations are required for correct partial-payment handling.
+- The backup transport service and backup payload serializer are separate concerns. Preserve the existing Drive folder/sign-in behavior while versioning the payload and migration logic.
+
 ## Current status
 
 - [x] Product direction confirmed: small/medium, offline-first, complete scope.
