@@ -72,15 +72,15 @@ class DailyWageScreen extends StatelessWidget {
                 );
               }
 
-              final todayStart = DateTime(DateTime.now().year,
-                  DateTime.now().month, DateTime.now().day);
-              final todayEnd = todayStart.add(const Duration(days: 1));
-              final todaysPayments = expBox.values
-                  .where((ex) =>
-                      ex.category == 'Salary-Daily' &&
-                      !ex.date.isBefore(todayStart) &&
-                      ex.date.isBefore(todayEnd))
-                  .toList();
+              final now = DateTime.now();
+              final paidEmployeeCount = dailyEmployees
+                  .where((employee) => PayrollService.isPaid(
+                        employee,
+                        expBox.values,
+                        now,
+                        allEmployees: empBox.values,
+                      ))
+                  .length;
 
               return Column(
                 children: [
@@ -160,7 +160,7 @@ class DailyWageScreen extends StatelessWidget {
                               Expanded(
                                 child: _buildSummaryItem(
                                   'Paid Today',
-                                  '${todaysPayments.length}',
+                                  '${paidEmployeeCount}',
                                   Icons.check_circle_outlined,
                                   Colors.green,
                                 ),
