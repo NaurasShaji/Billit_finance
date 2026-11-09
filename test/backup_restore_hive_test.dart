@@ -176,6 +176,7 @@ void main() {
       date: DateTime(2026, 1, 3),
       category: 'Rent',
       amount: 100,
+      description: 'Existing expense',
     );
     final oldEmployee = Employee(
       id: 'old-employee',
