@@ -1,0 +1,143 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:billit/services/backup_restore_service.dart';
+import 'package:billit/models/product.dart';
+import 'package:billit/models/sale.dart';
+
+void main() {
+  const service = BackupRestoreService();
+
+  group('BackupRestoreService', () {
+    test('accepts legacy backups with omitted optional fields', () {
+      final payload = service.parse({
+        'users': [
+          {
+            'id': 'u1',
+            'username': 'admin',
+            'password': 'hash',
+            'userType': 'admin',
+          },
+        ],
+        'products': [
+          {
+            'id': 'p1',
+            'name': 'Notebook',
+            'sellingPrice': 50,
+            'costPrice': 30,
+            'stock': 10,
+          },
+        ],
+        'sales': [
+          {
+            'id': 's1',
+            'date': '2026-01-02T10:00:00.000',
+            'items': [
+              {
+                'productId': 'p1',
+                'qty': 2,
+                'sellingPrice': 50,
+                'costPrice': 30,
+                'subtotal': 100,
+              },
+            ],
+            'totalAmount': 100,
+            'totalCost': 60,
+            'profit': 40,
+            'payment': 'cash',
+          },
+        ],
+        'expenses': [
+          {
+            'id': 'e1',
+            'date': '2026-01-02T12:00:00.000',
+            'category': 'Travel',
+            'amount': 25,
+          },
+        ],
+        'employees': [
+          {
+            'id': 'emp1',
+            'name': 'Employee',
+            'type': 'daily',
+            'wage': 500,
+          },
+        ],
+      });
+
+      expect(payload.users, hasLength(1));
+      expect(payload.products.single.unit, UnitType.pcs);
+      expect(payload.products.single.category, 'General');
+      expect(payload.sales.single.payment, PaymentMethod.cash);
+      expect(payload.sales.single.items.single.unitLabel, 'pcs');
+      expect(payload.sales.single.items.single.taxableAmount, 0);
+      expect(payload.expenses.single.description, '');
+      expect(payload.employees.single.attendance, 0);
+      expect(payload.employees.single.salaryPaid, isFalse);
+      expect(payload.appSettings, isNull);
+    });
+
+    test('rejects a non-list collection before returning a payload', () {
+      expect(
+        () => service.parse({'products': {'id': 'not-a-list'}}),
+        throwsFormatException,
+      );
+    });
+
+    test('rejects malformed nested sale items', () {
+      expect(
+        () => service.parse({
+          'sales': [
+            {
+              'id': 's1',
+              'date': '2026-01-02',
+              'items': ['invalid'],
+              'totalAmount': 1,
+              'totalCost': 1,
+              'profit': 0,
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('rejects duplicate IDs rather than silently overwriting records', () {
+      final product = {
+        'id': 'p1',
+        'name': 'Notebook',
+        'sellingPrice': 50,
+        'costPrice': 30,
+        'stock': 10,
+      };
+      expect(
+        () => service.parse({
+          'products': [product, product],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('rejects non-finite numeric values', () {
+      expect(
+        () => service.parse({
+          'products': [
+            {
+              'id': 'p1',
+              'name': 'Notebook',
+              'sellingPrice': double.infinity,
+              'costPrice': 30,
+              'stock': 10,
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('preserves provided app settings as a map', () {
+      final payload = service.parse({
+        'appSettings': {'theme': 'dark', 'showLogo': true},
+      });
+      expect(payload.appSettings, {'theme': 'dark', 'showLogo': true});
+    });
+  });
+}
