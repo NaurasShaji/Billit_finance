@@ -19,15 +19,33 @@ void main() {
     tempDirectory =
         await Directory.systemTemp.createTemp('billit_backup_restore_test');
     Hive.init(tempDirectory.path);
-    Hive.registerAdapter(UserAdapter());
-    Hive.registerAdapter(UserTypeAdapter());
-    Hive.registerAdapter(UnitTypeAdapter());
-    Hive.registerAdapter(ProductAdapter());
-    Hive.registerAdapter(PaymentMethodAdapter());
-    Hive.registerAdapter(SaleItemAdapter());
-    Hive.registerAdapter(SaleAdapter());
-    Hive.registerAdapter(ExpenseAdapter());
-    Hive.registerAdapter(EmployeeAdapter());
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(UserAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(UserTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(UnitTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(4)) {
+      Hive.registerAdapter(ProductAdapter());
+    }
+    if (!Hive.isAdapterRegistered(5)) {
+      Hive.registerAdapter(PaymentMethodAdapter());
+    }
+    if (!Hive.isAdapterRegistered(6)) {
+      Hive.registerAdapter(SaleItemAdapter());
+    }
+    if (!Hive.isAdapterRegistered(7)) {
+      Hive.registerAdapter(SaleAdapter());
+    }
+    if (!Hive.isAdapterRegistered(8)) {
+      Hive.registerAdapter(ExpenseAdapter());
+    }
+    if (!Hive.isAdapterRegistered(9)) {
+      Hive.registerAdapter(EmployeeAdapter());
+    }
 
     users = await Hive.openBox<User>('users');
     products = await Hive.openBox<Product>('products');
