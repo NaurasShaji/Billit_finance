@@ -12,10 +12,13 @@ Work branch: `feature/finance-team-promotion`
 - Added `SchemaMigrationService` and invoked it during startup after existing Hive boxes are opened.
 - Added migration tests for legacy baseline assignment, sequential/idempotent execution, failed migrations, newer database versions, and missing migration steps.
 - **Validation pending:** the migration tests have not yet been run; Flutter analyze and platform builds have not been run.
-- Added pre-restore snapshots for users, products, sales, expenses, employees, and app settings. If import or persistence fails, restore attempts to reinstate the snapshots; this is best-effort rollback, not an ACID multi-box transaction.
-- Existing export format, backup filename, Google Drive sign-in/transport, session box, and app-settings merge behavior were left unchanged.
-- **Validation pending:** malformed/legacy backup tests, rollback-failure tests, Flutter tests, static analysis, and builds have not been run.
-- **Next:** extract backup parsing into a testable service, validate the full payload before mutating live boxes, and add regression tests for legacy backups and rollback.
+- Added `BackupRestoreService` to parse and validate all backup collections and nested sale items before any live Hive box is changed.
+- Validation covers collection/object shapes, required fields, dates, finite numeric values, optional field types, and duplicate record IDs. Legacy optional fields retain their previous defaults.
+- Added tests for legacy payload compatibility, malformed collections/items, duplicate IDs, non-finite values, and app-settings parsing.
+- Restore now applies only the fully parsed payload, with snapshots retained for best-effort rollback if Hive writes fail.
+- Existing export format, backup filename, Google Drive sign-in/transport, session box, and app-settings merge behavior remain unchanged.
+- **Validation pending:** the new tests, rollback-failure tests, Flutter tests, static analysis, and builds have not been run.
+- **Next:** inspect and test rollback behavior in a Flutter-enabled environment, then continue payroll and finance implementation.
 
 ## Phase 0 — Repository audit and safe foundation
 
@@ -28,8 +31,9 @@ Work branch: `feature/finance-team-promotion`
 - [x] Decide and document persistence strategy for the full finance ledger. See [finance ledger persistence decision](finance_ledger_persistence_decision.md).
 - [x] Add versioned schema migration runner and migration tests (tests added; execution still pending).
 - [x] Add snapshot-based rollback protection for partial Google Drive restore failures (best-effort; Hive has no multi-box transaction).
-- [ ] Validate the complete backup payload before mutating live boxes.
-- [ ] Add regression tests proving legacy backup compatibility and rollback behavior.
+- [x] Validate the complete backup payload before mutating live boxes.
+- [x] Add parser tests for legacy backup compatibility and malformed data.
+- [ ] Add Hive integration tests for restore application and rollback behavior.
 
 ## Phase 1 — Payroll correctness (in progress)
 
