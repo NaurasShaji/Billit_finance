@@ -4,6 +4,16 @@ Target: general-purpose Billit for small and medium businesses. Offline-first. P
 
 Work branch: `feature/finance-team-promotion`
 
+
+## Latest progress
+
+- Completed Hive persistence audit: `docs/persistence_schema_audit.md`.
+- Documented the offline-first journal architecture: `docs/finance_ledger_persistence_decision.md`.
+- Added `SchemaMigrationService` and invoked it during startup after existing Hive boxes are opened.
+- Added migration tests for legacy baseline assignment, sequential/idempotent execution, failed migrations, newer database versions, and missing migration steps.
+- **Validation pending:** the migration tests have not yet been run; Flutter analyze and platform builds have not been run.
+- **Next implementation task:** make Google Drive restore safe against partial imports while preserving legacy backup compatibility and existing Drive sign-in/transport behavior.
+
 ## Phase 0 — Repository audit and safe foundation
 
 - [x] Inspect current Finance and Team screens/services on this branch.
