@@ -2,8 +2,9 @@ import '../models/employee.dart';
 import '../models/expense.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
-import '../models/user.dart';
 import 'package:hive/hive.dart';
+
+import '../models/user.dart';
 
 /// Fully parsed backup data. Constructing this object performs all validation,
 /// before the caller mutates any live Hive box.
@@ -28,7 +29,6 @@ class BackupRestorePayload {
 class BackupRestoreService {
   const BackupRestoreService();
 
-
   /// Parses first, then applies. Invalid data cannot mutate live boxes.
   Future<void> restore(
     Map<String, dynamic> data, {
@@ -38,6 +38,7 @@ class BackupRestoreService {
     required Box<Expense> expensesBox,
     required Box<Employee> employeesBox,
     required Box<dynamic> appSettingsBox,
+    Future<void> Function(String stage)? afterWrite,
   }) async {
     final payload = parse(data);
     await apply(
@@ -48,6 +49,7 @@ class BackupRestoreService {
       expensesBox: expensesBox,
       employeesBox: employeesBox,
       appSettingsBox: appSettingsBox,
+      afterWrite: afterWrite,
     );
   }
 
@@ -62,6 +64,7 @@ class BackupRestoreService {
     required Box<Expense> expensesBox,
     required Box<Employee> employeesBox,
     required Box<dynamic> appSettingsBox,
+    Future<void> Function(String stage)? afterWrite,
   }) async {
     final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
     final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
@@ -73,16 +76,22 @@ class BackupRestoreService {
     try {
       await usersBox.clear();
       await usersBox.putAll({for (final item in payload.users) item.id: item});
+      await afterWrite?.call('users.putAll');
       await productsBox.clear();
       await productsBox.putAll({for (final item in payload.products) item.id: item});
+      await afterWrite?.call('products.putAll');
       await salesBox.clear();
       await salesBox.putAll({for (final item in payload.sales) item.id: item});
+      await afterWrite?.call('sales.putAll');
       await expensesBox.clear();
       await expensesBox.putAll({for (final item in payload.expenses) item.id: item});
+      await afterWrite?.call('expenses.putAll');
       await employeesBox.clear();
       await employeesBox.putAll({for (final item in payload.employees) item.id: item});
+      await afterWrite?.call('employees.putAll');
       if (payload.appSettings != null) {
         await appSettingsBox.putAll(payload.appSettings!);
+        await afterWrite?.call('appSettings.putAll');
       }
     } catch (restoreError, stackTrace) {
       try {
