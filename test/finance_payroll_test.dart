@@ -54,6 +54,53 @@ void main() {
           isFalse);
     });
 
+    test('partial payments leave the remaining salary outstanding', () {
+      final employee =
+          Employee(id: 'partial', name: 'Meera', type: 'monthly', wage: 20000);
+      final payments = [
+        PayrollService.buildPayment(
+            employee, 7500, DateTime(2026, 11, 3), 'partial-1'),
+        PayrollService.buildPayment(
+            employee, 2500, DateTime(2026, 11, 7), 'partial-2'),
+      ];
+
+      expect(
+        PayrollService.paidAmountFor(employee, payments, now,
+            allEmployees: [employee]),
+        10000,
+      );
+      expect(
+        PayrollService.outstandingFor(employee, payments, now,
+            allEmployees: [employee]),
+        10000,
+      );
+      expect(
+        PayrollService.isPaid(employee, payments, now,
+            allEmployees: [employee]),
+        isFalse,
+      );
+    });
+
+    test('overpayment does not produce a negative outstanding balance', () {
+      final employee =
+          Employee(id: 'overpaid', name: 'Asha', type: 'monthly', wage: 1000);
+      final payments = [
+        PayrollService.buildPayment(
+            employee, 1200, DateTime(2026, 11, 3), 'overpaid-1'),
+      ];
+
+      expect(
+        PayrollService.outstandingFor(employee, payments, now,
+            allEmployees: [employee]),
+        0,
+      );
+      expect(
+        PayrollService.isPaid(employee, payments, now,
+            allEmployees: [employee]),
+        isTrue,
+      );
+    });
+
     test('legacy payment for a duplicated name is not guessed', () {
       final a = Employee(id: '1', name: 'Anu', type: 'daily', wage: 700);
       final b = Employee(id: '2', name: 'Anu', type: 'daily', wage: 800);
