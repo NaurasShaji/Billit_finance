@@ -5,6 +5,7 @@ import 'gst_settings_screen.dart';
 import 'invoice_settings_screen.dart';
 import 'invoice_customisation_screen.dart';
 import 'printer_settings_screen.dart';
+import 'tabs/archive_tab.dart';
 import '../utils/theme_colors.dart';
 import '../widgets/responsive_page.dart';
 
@@ -52,6 +53,12 @@ class SettingsScreen extends StatelessWidget {
               title: 'GST Settings',
               subtitle: 'Configure GST and tax defaults',
               onTap: () => _open(context, const GstSettingsScreen()),
+            ),
+            _SettingsItem(
+              icon: Icons.handyman_outlined,
+              title: 'Business Tools',
+              subtitle: 'Bulk import, exports, backup and account',
+              onTap: () => _open(context, const ArchiveTab(standalone: true)),
             ),
           ],
         ),

@@ -8,7 +8,8 @@ import 'tabs/billing_tab.dart';
 import 'tabs/dashboard_tab.dart';
 import 'tabs/products_tab.dart';
 import 'tabs/reports_tab.dart';
-import 'tabs/archive_tab.dart';
+import 'tabs/finance_tab.dart';
+import 'tabs/team_tab.dart';
 import 'settings_screen.dart';
 import '../widgets/responsive_page.dart';
 
@@ -72,13 +73,31 @@ class _HomeScreenState extends State<HomeScreen> {
         category: 'Inventory',
         question: 'How do I import products in bulk?',
         answer:
-            'Admins can open Archive > Product Management > Bulk Add Products (Excel). Use the provided import format and keep the required column names and values intact.',
+            'Admins can open Settings > Business Tools > Product Management > Bulk Add Products (Excel). Use the provided import format and keep the required column names and values intact.',
       ),
       (
         category: 'Reports',
         question: 'Where can I download sales and GST reports?',
         answer:
             'Open Reports & Statements to choose a day or date range and export the available sales statements, GST sales registers, item registers and expense registers.',
+      ),
+      (
+        category: 'Finance & Team',
+        question: 'How do I record an expense?',
+        answer:
+            'Admins can open Finance and tap Expense. Pick a category, enter the amount and an optional note. Finance shows net profit for today, this month or this year.',
+      ),
+      (
+        category: 'Finance & Team',
+        question: 'How do I pay salaries and daily wages?',
+        answer:
+            'Open Team to see who is paid and who is due. Tap Pay beside an employee to record their salary or day\'s wage, or use Pay salaries / Pay daily wages to adjust the amount first.',
+      ),
+      (
+        category: 'Finance & Team',
+        question: 'How do I add or edit employees?',
+        answer:
+            'Open Team and tap Manage to add an employee, change their pay, or remove them. Tap any employee card to see their payment history.',
       ),
       (
         category: 'Invoices',
@@ -102,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
         category: 'Account & Data',
         question: 'How do I change my password?',
         answer:
-            'Open Archive > Account & Settings > Change Password. Password changes are managed by the admin account.',
+            'Open Settings > Business Tools > Account & Settings > Change Password. Password changes are managed by the admin account.',
       ),
       (
         category: 'Account & Data',
@@ -114,13 +133,13 @@ class _HomeScreenState extends State<HomeScreen> {
         category: 'Account & Data',
         question: 'How do I back up or restore business data?',
         answer:
-            'Admins can open Archive > Data Management > Backup & Restore and connect Google Drive. Keep a recent backup before restoring: restore replaces the current business data.',
+            'Admins can open Settings > Business Tools > Data Management > Backup & Restore and connect Google Drive. Keep a recent backup before restoring: restore replaces the current business data.',
       ),
       (
         category: 'Access',
         question: 'What can a worker account access?',
         answer:
-            'Worker access is limited to day-to-day operations. Admin-only functions such as business settings, archive tools and detailed financial information are restricted.',
+            'Worker access is limited to day-to-day operations. Admin-only functions such as business settings, business tools, finance and payroll are restricted.',
       ),
     ];
 
@@ -303,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Expanded(
                                         child: Text(
                                           isAdmin
-                                              ? 'Start with Billing and Inventory. Use Reports for exports and Archive for business tools, backups and account management.'
+                                              ? 'Start with Billing and Inventory. Use Reports for exports, Finance for expenses and profit, Team for employees and payroll, and Settings > Business Tools for backups and account management.'
                                               : 'Start with Billing and Inventory. Ask your admin if you need access to restricted settings or business tools.',
                                           style: Theme.of(context)
                                               .textTheme
@@ -407,16 +426,25 @@ class _HomeScreenState extends State<HomeScreen> {
         : isRounded
             ? Icons.bar_chart_rounded
             : Icons.bar_chart_outlined;
-    final archive = isFilled
-        ? Icons.archive
+    final finance = isFilled
+        ? Icons.account_balance_wallet
         : isRounded
-            ? Icons.archive_rounded
-            : Icons.archive_outlined;
+            ? Icons.account_balance_wallet_rounded
+            : Icons.account_balance_wallet_outlined;
+    final team = isFilled
+        ? Icons.groups
+        : isRounded
+            ? Icons.groups_rounded
+            : Icons.groups_outlined;
 
     return isAdmin
-        ? [overview, billing, inventory, reports, archive]
+        ? [overview, billing, inventory, reports, finance, team]
         : [overview, billing, inventory, reports];
   }
+
+  List<String> _navigationKeys(bool isAdmin) => isAdmin
+      ? ['overview', 'billing', 'inventory', 'reports', 'finance', 'team']
+      : ['overview', 'billing', 'inventory', 'reports'];
 
   IconData _iconFromChoice(String choice, IconData fallback) {
     switch (choice) {
@@ -446,6 +474,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return Icons.analytics_outlined;
       case 'trending':
         return Icons.trending_up_outlined;
+      case 'wallet':
+        return Icons.account_balance_wallet_outlined;
+      case 'savings':
+        return Icons.savings_outlined;
+      case 'people':
+        return Icons.groups_outlined;
+      case 'badge':
+        return Icons.badge_outlined;
       case 'archive':
         return Icons.archive_outlined;
       case 'folder':
@@ -578,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool isAdmin = _authService.isAdmin;
 
     final List<String> labels = isAdmin
-        ? ['Overview', 'Billing', 'Inventory', 'Reports', 'Archive']
+        ? ['Overview', 'Billing', 'Inventory', 'Reports', 'Finance', 'Team']
         : ['Overview', 'Billing', 'Inventory', 'Reports'];
 
     final settingsBox = Hive.box<dynamic>('app_settings');
@@ -590,9 +626,7 @@ class _HomeScreenState extends State<HomeScreen> {
       isAdmin: isAdmin,
       style: navigationIconStyle,
     );
-    final navigationKeys = isAdmin
-        ? ['overview', 'billing', 'inventory', 'reports', 'archive']
-        : ['overview', 'billing', 'inventory', 'reports'];
+    final navigationKeys = _navigationKeys(isAdmin);
     final rawOverrides = settingsBox
         .get('navigation_icon_overrides', defaultValue: <String, String>{});
     final navigationOverrides =
@@ -609,11 +643,15 @@ class _HomeScreenState extends State<HomeScreen> {
         onOpenBilling: () => setState(() => _index = 1),
         onOpenProducts: () => setState(() => _index = 2),
         onOpenReports: () => setState(() => _index = 3),
+        onOpenFinance: isAdmin ? () => setState(() => _index = 4) : null,
       ),
       const BillingTab(),
       const ProductsTab(),
       const ReportsTab(),
-      if (isAdmin) const ArchiveTab(),
+      if (isAdmin) ...[
+        const FinanceTab(),
+        const TeamTab(),
+      ],
     ];
 
     // Ensure _index is within bounds for worker
@@ -763,15 +801,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         .get('navigation_icon_style', defaultValue: 'outlined')
                         .toString(),
                   ),
-                  isAdmin
-                      ? [
-                          'overview',
-                          'billing',
-                          'inventory',
-                          'reports',
-                          'archive'
-                        ]
-                      : ['overview', 'billing', 'inventory', 'reports'],
+                  _navigationKeys(isAdmin),
                   settings.get('navigation_icon_overrides',
                           defaultValue: <String, String>{}) is Map
                       ? settings.get('navigation_icon_overrides',

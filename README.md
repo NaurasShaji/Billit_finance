@@ -28,13 +28,15 @@ Billit is a point-of-sale and retail management app for billing, inventory, GST,
 - See revenue, profit, and invoice counts for the selected reporting period.
 - Browse recorded sales and access invoice actions from the report views.
 
-### Expenses and employee payroll
+### Finance and Team (expenses and employee payroll)
+
+Finance and Team are top-level tabs for admins.
 
 - Record business expenses with an amount, description, date, and category.
 - Use built-in expense categories such as rent, utilities, transport, supplies, maintenance, and miscellaneous, or add a category.
 - Browse expense history by day, month, or year; navigate between periods and filter salary expenses separately from other expenses.
 - Add employees as daily-wage or monthly-salary staff, set their pay amount, edit their pay type or amount, and delete employee records.
-- Record daily wage payments and monthly salary payments, with summaries of employees and payments for the current day or month.
+- Record daily wage payments and monthly salary payments, with summaries of employees and payments for the current day or month. Each payment is linked to the employee by id, so renaming or duplicate names never mix up who was paid.
 - Review payroll/expense totals by day, month, or year, including daily wages, monthly salaries, other expenses, and net expenses.
 
 ### Backup, printer, and account tools
@@ -48,7 +50,7 @@ Billit is a point-of-sale and retail management app for billing, inventory, GST,
 ### Accounts and access
 
 - Admin and worker accounts are seeded on first launch.
-- Admins have access to the Archive area for expenses, payroll, backups, customer lookup, and account tools. Workers see the Billing, Products, and Reports tabs, with daily reports.
+- Admins see the Overview, Billing, Inventory, Reports, Finance, and Team tabs. Backups, bulk import, report exports, customer lookup, and account tools are under Settings > Business Tools. Workers see the Billing, Products, and Reports tabs, with daily reports.
 
 ## Requirements
 

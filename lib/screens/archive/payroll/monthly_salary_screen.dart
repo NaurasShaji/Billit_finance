@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:uuid/uuid.dart';
+import '../../../services/payroll_service.dart';
 import 'package:intl/intl.dart';
 import '../../../models/employee.dart';
 import '../../../models/expense.dart';
@@ -181,8 +181,12 @@ class MonthlySalaryScreen extends StatelessWidget {
                         final e = monthlyEmployees[index];
                         final controller = TextEditingController(
                             text: e.wage.toStringAsFixed(2));
-                        final isPaidThisMonth = monthPayments
-                            .any((ex) => ex.description.contains(e.name));
+                        final isPaidThisMonth = PayrollService.isPaid(
+                          e,
+                          expBox.values,
+                          DateTime.now(),
+                          allEmployees: empBox.values,
+                        );
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -509,15 +513,7 @@ class MonthlySalaryScreen extends StatelessWidget {
     );
 
     if (shouldProceed == true) {
-      final expense = Expense(
-        id: const Uuid().v4(),
-        date: DateTime.now(),
-        category: 'Salary-Monthly',
-        amount: amount,
-        description: 'Monthly salary paid to ${employee.name}',
-      );
-
-      await expBox.put(expense.id, expense);
+      await PayrollService.recordPayment(employee, amount);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

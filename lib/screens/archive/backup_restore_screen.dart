@@ -1105,6 +1105,7 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'category': e.category,
                 'amount': e.amount,
                 'description': e.description,
+                if (e.employeeId != null) 'employeeId': e.employeeId,
               })
           .toList(),
       'employees': employeesBox.values
@@ -1215,6 +1216,7 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
         category: e['category'] as String,
         amount: (e['amount'] as num).toDouble(),
         description: e['description'] as String? ?? '',
+        employeeId: e['employeeId'] as String?,
       );
       await expensesBox.put(expense.id, expense);
     }
