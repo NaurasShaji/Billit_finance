@@ -114,8 +114,13 @@ class TeamTab extends StatelessWidget {
                         employee: e,
                         paid: PayrollService.isPaid(e, expenses, now,
                             allEmployees: employees),
+                        paidAmount: PayrollService.paidAmountFor(
+                          e, expenses, now, allEmployees: employees),
+                        outstanding: PayrollService.outstandingFor(
+                          e, expenses, now, allEmployees: employees),
                         currency: currency,
-                        onPay: () => _confirmAndPay(context, e, currency),
+                        onPay: () =>
+                            _confirmAndPay(context, e, expenses, employees, currency),
                         onHistory: () => _showHistory(
                             context, e, expenses, employees, currency),
                       ),
@@ -218,15 +223,20 @@ class TeamTab extends StatelessWidget {
   Future<void> _confirmAndPay(
     BuildContext context,
     Employee employee,
+    List<Expense> expenses,
+    List<Employee> employees,
     NumberFormat currency,
   ) async {
     final isDaily = employee.type == PayrollService.typeDaily;
+    final outstanding = PayrollService.outstandingFor(
+      employee, expenses, DateTime.now(), allEmployees: employees);
+    if (outstanding <= 0.005) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isDaily ? 'Pay daily wage' : 'Pay monthly salary'),
         content: Text(
-          'Pay ${currency.format(employee.wage)} to ${employee.name}? '
+          'Pay the remaining ${currency.format(outstanding)} to ${employee.name}? '
           'This is recorded as an expense.',
         ),
         actions: [
@@ -243,7 +253,7 @@ class TeamTab extends StatelessWidget {
     );
     if (ok != true) return;
 
-    await PayrollService.recordPayment(employee, employee.wage);
+    await PayrollService.recordPayment(employee, outstanding);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -393,6 +403,8 @@ class _EmployeeCard extends StatelessWidget {
   const _EmployeeCard({
     required this.employee,
     required this.paid,
+    required this.paidAmount,
+    required this.outstanding,
     required this.currency,
     required this.onPay,
     required this.onHistory,
@@ -400,6 +412,8 @@ class _EmployeeCard extends StatelessWidget {
 
   final Employee employee;
   final bool paid;
+  final double paidAmount;
+  final double outstanding;
   final NumberFormat currency;
   final VoidCallback onPay;
   final VoidCallback onHistory;
@@ -410,9 +424,12 @@ class _EmployeeCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isDaily = employee.type == PayrollService.typeDaily;
     final statusColor = paid ? Colors.green : Colors.orange;
+    final partiallyPaid = paidAmount > 0.005 && !paid;
     final statusText = paid
         ? (isDaily ? 'Paid today' : 'Paid this month')
-        : (isDaily ? 'Not paid today' : 'Salary due');
+        : partiallyPaid
+            ? 'Partially paid · ${currency.format(outstanding)} due'
+            : (isDaily ? 'Not paid today' : 'Salary due');
     final initial =
         employee.name.trim().isEmpty ? '?' : employee.name.trim()[0].toUpperCase();
 
