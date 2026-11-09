@@ -73,14 +73,14 @@ class MonthlySalaryScreen extends StatelessWidget {
               }
 
               final now = DateTime.now();
-              final monthStart = DateTime(now.year, now.month, 1);
-              final monthEnd = DateTime(now.year, now.month + 1, 1);
-              final monthPayments = expBox.values
-                  .where((ex) =>
-                      ex.category == 'Salary-Monthly' &&
-                      !ex.date.isBefore(monthStart) &&
-                      ex.date.isBefore(monthEnd))
-                  .toList();
+              final paidEmployeeCount = monthlyEmployees
+                  .where((employee) => PayrollService.isPaid(
+                        employee,
+                        expBox.values,
+                        now,
+                        allEmployees: empBox.values,
+                      ))
+                  .length;
 
               return Column(
                 children: [
@@ -160,7 +160,7 @@ class MonthlySalaryScreen extends StatelessWidget {
                               Expanded(
                                 child: _buildSummaryItem(
                                   'Paid This Month',
-                                  '${monthPayments.length}',
+                                  '${paidEmployeeCount}',
                                   Icons.check_circle_outlined,
                                   Colors.green,
                                 ),
