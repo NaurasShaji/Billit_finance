@@ -24,6 +24,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Do not mark an employee fully paid when only a partial payment exists.
 - [x] Use remaining balance as the default amount in daily and monthly payroll screens.
 - [x] Allow additional payments while a balance remains.
+- [x] Reject payroll payments that exceed the outstanding balance.
 - [x] Show partially-paid state and remaining balance in the Team screen.
 - [x] Pay only the outstanding balance from the Team quick-pay action.
 - [x] Add unit tests for partial payment and overpayment calculations.
