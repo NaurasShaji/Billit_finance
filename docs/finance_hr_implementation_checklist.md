@@ -26,6 +26,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Allow additional payments while a balance remains.
 - [x] Reject payroll payments that exceed the outstanding balance.
 - [x] Show partially-paid state and remaining balance in the Team screen.
+- [x] Count fully paid employees (not payment records) in daily/monthly payroll summaries.
 - [x] Pay only the outstanding balance from the Team quick-pay action.
 - [x] Add unit tests for partial payment and overpayment calculations.
 - [ ] Run Flutter tests and static analysis in a Flutter-enabled environment.
