@@ -29,6 +29,28 @@ class BackupRestoreService {
   const BackupRestoreService();
 
 
+  /// Parses first, then applies. Invalid data cannot mutate live boxes.
+  Future<void> restore(
+    Map<String, dynamic> data, {
+    required Box<User> usersBox,
+    required Box<Product> productsBox,
+    required Box<Sale> salesBox,
+    required Box<Expense> expensesBox,
+    required Box<Employee> employeesBox,
+    required Box<dynamic> appSettingsBox,
+  }) async {
+    final payload = parse(data);
+    await apply(
+      payload,
+      usersBox: usersBox,
+      productsBox: productsBox,
+      salesBox: salesBox,
+      expensesBox: expensesBox,
+      employeesBox: employeesBox,
+      appSettingsBox: appSettingsBox,
+    );
+  }
+
   /// Applies a previously validated payload. Hive does not provide a
   /// multi-box transaction, so existing contents are snapshotted and restored
   /// on a write failure (best effort).
