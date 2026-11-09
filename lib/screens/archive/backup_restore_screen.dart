@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/backup_restore_service.dart';
 import '../../services/drive_backup_service.dart';
 import '../../utils/theme_colors.dart';
 
@@ -1122,6 +1123,9 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
   }
 
   Future<void> _importAllBoxesFromJson(Map<String, dynamic> data) async {
+    // Parse and validate the complete payload before touching live Hive data.
+    final payload = const BackupRestoreService().parse(data);
+
     final usersBox = Hive.box<User>(Boxes.users);
     final productsBox = Hive.box<Product>(Boxes.products);
     final salesBox = Hive.box<Sale>(Boxes.sales);
@@ -1129,9 +1133,8 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
     final employeesBox = Hive.box<Employee>(Boxes.employees);
     final appSettingsBox = Hive.box<dynamic>('app_settings');
 
-    // Snapshot every affected box before changing live data. Hive does not
-    // provide a multi-box transaction, so rollback is best-effort if a write
-    // fails during restore.
+    // Hive has no multi-box transaction. Keep snapshots so a failed write can
+    // be rolled back as far as the storage layer permits.
     final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
     final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
     final salesSnapshot = Map<dynamic, Sale>.from(salesBox.toMap());
@@ -1141,112 +1144,20 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
 
     try {
       await usersBox.clear();
+      await usersBox.putAll({for (final item in payload.users) item.id: item});
       await productsBox.clear();
+      await productsBox.putAll({for (final item in payload.products) item.id: item});
       await salesBox.clear();
+      await salesBox.putAll({for (final item in payload.sales) item.id: item});
       await expensesBox.clear();
+      await expensesBox.putAll({for (final item in payload.expenses) item.id: item});
       await employeesBox.clear();
+      await employeesBox.putAll({for (final item in payload.employees) item.id: item});
 
-      for (final u in (data['users'] as List? ?? const [])) {
-      final user = User()
-        ..id = u['id'] as String
-        ..username = u['username'] as String
-        ..password = u['password'] as String
-        ..userType = (u['userType'] as String) == 'admin'
-            ? UserType.admin
-            : UserType.worker;
-      await usersBox.put(user.id, user);
-    }
-
-    for (final p in (data['products'] as List? ?? const [])) {
-      final product = Product()
-        ..id = p['id'] as String
-        ..name = p['name'] as String
-        ..sellingPrice = (p['sellingPrice'] as num).toDouble()
-        ..costPrice = (p['costPrice'] as num).toDouble()
-        ..stock = (p['stock'] as num).toDouble()
-        ..unit = UnitType.values.firstWhere(
-          (unit) => unit.name == (p['unit'] as String? ?? 'pcs'),
-          orElse: () => UnitType.pcs,
-        )
-        ..category = p['category'] as String? ?? 'General'
-        ..subCategory = p['subCategory'] as String? ?? ''
-        ..active = p['active'] as bool? ?? true
-        ..barcode = p['barcode'] as String?
-        ..hsnCode = p['hsnCode'] as String? ?? ''
-        ..gstRate = (p['gstRate'] as num?)?.toDouble();
-      await productsBox.put(product.id, product);
-    }
-
-    for (final s in (data['sales'] as List? ?? const [])) {
-      final sale = Sale()
-        ..id = s['id'] as String
-        ..date = DateTime.parse(s['date'] as String)
-        ..items = ((s['items'] as List?) ?? const [])
-            .map((it) => SaleItem()
-              ..productId = it['productId'] as String
-              ..qty = (it['qty'] as num).toDouble()
-              ..sellingPrice = (it['sellingPrice'] as num).toDouble()
-              ..costPrice = (it['costPrice'] as num).toDouble()
-              ..subtotal = (it['subtotal'] as num).toDouble()
-              ..unitLabel = it['unitLabel'] as String? ?? 'pcs'
-              ..hsnCode = it['hsnCode'] as String? ?? ''
-              ..gstRate = (it['gstRate'] as num?)?.toDouble()
-              ..taxableAmount = (it['taxableAmount'] as num?)?.toDouble() ?? 0.0
-              ..cgstAmount = (it['cgstAmount'] as num?)?.toDouble() ?? 0.0
-              ..sgstAmount = (it['sgstAmount'] as num?)?.toDouble() ?? 0.0
-              ..igstAmount = (it['igstAmount'] as num?)?.toDouble() ?? 0.0)
-            .toList()
-        ..totalAmount = (s['totalAmount'] as num).toDouble()
-        ..totalCost = (s['totalCost'] as num).toDouble()
-        ..profit = (s['profit'] as num).toDouble()
-        ..payment = switch (s['payment'] as String) {
-          'card' => PaymentMethod.card,
-          'upi' => PaymentMethod.upi,
-          _ => PaymentMethod.cash,
-        }
-        ..customerName = s['customerName'] as String? ?? ''
-        ..customerPhone = s['customerPhone'] as String? ?? ''
-        ..userId = s['userId'] as String? ?? ''
-        ..discount = (s['discount'] as num?)?.toDouble() ?? 0.0
-        ..gstEnabled = s['gstEnabled'] as bool? ?? false
-        ..gstRate = (s['gstRate'] as num?)?.toDouble() ?? 0.0
-        ..taxableAmount = (s['taxableAmount'] as num?)?.toDouble() ?? 0.0
-        ..cgstAmount = (s['cgstAmount'] as num?)?.toDouble() ?? 0.0
-        ..sgstAmount = (s['sgstAmount'] as num?)?.toDouble() ?? 0.0
-        ..igstAmount = (s['igstAmount'] as num?)?.toDouble() ?? 0.0
-        ..customerGstin = s['customerGstin'] as String? ?? ''
-        ..interstateSale = s['interstateSale'] as bool? ?? false
-        ..gstInclusive = s['gstInclusive'] as bool? ?? false;
-      await salesBox.put(sale.id, sale);
-    }
-
-    for (final e in (data['expenses'] as List? ?? const [])) {
-      final expense = Expense(
-        id: e['id'] as String,
-        date: DateTime.parse(e['date'] as String),
-        category: e['category'] as String,
-        amount: (e['amount'] as num).toDouble(),
-        description: e['description'] as String? ?? '',
-        employeeId: e['employeeId'] as String?,
-      );
-      await expensesBox.put(expense.id, expense);
-    }
-
-    for (final emp in (data['employees'] as List? ?? const [])) {
-      final employee = Employee(
-        id: emp['id'] as String,
-        name: emp['name'] as String,
-        type: emp['type'] as String,
-        wage: (emp['wage'] as num).toDouble(),
-        attendance: (emp['attendance'] as num?)?.toInt() ?? 0,
-        salaryPaid: emp['salaryPaid'] as bool? ?? false,
-      );
-      await employeesBox.put(employee.id, employee);
-    }
-
-    final savedSettings = data['appSettings'];
-      if (savedSettings is Map) {
-        await appSettingsBox.putAll(Map<String, dynamic>.from(savedSettings));
+      // Preserve the historic merge behavior and do not clear settings when
+      // restoring a legacy backup that has no appSettings field.
+      if (payload.appSettings != null) {
+        await appSettingsBox.putAll(payload.appSettings!);
       }
     } catch (restoreError, stackTrace) {
       try {
@@ -1264,7 +1175,10 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
         await appSettingsBox.putAll(settingsSnapshot);
       } catch (rollbackError) {
         Error.throwWithStackTrace(
-          StateError('Restore failed ($restoreError) and rollback also failed ($rollbackError). Data may require recovery from a backup.'),
+          StateError(
+            'Restore failed ($restoreError) and rollback also failed '
+            '($rollbackError). Data may require recovery from a backup.',
+          ),
           stackTrace,
         );
       }
