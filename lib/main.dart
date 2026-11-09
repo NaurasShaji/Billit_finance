@@ -10,6 +10,7 @@ import 'services/boxes.dart';
 import 'services/auth_service.dart';
 import 'services/desktop_window_service.dart';
 import 'services/drive_sync_service.dart';
+import 'services/schema_migration_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -39,6 +40,11 @@ Future<void> main() async {
   await Hive.openBox<Employee>(Boxes.employees);
   await Hive.openBox('session');
   final settings = await Hive.openBox<dynamic>('app_settings');
+
+  // Existing installations are initialized as schema version 1. Future
+  // migrations must be registered here before adding new persisted models.
+  await const SchemaMigrationService().run(settings);
+
   Future<void> setDefaultSetting(String key, dynamic value) async {
     if (!settings.containsKey(key)) await settings.put(key, value);
   }
