@@ -1111,7 +1111,10 @@ class HrPayrollService {
     final postingBox = Hive.box<FinancePosting>(Boxes.financePostings);
     final existing = txBox.values.where((tx) => tx.sourceType == 'payroll_accrual' && tx.sourceId == slip.id).toList();
     if (existing.isNotEmpty) {
-      if (existing.length != 1 || existing.single.id != id || existing.single.status != 'posted') throw const HrPayrollServiceException('Conflicting payroll accrual journal exists.');
+      if (existing.length != 1 || existing.single.id != id || existing.single.status != 'posted' ||
+          txBox.values.any((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == id && tx.status == 'posted')) {
+        throw const HrPayrollServiceException('Conflicting or reversed payroll accrual journal exists.');
+      }
       final lines = postingBox.values.where((line) => line.transactionId == id).toList();
       int netFor(String account) => lines.where((line) => line.accountId == account).fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
       final expectedCount = 1 + (net > 0 ? 1 : 0) + (advance > 0 ? 1 : 0) + (other > 0 ? 1 : 0);
