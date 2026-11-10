@@ -41,9 +41,9 @@ Work branch: `feature/finance-team-promotion`
 - Updated receivables/payables ageing to apply persisted invoice allocations first and retain FIFO only for unallocated legacy settlement amounts. Also ensured transaction due dates are included in backup export.
 - Added customer/supplier statements from the party directory. Each statement derives its entries from posted receivable/payable journal lines and shows date-filtered opening balance, period movement, closing balance, and running balance per transaction.
 - Invoice-level payment allocation is now persisted in the schema-v8 allocation store. The standalone allocation screen supports partial allocations and allocation history; ageing applies explicit allocations before applying any remaining legacy settlement balance FIFO. Backup export, validation, restore, and rollback include allocation records.
-- **Remaining allocation workflow:** customer receipts and supplier payments are still created in the transaction form first, then allocated from the separate allocation screen. In-form multi-invoice allocation during settlement creation is not implemented. The current allocation service validates explicit allocation totals against invoice/settlement gross amounts; reconciliation against legacy FIFO settlements before a new explicit allocation needs additional coverage before production use.
+- **Allocation workflow update:** customer receipts and supplier payments now expose optional multi-invoice allocation rows in the transaction form. Each row is prevalidated against the invoice balance after existing explicit allocations and legacy FIFO settlements; total allocation cannot exceed the new settlement. Allocation records are batch-validated before persistence. If allocation persistence fails after journal posting, the form attempts an immutable reversal of the settlement. The separate allocation screen remains available for later allocation of advances.
 - Tests, formatting, static analysis, and platform builds remain pending.
-- Added unit tests for partial allocation, over-allocation rejection, and reversal-aware allocation history. **Validation remains pending:** no Flutter commands have been run in this environment. The Hive CE workflow must regenerate `pubspec.lock` and adapters, then run formatting, analysis, tests, and Android build.
+- Added unit tests for partial allocation, batch over-allocation rejection without partial writes, legacy FIFO balance before new allocation, and reversal-aware allocation history. **Validation remains pending:** no Flutter commands have been run in this environment. The Hive CE workflow must regenerate `pubspec.lock` and adapters, then run formatting, analysis, tests, and Android build.
 
 ## Phase 0 — Repository audit and safe foundation
 
@@ -105,8 +105,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Optional due dates for manual receivable/payable entries and receivables/payables ageing report with current, 1–30, 31–60, 61–90, and 90+ day buckets. Report applies persisted explicit allocations first, then applies unallocated legacy settlement balances FIFO.
 - [x] Partial customer receipts and supplier payments with party-level outstanding balances.
 - [x] Persisted invoice-level payment allocation, partial allocation UI, allocation history, reversal-aware effective balances, and backup/restore support.
-- [ ] Integrate allocation into customer receipt and supplier payment creation, supporting one settlement split across multiple invoices.
-- [ ] Reconcile new explicit allocations against invoices already settled through legacy FIFO receipts/payments; add regression tests for mixed explicit/FIFO histories.
+- [x] Integrate optional multi-invoice allocation into customer receipt and supplier payment creation; unallocated settlement amounts remain available as party advances.
+- [x] Validate invoice balances against prior explicit allocations and legacy FIFO settlements before new explicit allocations; add regression coverage for legacy FIFO balance and batch over-allocation (tests authored, execution pending).
 - [x] Budget creation, period tracking, and actual-versus-budget reporting from posted expense journal lines (tests authored; execution pending).
 - [x] Journal-based cash-flow and profit-and-loss summaries.
 - [x] Clearly distinguish POS gross-profit estimate from journal-based accounting profit.
