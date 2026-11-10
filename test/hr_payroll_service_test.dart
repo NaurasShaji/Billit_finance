@@ -335,10 +335,22 @@ void main() {
     final firstPayment = await payroll.payPayslip(
       payslipId: monthlySlip.id,
       amountPaise: 1000000,
+      cashAccountId: 'system:bank',
     );
     expect(firstPayment.status, 'partially_paid');
     expect(firstPayment.paidPaise, 1000000);
     expect(firstPayment.outstandingPaise, 2000000);
+    final firstPaymentJournal = transactions.values.singleWhere(
+      (item) => item.sourceType == 'legacy_expense' &&
+          item.sourceId == 'payroll-payment:${monthlySlip.id}:from:0:0',
+    );
+    expect(
+      postings.values.singleWhere(
+        (line) => line.transactionId == firstPaymentJournal.id &&
+            line.creditPaise > 0,
+      ).accountId,
+      'system:bank',
+    );
 
     final secondPayment = await payroll.payPayslip(
       payslipId: monthlySlip.id,
