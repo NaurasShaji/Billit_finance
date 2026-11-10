@@ -227,3 +227,8 @@ A controlled opening-balance action is now available for legacy advances that ha
 ## Employee advance payroll journal diagnostics
 
 Payroll recovery reconciliation now validates more than the presence of a source-linked journal. It checks posted status, the two-line journal structure, Salaries and Wages debit, Employee Advances credit, matching debit/credit amounts, and that the combined payslip recovery journal covers the individual advance repayment amount. The report also flags malformed payroll repayment records. A regression test covers a payslip recovering instalments from multiple advances into one combined journal. Tests remain unexecuted.
+
+
+## Overtime approval workflow
+
+New overtime entries are saved as pending and excluded from payroll until approved. The employee profile provides approve/reject controls; rejection requires a reason. Review decisions record a timestamp and note. Existing overtime entries without a status remain treated as approved to preserve historical payroll behavior. Regression coverage checks pending exclusion, rejection, and prevention of re-approving a rejected entry; tests have not been run.
