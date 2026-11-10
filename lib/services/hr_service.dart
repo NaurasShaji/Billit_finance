@@ -118,14 +118,19 @@ class HrService {
       switch (record.status) {
         case 'present':
           present++;
+          break;
         case 'half_day':
           half++;
+          break;
         case 'absent':
           absent++;
+          break;
         case 'leave':
           leave++;
+          break;
         case 'holiday':
           holidays++;
+          break;
       }
     }
     return AttendanceSummary(
@@ -254,7 +259,16 @@ class HrService {
       reviewedAt: DateTime.now(),
       createdAt: request.createdAt,
     );
-    await requests.put(reviewed.id, reviewed);
+    try {
+      await requests.put(reviewed.id, reviewed);
+    } catch (_) {
+      for (final id in insertedAttendanceIds.reversed) {
+        try {
+          await attendance.delete(id);
+        } catch (_) {}
+      }
+      rethrow;
+    }
     return reviewed;
   }
 }
