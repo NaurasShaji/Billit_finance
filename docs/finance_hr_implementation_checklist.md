@@ -90,7 +90,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Journal-based cash-flow and profit-and-loss summaries.
 - [x] Clearly distinguish POS gross-profit estimate from journal-based accounting profit.
 - [x] Journal-based accounting report screen with profit-and-loss, cash-flow, and trial-balance views plus PDF/print export.
-- [ ] Spreadsheet exports.
+- [x] Excel workbook export for summary and trial balance.
 
 ## Phase 4 — HR foundation
 
