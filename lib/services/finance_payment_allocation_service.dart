@@ -160,6 +160,74 @@ class FinanceAllocationDraft {\n  const FinanceAllocationDraft({required this.id
             : p.debitPaise - p.creditPaise));
   }
 
+  /// Computes the balance remaining after explicit allocations and legacy FIFO
+  /// settlements. Excludes the settlement currently being allocated.
+  int invoiceOutstandingPaise({
+    required String invoiceId, required String partyId, required String partyType,
+    required Iterable<FinanceTransaction> transactions,
+    required Iterable<FinancePosting> postings, String? excludeSettlementId,
+  }) {
+    final tx = transactions.where((t) => t.status == 'posted').toList();
+    final reversed = tx.where((t) => t.transactionType == 'reversal')
+        .map((t) => t.reversedTransactionId).whereType<String>().toSet();
+    final invoice = tx.where((t) => t.id == invoiceId && !reversed.contains(t.id)).firstOrNull;
+    if (invoice == null) throw const FinanceAllocationException('Invoice must be posted and not reversed.');
+    var remaining = invoiceAmountPaise(invoiceId: invoiceId, partyId: partyId, partyType: partyType, transactions: tx, postings: postings);
+    for (final a in allocations.where((a) => a.invoiceTransactionId == invoiceId && a.partyId == partyId && !reversed.contains(a.settlementTransactionId) && a.settlementTransactionId != excludeSettlementId)) { remaining -= a.amountPaise; }
+    final account = partyType == 'customer' ? 'system:receivables' : 'system:payables';
+    final settlementType = partyType == 'customer' ? 'customer_receipt' : 'supplier_payment';
+    final settlements = <FinanceTransaction, int>{};
+    for (final t in tx.where((t) => t.transactionType == settlementType && !reversed.contains(t.id) && t.id != excludeSettlementId && !t.date.isBefore(invoice.date))) {
+      final gross = postings.where((p) => p.transactionId == t.id && p.accountId == account && p.partyId == partyId).fold<int>(0, (s,p) => s + (partyType == 'customer' ? p.creditPaise-p.debitPaise : p.debitPaise-p.creditPaise));
+      final used = allocations.where((a) => a.settlementTransactionId == t.id && !reversed.contains(a.invoiceTransactionId) && !reversed.contains(a.settlementTransactionId)).fold<int>(0, (s,a) => s+a.amountPaise);
+      if (gross > used) settlements[t] = gross-used;
+    }
+    final ordered = settlements.keys.toList()..sort((a,b) => a.date.compareTo(b.date));
+    for (final settlement in ordered) {
+      if (remaining <= 0) break;
+      final earlier = tx.where((t) => t.id != invoiceId && !reversed.contains(t.id) && t.transactionType == (partyType == 'customer' ? 'income' : 'expense') && t.date.isBefore(invoice.date) && t.date.isBefore(settlement.date));
+      var earlierOpen = false;
+      for (final old in earlier) {
+        final gross = invoiceAmountPaise(invoiceId: old.id, partyId: partyId, partyType: partyType, transactions: tx, postings: postings);
+        final paid = allocations.where((a) => a.invoiceTransactionId == old.id && !reversed.contains(a.settlementTransactionId) && !reversed.contains(a.invoiceTransactionId)).fold<int>(0,(s,a)=>s+a.amountPaise);
+        if (gross > paid) { earlierOpen = true; break; }
+      }
+      if (!earlierOpen) remaining -= settlements[settlement]!;
+    }
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  /// Validates all rows before writing, so one invalid row cannot leave a
+  /// partially-created multi-invoice allocation.
+  Future<List<FinancePaymentAllocation>> allocateBatch({
+    required String settlementTransactionId, required String partyId, required String partyType,
+    required List<FinanceAllocationDraft> drafts,
+    required Iterable<FinanceTransaction> transactions, required Iterable<FinancePosting> postings,
+  }) async {
+    if (drafts.isEmpty) return const [];
+    final tx = transactions.toList(), lines = postings.toList();
+    final gross = settlementAmountPaise(settlementId:settlementTransactionId, partyId:partyId, partyType:partyType, transactions:tx, postings:lines);
+    final settlement = tx.firstWhere((t) => t.id == settlementTransactionId);
+    final existing = allocatedFromSettlement(settlementTransactionId, transactions:tx);
+    final ids = <String>{}, totals = <String,int>{};
+    var requestedTotal = 0;
+    for (final d in drafts) {
+      if (d.id.trim().isEmpty || !ids.add(d.id) || allocations.any((a)=>a.id==d.id) || d.amountPaise<=0) throw const FinanceAllocationException('Allocation rows need unique IDs and positive amounts.');
+      final invoice = tx.firstWhere((t)=>t.id==d.invoiceTransactionId && t.status=='posted',orElse:()=>throw const FinanceAllocationException('Invoice must be posted.'));
+      if (invoice.date.isAfter(settlement.date)) throw const FinanceAllocationException('A settlement cannot be allocated to a future invoice.');
+      final balance = invoiceOutstandingPaise(invoiceId:invoice.id, partyId:partyId, partyType:partyType, transactions:tx, postings:lines, excludeSettlementId:settlementTransactionId);
+      final requested = (totals[invoice.id] ?? 0) + d.amountPaise;
+      if (requested > balance) throw FinanceAllocationException('Allocation exceeds actual outstanding for invoice ${invoice.transactionNumber}.');
+      totals[invoice.id] = requested; requestedTotal += d.amountPaise;
+    }
+    if (existing + requestedTotal > gross) throw const FinanceAllocationException('Allocations exceed the unallocated settlement amount.');
+    final createdAt = DateTime.now();
+    final records = drafts.map((d)=>FinancePaymentAllocation(id:d.id, settlementTransactionId:settlementTransactionId, invoiceTransactionId:d.invoiceTransactionId, partyId:partyId, amountPaise:d.amountPaise, createdAt:createdAt)).toList(growable:false);
+    final snapshot = Map<dynamic,dynamic>.from(_box.toMap());
+    try { await _box.putAll({for (final a in records) a.id:a.toMap()}); }
+    catch (_) { try { await _box.clear(); await _box.putAll(snapshot); } catch (_) {} rethrow; }
+    return records;
+  }
   Future<FinancePaymentAllocation> allocate({
     required String id,
     required String settlementTransactionId,
