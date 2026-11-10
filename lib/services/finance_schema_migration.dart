@@ -124,4 +124,15 @@ class FinanceSchemaMigration {
           }
         },
       );
+
+  /// Adds salary components, payroll runs, and immutable payslip snapshots.
+  static SchemaMigration get versionFourToFive => SchemaMigration(
+        fromVersion: 4,
+        toVersion: 5,
+        apply: (_) async {
+          await Hive.openBox<SalaryComponent>(Boxes.salaryComponents);
+          await Hive.openBox<PayrollRun>(Boxes.payrollRuns);
+          await Hive.openBox<Payslip>(Boxes.payslips);
+        },
+      );
 }
