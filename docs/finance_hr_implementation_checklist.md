@@ -270,6 +270,6 @@ This checklist records implementation only when code exists; validation items re
 
 - [x] Add cash/bank/wallet account selection to the payslip payment dialog.
 - [x] Validate that the selected account is active, INR, and an asset account before recording payment.
-- [x] Pass the selected destination account to the payroll finance journal and reject a mismatch before marking the payslip paid.
+- [x] Pass the selected destination account to the payroll finance journal and reject a mismatch before marking the payslip paid. `FinanceSourceSyncService.syncExpense` now accepts and validates the selected active INR asset account, so payroll payments post to the chosen cash/bank/wallet account rather than always crediting cash.
 - [x] Cover bank posting and invalid expense-account rejection in payroll service regression tests (execution pending).
 - [ ] Payroll liability accrual and settlement remain separate from the existing immediate salary-expense payment flow.
