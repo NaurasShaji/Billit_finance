@@ -144,10 +144,13 @@ class PayrollService {
     final today = FinanceService.spanFor(FinancePeriod.today, now);
     final month = FinanceService.spanFor(FinancePeriod.month, now);
 
+    final activeEmployees = employees
+        .where((employee) => employee.employmentStatus == 'active')
+        .toList();
     var monthlyCount = 0, dailyCount = 0;
     var monthlyUnpaid = 0, dailyUnpaid = 0;
     var monthlyDue = 0.0, dailyDue = 0.0;
-    for (final e in employees) {
+    for (final e in activeEmployees) {
       final paid = isPaid(e, expenses, now, allEmployees: employees);
       if (e.type == typeDaily) {
         dailyCount++;
@@ -172,7 +175,7 @@ class PayrollService {
     }
 
     return PayrollSummary(
-      employeeCount: employees.length,
+      employeeCount: activeEmployees.length,
       monthlyCount: monthlyCount,
       dailyCount: dailyCount,
       monthlyUnpaid: monthlyUnpaid,
@@ -186,6 +189,9 @@ class PayrollService {
 
   /// Records a salary/wage payment as an expense linked to the employee.
   static Future<Expense> recordPayment(Employee employee, double amount) async {
+    if (employee.employmentStatus != 'active') {
+      throw StateError('Inactive employees cannot receive payroll payments.');
+    }
     if (!amount.isFinite || amount <= 0) {
       throw ArgumentError.value(amount, 'amount', 'Must be a positive finite amount');
     }
