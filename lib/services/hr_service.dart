@@ -31,7 +31,10 @@ class AttendanceSummary {
 }
 
 class LeavePolicy {
-  const LeavePolicy({required this.annualEntitlementDays, required this.accrualEnabled});
+  const LeavePolicy({
+    required this.annualEntitlementDays,
+    required this.accrualEnabled,
+  });
   final int annualEntitlementDays;
   final bool accrualEnabled;
 
@@ -41,14 +44,21 @@ class LeavePolicy {
       };
 
   factory LeavePolicy.fromMap(Map value) => LeavePolicy(
-        annualEntitlementDays: (value['annualEntitlementDays'] as num?)?.toInt() ?? 0,
-        accrualEnabled: value['accrualEnabled'] as bool? ?? false,
+        annualEntitlementDays: value['annualEntitlementDays'] is num
+            ? (value['annualEntitlementDays'] as num).toInt()
+            : 0,
+        accrualEnabled: value['accrualEnabled'] is bool
+            ? value['accrualEnabled'] as bool
+            : false,
       );
 }
 
 class LeaveBalance {
-  const LeaveBalance({required this.leaveType, required this.entitledDays, required this.usedDays})
-      : availableDays = entitledDays - usedDays;
+  const LeaveBalance({
+    required this.leaveType,
+    required this.entitledDays,
+    required this.usedDays,
+  }) : availableDays = entitledDays - usedDays;
   final String leaveType;
   final double entitledDays;
   final int usedDays;
@@ -82,10 +92,21 @@ class HrService {
       }
     }
     for (final type in leaveTypes) {
-      result.putIfAbsent(type, () => LeavePolicy(
-            annualEntitlementDays: type == 'casual' ? 12 : type == 'sick' ? 12 : type == 'earned' ? 15 : 0,
-            accrualEnabled: type == 'casual' || type == 'sick' || type == 'earned',
-          ));
+      result.putIfAbsent(
+        type,
+        () => LeavePolicy(
+          annualEntitlementDays: type == 'casual'
+              ? 12
+              : type == 'sick'
+                  ? 12
+                  : type == 'earned'
+                      ? 15
+                      : 0,
+          accrualEnabled: type == 'casual' ||
+              type == 'sick' ||
+              type == 'earned',
+        ),
+      );
     }
     return result;
   }
@@ -96,9 +117,12 @@ class HrService {
     }
     for (final type in leaveTypes) {
       final policy = policies[type];
-      if (policy == null || policy.annualEntitlementDays < 0 ||
+      if (policy == null ||
+          policy.annualEntitlementDays < 0 ||
           policy.annualEntitlementDays > 365) {
-        throw const HrServiceException('Leave entitlement must be between 0 and 365 days for every leave type.');
+        throw const HrServiceException(
+          'Leave entitlement must be between 0 and 365 days for every leave type.',
+        );
       }
       if (type == 'unpaid' && policy.annualEntitlementDays != 0) {
         throw const HrServiceException('Unpaid leave cannot accrue paid leave days.');
@@ -129,7 +153,8 @@ class HrService {
       return LeaveBalance(leaveType: leaveType, entitledDays: 0, usedDays: 0);
     }
     final yearStart = DateTime(date.year, 1, 1);
-    final accrualStart = employee.joiningDate == null || employee.joiningDate!.isBefore(yearStart)
+    final accrualStart = employee.joiningDate == null ||
+            employee.joiningDate!.isBefore(yearStart)
         ? yearStart
         : day(employee.joiningDate!);
     final monthDifference = (date.year - accrualStart.year) * 12 +
@@ -145,11 +170,19 @@ class HrService {
             !day(request.endDate).isBefore(yearStart) &&
             !day(request.startDate).isAfter(date))
         .fold<int>(0, (sum, request) {
-          final start = request.startDate.isBefore(yearStart) ? yearStart : day(request.startDate);
-          final end = request.endDate.isAfter(date) ? date : day(request.endDate);
+          final start = request.startDate.isBefore(yearStart)
+              ? yearStart
+              : day(request.startDate);
+          final end = request.endDate.isAfter(date)
+              ? date
+              : day(request.endDate);
           return end.isBefore(start) ? sum : sum + end.difference(start).inDays + 1;
         });
-    return LeaveBalance(leaveType: leaveType, entitledDays: entitled, usedDays: used);
+    return LeaveBalance(
+      leaveType: leaveType,
+      entitledDays: entitled,
+      usedDays: used,
+    );
   }
 
   static String attendanceId(String employeeId, DateTime date) {
