@@ -229,6 +229,9 @@ void main() {
     expect(settings.get('business_name'), 'Original business');
     expect(users.get('old-user')!.username, 'old-user');
     expect(products.get('old-product')!.name, 'Existing product');
+    expect(sales.get('old-sale')!.totalAmount, 20);
+    expect(expenses.get('old-expense')!.amount, 100);
+    expect(employees.get('old-employee')!.name, 'Existing employee');
   });
 
   test('legacy payload without app settings leaves current settings intact',
