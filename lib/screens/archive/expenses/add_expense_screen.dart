@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../services/boxes.dart';
+import '../../../services/finance_source_sync_service.dart';
 import '../../../models/expense.dart';
 import '../../../utils/theme_colors.dart';
 
@@ -540,6 +541,27 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
       final box = Hive.box<Expense>(Boxes.expenses);
       await box.put(expense.id, expense);
+
+      try {
+        await FinanceSourceSyncService().syncExpense(
+          expense: expense,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+          employeesBox: Hive.box<Employee>(Boxes.employees),
+        );
+      } catch (financeError) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Expense saved; finance journal sync will retry on next launch: $financeError'),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
+      }
 
       setState(() => _isLoading = false);
 
