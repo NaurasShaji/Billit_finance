@@ -115,7 +115,7 @@ class FinanceReconciliationService {
         issues.add(FinanceReconciliationIssue(
           sourceType: 'pos_sale',
           sourceId: sourceId,
-          message: error.message,
+          message: error.message.toString(),
         ));
         continue;
       }
