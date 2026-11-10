@@ -150,18 +150,21 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                         payrollPayslipIds.contains(tx.sourceId)).toList();
                     final duplicatePayrollJournals =
                         payrollJournals.map((tx) => tx.sourceId).toSet().length != payrollJournals.length;
+                    final missingPayrollJournals = payrollPayslipIds.length -
+                        payrollJournals.map((tx) => tx.sourceId).toSet().length;
                     final issueProblem = !issueValid;
                     final repaymentProblem = missingManual > 0 ||
-                        invalidManual > 0 || duplicatePayrollJournals;
+                        invalidManual > 0 || duplicatePayrollJournals ||
+                        missingPayrollJournals > 0;
                     if (issueProblem) issueProblemCount++;
                     if (repaymentProblem) repaymentProblemCount++;
 
                     final issueLabel = issueJournals.isEmpty
                         ? 'Missing issue journal'
                         : issueJournals.length > 1
-                            ? 'Duplicate issue journals (\${issueJournals.length})'
+                            ? 'Duplicate issue journals (${issueJournals.length})'
                             : issueValid
-                                ? 'Issue journal: \${issueJournals.single.transactionNumber}'
+                                ? 'Issue journal: ${issueJournals.single.transactionNumber}'
                                 : 'Issue journal is unposted or does not match principal';
 
                     rows.add(Card(
@@ -171,7 +174,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                             ? item['description'] as String
                             : 'Employee advance'),
                         subtitle: Text(
-                          '\${employee?.name ?? 'Unknown employee'} · Outstanding \${_money(outstanding)}',
+                          '${employee?.name ?? 'Unknown employee'} · Outstanding ${_money(outstanding)}',
                         ),
                         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                         children: [
@@ -186,7 +189,8 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                           _detail('Invalid/duplicate manual journals', invalidManual.toString()),
                           _detail('Payroll recovery records', payrollPayslipIds.length.toString()),
                           _detail('Linked payroll recovery journals', payrollJournals.length.toString()),
-                          if (duplicatePayrollJournals)
+                          _detail('Missing payroll recovery journals', missingPayrollJournals.toString()),
+                          if (duplicatePayrollJournals || missingPayrollJournals > 0)
                             const ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: Icon(Icons.warning_amber_rounded),
@@ -209,7 +213,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(_money(_amount(repayment['amountPaise']))),
-                                subtitle: Text('\${repayment['source'] ?? 'unknown'} · \${repayment['date'] ?? ''}'),
+                                subtitle: Text('${repayment['source'] ?? 'unknown'} · ${repayment['date'] ?? ''}'),
                                 trailing: repayment['source'] == 'manual'
                                     ? Icon(transactionBox.values.any((tx) =>
                                         tx.sourceType == 'employee_advance_repayment' &&
