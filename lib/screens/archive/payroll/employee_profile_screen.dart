@@ -260,6 +260,96 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     }
   }
 
+  Future<void> _addBonusEntry() async {
+    final description = TextEditingController(text: 'Bonus');
+    final amount = TextEditingController();
+    DateTime date = DateTime.now();
+    final formKey = GlobalKey<FormState>();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Record one-off bonus'),
+          content: Form(
+            key: formKey,
+            child: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: description,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    validator: (value) => (value ?? '').trim().isEmpty
+                        ? 'Enter a description'
+                        : null,
+                  ),
+                  TextFormField(
+                    controller: amount,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Bonus amount', prefixText: '₹ '),
+                    validator: (value) {
+                      final parsed = double.tryParse((value ?? '').trim());
+                      return parsed == null || !parsed.isFinite || parsed <= 0
+                          ? 'Enter a positive amount'
+                          : null;
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: date,
+                        firstDate: DateTime(1980),
+                        lastDate: DateTime.now().add(const Duration(days: 3650)),
+                      );
+                      if (picked != null) setDialogState(() => date = picked);
+                    },
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    label: Text(DateFormat('dd MMM yyyy').format(date)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(dialogContext, true);
+                }
+              },
+              child: const Text('Save bonus'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == true) {
+      try {
+        await HrPayrollService().addBonusEntry(
+          employeeId: widget.employee.id,
+          date: date,
+          amountPaise: (double.parse(amount.text.trim()) * 100).round(),
+          description: description.text,
+        );
+        if (mounted) setState(() {});
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not record bonus: $error')),
+          );
+        }
+      }
+    }
+    description.dispose();
+    amount.dispose();
+  }
+
   Future<void> _addOvertimeEntry() async {
     final hours = TextEditingController();
     final rate = TextEditingController();
@@ -649,6 +739,32 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                   const Text('No documents stored.'),
                 const SizedBox(height: 12),
                 const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('One-off bonuses',
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                    IconButton(
+                      onPressed: _addBonusEntry,
+                      tooltip: 'Record bonus',
+                      icon: const Icon(Icons.card_giftcard_outlined),
+                    ),
+                  ],
+                ),
+                ...HrPayrollService().bonusEntries(widget.employee.id).map((entry) {
+                  final date = DateTime.parse(entry['date'] as String);
+                  final amount = (entry['amountPaise'] as int) / 100;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.payments_outlined),
+                    title: Text(entry['description'] as String),
+                    subtitle: Text(DateFormat('dd MMM yyyy').format(date)),
+                    trailing: Text('₹${amount.toStringAsFixed(2)}'),
+                  );
+                }),
+                if (HrPayrollService().bonusEntries(widget.employee.id).isEmpty)
+                  const Text('No one-off bonuses recorded.'),
                 Row(
                   children: [
                     Expanded(
