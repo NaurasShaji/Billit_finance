@@ -60,7 +60,7 @@ Type ID 0 is unused. IDs 1–21 are now reserved. Finance models use string-valu
 
 - Hive field IDs are the persisted schema. Never renumber or reuse an existing field ID.
 - Additive fields must use a new field ID and have a backward-compatible default in the generated Hive CE adapter. Regenerate adapters after model changes; do not hand-edit generated files.
-- `Expense.employeeId` is the newest additive field (ID 5) and is nullable, so records written before it existed can be read as null.
+- `Expense.employeeId` (field ID 5) is nullable, and `Expense.financeRevision` (field ID 6) defaults to zero, so records written before either field existed remain readable.
 - `Product`, `SaleItem`, and `Sale` generated readers contain defaults for several newer optional fields. Other fields are read with strict casts and have no migration fallback.
 - `Employee` fields 0–5 are all read as required values. Changing this model needs explicit compatibility handling for older records.
 - Enum values are persisted by numeric index. Do not reorder or remove enum values; append new values only, or implement an explicit migration.
