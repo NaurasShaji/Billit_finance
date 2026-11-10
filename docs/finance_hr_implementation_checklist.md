@@ -146,22 +146,23 @@ Work branch: `feature/finance-team-promotion`
 - [x] Journal payroll instalment recovery when the payslip is fully settled: debit Salaries and Wages (gross-up for the deduction) and credit Employee Advances. Posting is stable-source checked and must succeed before the payslip is marked paid; pending snapshots are validated against the outstanding advance before posting. Regression tests are authored, not run.
 - [x] Add an operator-facing employee advance reconciliation report linked from Team. It compares the HR subledger with the posted Employee Advances control account and shows per-employee advance balances, issue-journal presence, manual repayment-journal presence, and payroll recovery journal counts.
 - [x] Add controlled opening-balance posting for unrepaid legacy advances with no linked journal history; debit Employee Advances and credit Opening Balance Equity using an operator-confirmed cut-off date.
-- [ ] Add controlled correction/reversal workflow for advances with partial, duplicate, or mismatched journal history. These remain diagnostic-only pending a coordinated HR-register and immutable-journal correction.
+- [x] Add controlled advance balance correction with reason, effective date, offset account, immutable adjustment journal, idempotent retry, HR register update, and correction history. The workflow does not rewrite original journals; it posts an auditable adjustment against the operator-selected offset account.
 - [x] Payroll runs with draft, approval, partial-payment, and paid states.
 - [x] Payslip generation and payroll history.
 - [x] Payslip PDF/print output.
-- [ ] Reversal/correction workflow (scope limited to advance corrections and approved payroll adjustments; generic correction UI remains deferred).
+- [x] Reversal/correction workflow for employee advances and approved/partially-paid payroll adjustments. Generic correction UI remains deferred.
 
 ## Phase 7 — Finance/HR integration
 
-- [ ] Payroll liabilities and linked finance payments. Current payslip payments post a salary expense and cash/bank credit; a payable liability followed by settlement is not yet implemented.
-- [x] Employee-linked advances, issuance, manual repayment, payroll instalment recovery, and subledger-to-journal reconciliation. Employee reimbursement claims and settlement remain deferred.
-- [ ] Complete cross-module reconciliation and reporting. POS/expense-to-journal and employee-advance reconciliation exist; payroll-liability and reimbursement reconciliation remain open.
+- [x] Payroll liabilities and linked finance payments. New payroll runs accrue gross salary once, credit net Payroll Payable and supported deduction controls, settle net payments against selected INR asset accounts, and retain a cash-basis compatibility path for previously approved runs.
+- [x] Employee-linked advances, issuance, manual repayment, payroll instalment recovery, controlled balance correction, and subledger-to-journal reconciliation.
+- [x] Employee reimbursement claims, approval/rejection, partial settlement, expense accrual, reimbursement payable control, and finance reconciliation.
+- [x] Complete cross-module reconciliation for POS sales, expenses, payroll accruals/payments, employee advances, and reimbursement claims/liabilities. Bank-statement reconciliation and inventory COGS matching remain outside this source-to-journal report.
 
 ## Phase 8 — UI/UX redesign
 
 - [x] Add initial Finance ledger overview, accounts, and journal navigation.
-- [ ] Complete Finance dashboard and navigation redesign.
+- [x] Upgrade Finance dashboard with journal-based accounting net profit, accounting expenses, net cash flow, and a clearly separated POS gross-profit estimate.
 - [x] Finance ledger, account management, journal, P&L/cash-flow overview, and source reconciliation screens.
 - [x] Budget tracking screen and budget form.
 - [x] Recurring income/expense templates, schedule processing, and template archive screen.
@@ -242,7 +243,7 @@ New overtime entries are saved as pending and excluded from payroll until approv
 - [x] Use the latest base-pay rate effective on the payroll run start date when generating a payslip.
 - [x] Reject duplicate base-pay effective dates and changes overlapping a generated payroll period.
 - [x] Author regression tests for salary structure replacement and future-dated base-pay changes (not run).
-- [ ] Add grade-based salary bands and mid-period base-pay proration.
+- [x] Add configurable salary grade bands, effective-dated employee grade assignment, grade-range enforcement, and mid-period base-pay proration across effective-dated salary changes.
 
 
 ## SME completion pass — 10 November 2026
@@ -288,3 +289,16 @@ Required design before implementation:
 5. Reconcile approved net payable, cumulative settlement journals, outstanding payslip balance, and payroll control-account balance. Include retries, partial payments, zero-net slips, approval rollback, and legacy paid runs in regression tests.
 
 Until these rules are implemented together, retain the existing cash-basis posting path. A partial liability implementation would produce misleading P&L and balance-sheet balances.
+
+
+## Finance and remaining HR implementation update — 10 November 2026
+
+- Added schema v10 payroll liability accounts and schema v11 employee reimbursement payable control account.
+- New payroll approvals post one stable accrual per payslip: Dr Salaries and Wages; Cr Payroll Payable for net salary; Cr Employee Advances for reserved advance deductions; and Cr Payroll Deductions Payable for other deductions. Partial salary payments debit Payroll Payable and credit the selected active INR asset account.
+- Existing approved cash-basis payroll runs retain their previous expense-on-payment compatibility path. New accrual payroll payments no longer create duplicate salary Expense records.
+- Payroll approval, payment, and adjustment journals use stable source identities and are included in payroll liability reconciliation. Approved payroll adjustments update payslip/run totals and post immutable journal entries with an audit history.
+- Employee advance balance correction is operator-controlled: verified target balance, effective date, reason, and offset account are required. The service posts a balanced adjustment and updates the HR subledger; previous journals remain immutable.
+- Reimbursement claims support submission, approval/rejection, partial payment, and settlement. Approval accrues the expense and reimbursement payable; each payment settles the payable against the selected cash/bank/wallet asset account.
+- Finance dashboard now displays journal-based accounting net profit separately from the POS gross-profit estimate. Finance reconciliation includes payroll and reimbursement control-account balances.
+- Salary grade bands and effective-dated grade assignments are stored in backed-up app settings. Base-pay changes and payroll generation enforce the assigned grade range. Monthly, weekly, fortnightly, daily-frequency, and daily-wage calculations prorate effective-dated base-pay changes within the payroll period.
+- Tests, formatting, static analysis, builds, and CI were intentionally not run. Release validation remains with the repository owner.
