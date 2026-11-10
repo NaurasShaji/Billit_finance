@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-
-import '../../widgets/finance_content_frame.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
+
+import '../../widgets/finance_content_frame.dart';
 
 import '../../models/models.dart';
 import '../../services/boxes.dart';
