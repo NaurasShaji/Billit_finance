@@ -234,7 +234,15 @@ void main() {
       hours: 2,
       hourlyRatePaise: 100000,
     );
-    final pending = payroll.overtimeEntries('monthly-1').single;
+    await payroll.addOvertimeEntry(
+      employeeId: 'monthly-1',
+      date: DateTime(2026, 10, 5),
+      hours: 1,
+      hourlyRatePaise: 100000,
+    );
+    final entries = payroll.overtimeEntries('monthly-1');
+    final pending = entries.singleWhere((item) => item['date'].toString().startsWith('2026-11-05'));
+    final rejectable = entries.singleWhere((item) => item['date'].toString().startsWith('2026-10-05'));
     final run = await payroll.generateRun(
       periodStart: DateTime(2026, 11, 1),
       periodEnd: DateTime(2026, 11, 30),
@@ -245,10 +253,15 @@ void main() {
 
     await payroll.rejectOvertimeEntry(
       employeeId: 'monthly-1',
-      entryId: pending['id'] as String,
+      entryId: rejectable['id'] as String,
       reason: 'Not approved by supervisor',
     );
-    expect(payroll.overtimeEntries('monthly-1').single['status'], 'rejected');
+    expect(
+      payroll.overtimeEntries('monthly-1').singleWhere(
+        (item) => item['id'] == rejectable['id'],
+      )['status'],
+      'rejected',
+    );
     await expectLater(
       payroll.approveOvertimeEntry(
         employeeId: 'monthly-1',
