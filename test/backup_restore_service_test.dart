@@ -149,6 +149,29 @@ void main() {
       );
     });
 
+    test('rejects budgets that reference unknown or non-expense accounts', () {
+      expect(
+        () => service.parse({
+          'financeAccounts': [],
+          'financeTransactions': [],
+          'financePostings': [],
+          'financeCategories': [],
+          'financeParties': [],
+          'financeBudgets': [
+            {
+              'id': 'budget-1',
+              'name': 'Rent budget',
+              'accountId': 'missing-account',
+              'periodStart': '2026-11-01T00:00:00.000',
+              'periodEnd': '2026-11-30T00:00:00.000',
+              'budgetPaise': 100000,
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
     test('rejects posted finance transactions with unbalanced postings', () {
       expect(
         () => service.parse({
