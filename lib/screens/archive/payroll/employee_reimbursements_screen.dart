@@ -126,7 +126,7 @@ class EmployeeReimbursementsScreen extends StatelessWidget {
                 children: [
                   _detail('Expense date', claim['expenseDate']?.toString() ?? '—'),
                   _detail('Paid', _money(claim['paidPaise'] is int ? claim['paidPaise'] as int : 0)),
-                  _detail('Outstanding', _money(((claim['amountPaise'] is int ? claim['amountPaise'] as int : 0) - (claim['paidPaise'] is int ? claim['paidPaise'] as int : 0)).clamp(0, 1 << 62))),
+                  _detail('Outstanding', _money(((claim['amountPaise'] is int ? claim['amountPaise'] as int : 0) - (claim['paidPaise'] is int ? claim['paidPaise'] as int : 0)) < 0 ? 0 : (claim['amountPaise'] as int) - (claim['paidPaise'] as int))),
                   _detail('Description', claim['note']?.toString() ?? ''),
                   if (claim['reviewNote'] is String && (claim['reviewNote'] as String).isNotEmpty) _detail('Review note', claim['reviewNote'] as String),
                   Wrap(spacing: 8, runSpacing: 8, children: [
