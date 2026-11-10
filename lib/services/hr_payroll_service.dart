@@ -1195,7 +1195,7 @@ class HrPayrollService {
     final afterDeductions = beforeDeductions + deductionDelta;
     Map<String, dynamic> record;
     if (existingRecord.isEmpty) {
-      record = {'id': adjustmentId, 'payslipId': slip.id, 'type': adjustmentType, 'amountPaise': amountPaise, 'date': date.toIso8601String(), 'reason': reason.trim(), 'beforeAllowancesPaise': beforeAllowances, 'beforeDeductionsPaise': beforeDeductions, 'afterAllowancesPaise': afterAllowances, 'afterDeductionsPaise': afterDeductions, 'status': 'pending'};
+      record = {'id': adjustmentId, 'payslipId': slip.id, 'type': adjustmentType, 'amountPaise': amountPaise, 'date': date.toIso8601String(), 'reason': reason.trim(), 'beforeAllowancesPaise': beforeAllowances, 'beforeDeductionsPaise': beforeDeductions, 'afterAllowancesPaise': afterAllowances, 'afterDeductionsPaise': afterDeductions, 'beforeRunGrossPaise': run.totalGrossPaise, 'beforeRunDeductionsPaise': run.totalDeductionsPaise, 'beforeRunNetPaise': run.totalNetPaise, 'afterRunGrossPaise': run.totalGrossPaise + earningDelta, 'afterRunDeductionsPaise': run.totalDeductionsPaise + deductionDelta, 'afterRunNetPaise': run.totalNetPaise + netDelta, 'status': 'pending'};
       history.add(record);
       all[payslipId] = history;
       await settings.put(payrollAdjustmentsKey, all);
@@ -1227,13 +1227,48 @@ class HrPayrollService {
       if (lines.length != 2 || lines.where((line) => line.accountId == debitAccount).fold<int>(0, (sum, line) => sum + line.debitPaise) != amountPaise || lines.where((line) => line.accountId == creditAccount).fold<int>(0, (sum, line) => sum + line.creditPaise) != amountPaise) throw const HrPayrollServiceException('Existing payroll adjustment journal does not match this adjustment.');
     }
     final current = slipsBox.get(payslipId)!;
-    if (current.allowancesPaise == record['beforeAllowancesPaise'] && current.deductionsPaise == record['beforeDeductionsPaise']) {
-      final updated = _copyPayslip(current, allowancesPaise: record['afterAllowancesPaise'] as int, deductionsPaise: record['afterDeductionsPaise'] as int, status: newNet == current.paidPaise ? 'paid' : current.status, paidAt: newNet == current.paidPaise ? DateTime.now() : current.paidAt);
-      await slipsBox.put(updated.id, updated);
-      final updatedRun = _copyRun(run, totalGrossPaise: run.totalGrossPaise + earningDelta, totalDeductionsPaise: run.totalDeductionsPaise + deductionDelta, totalNetPaise: run.totalNetPaise + netDelta);
-      await runsBox.put(updatedRun.id, updatedRun);
-      await _refreshRunStatus(updatedRun, slipsBox);
+    final currentMatchesBefore = current.allowancesPaise == record['beforeAllowancesPaise'] &&
+        current.deductionsPaise == record['beforeDeductionsPaise'];
+    final currentMatchesAfter = current.allowancesPaise == record['afterAllowancesPaise'] &&
+        current.deductionsPaise == record['afterDeductionsPaise'];
+    if (!currentMatchesBefore && !currentMatchesAfter) {
+      throw const HrPayrollServiceException('Payslip changed while the payroll adjustment was being applied.');
     }
+    if (currentMatchesBefore) {
+      final updated = _copyPayslip(
+        current,
+        allowancesPaise: record['afterAllowancesPaise'] as int,
+        deductionsPaise: record['afterDeductionsPaise'] as int,
+        status: (current.basePaise + (record['afterAllowancesPaise'] as int) -
+                    (record['afterDeductionsPaise'] as int)) == current.paidPaise
+            ? 'paid'
+            : current.status,
+        paidAt: (current.basePaise + (record['afterAllowancesPaise'] as int) -
+                    (record['afterDeductionsPaise'] as int)) == current.paidPaise
+            ? DateTime.now()
+            : current.paidAt,
+      );
+      await slipsBox.put(updated.id, updated);
+    }
+    var latestRun = runsBox.get(run.id)!;
+    final runMatchesBefore = latestRun.totalGrossPaise == record['beforeRunGrossPaise'] &&
+        latestRun.totalDeductionsPaise == record['beforeRunDeductionsPaise'] &&
+        latestRun.totalNetPaise == record['beforeRunNetPaise'];
+    final runMatchesAfter = latestRun.totalGrossPaise == record['afterRunGrossPaise'] &&
+        latestRun.totalDeductionsPaise == record['afterRunDeductionsPaise'] &&
+        latestRun.totalNetPaise == record['afterRunNetPaise'];
+    if (runMatchesBefore) {
+      latestRun = _copyRun(
+        latestRun,
+        totalGrossPaise: record['afterRunGrossPaise'] as int,
+        totalDeductionsPaise: record['afterRunDeductionsPaise'] as int,
+        totalNetPaise: record['afterRunNetPaise'] as int,
+      );
+      await runsBox.put(latestRun.id, latestRun);
+    } else if (!runMatchesAfter) {
+      throw const HrPayrollServiceException('Payroll run totals changed while the adjustment was being applied.');
+    }
+    await _refreshRunStatus(latestRun, slipsBox);
     final latest = settings.get(payrollAdjustmentsKey);
     final latestAll = <String, dynamic>{if (latest is Map) ...Map<String, dynamic>.from(latest)};
     final latestHistory = List<dynamic>.from(latestAll[payslipId] as List? ?? []);
