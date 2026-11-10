@@ -125,6 +125,50 @@ void main() {
     );
   });
 
+  test('reverses a posted entry without mutating its original', () async {
+    final service = FinanceLedgerService();
+    final original = transaction();
+    await service.postTransaction(
+      transaction: original,
+      postings: balancedLines(original.id),
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: postings,
+    );
+
+    await service.reverseTransaction(
+      originalTransactionId: original.id,
+      reversalId: 'txn-reversal',
+      reversalNumber: 'TXN-REV-1',
+      reversalDate: DateTime(2026, 1, 4),
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: postings,
+    );
+
+    expect(transactions.get(original.id)!.status, 'posted');
+    expect(
+      transactions.get('txn-reversal')!.reversedTransactionId,
+      original.id,
+    );
+    expect(
+      service.balancePaise(
+        accountId: 'system:operating-expense',
+        transactionsBox: transactions,
+        postingsBox: postings,
+      ),
+      0,
+    );
+    expect(
+      service.balancePaise(
+        accountId: 'system:cash',
+        transactionsBox: transactions,
+        postingsBox: postings,
+      ),
+      0,
+    );
+  });
+
   test('rejects unbalanced entries without writing anything', () async {
     final entry = transaction();
     final lines = balancedLines(entry.id);
