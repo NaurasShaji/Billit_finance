@@ -6,6 +6,7 @@ import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_party_service.dart';
 import 'finance_ageing_screen.dart';
+import 'finance_party_statement_screen.dart';
 
 class FinancePartiesScreen extends StatefulWidget {
   const FinancePartiesScreen({super.key});
@@ -176,7 +177,11 @@ class _FinancePartiesScreenState extends State<FinancePartiesScreen> {
                   for (final party in parties)
                     Card(
                       child: ListTile(
-                        onTap: () => _openForm(party),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => FinancePartyStatementScreen(party: party),
+                          ),
+                        ),
                         title: Text(party.name),
                         subtitle: Text(
                           [
