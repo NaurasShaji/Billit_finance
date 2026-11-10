@@ -22,7 +22,7 @@ replacement, not a box reset or data conversion.
 The following persisted identifiers are part of the compatibility contract:
 
 - Existing box names remain unchanged.
-- Existing Type IDs 1–21 remain unchanged.
+- Existing Type IDs 1–22 remain unchanged.
 - Existing field IDs remain unchanged and are never reused.
 - Existing enum numeric values remain unchanged.
 - Additive model fields require a new field ID and a backward-compatible
