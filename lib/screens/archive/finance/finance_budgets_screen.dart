@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_budget_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class FinanceBudgetsScreen extends StatelessWidget {
   const FinanceBudgetsScreen({super.key});
@@ -41,7 +42,7 @@ class FinanceBudgetsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ScaffolResponsivePage(child: Scaffold((
       appBar: AppBar(
         title: const Text('Budgets'),
         actions: [
@@ -203,7 +204,7 @@ class FinanceBudgetsScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
