@@ -45,6 +45,14 @@ jobs:
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
+      - name: Verify Hive CE dependency graph
+        run: |
+          flutter pub deps --style=compact | tee /tmp/billit-dependencies.txt
+          if grep -E '(^|[[:space:]])hive[[:space:]]+[0-9]' /tmp/billit-dependencies.txt; then
+            echo "::error::Legacy hive package is still present in the dependency graph."
+            exit 1
+          fi
+
       - name: Commit resolved dependency lockfile
         run: |
           if ! git diff --quiet -- pubspec.lock; then
