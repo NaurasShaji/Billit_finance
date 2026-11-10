@@ -3,6 +3,7 @@ import 'package:hive_ce/hive_ce.dart';
 import '../models/employee.dart';
 import '../models/expense.dart';
 import '../models/finance_account.dart';
+import '../models/finance_budget.dart';
 import '../models/finance_category.dart';
 import '../models/finance_party.dart';
 import '../models/finance_posting.dart';
@@ -31,6 +32,8 @@ class BackupRestorePayload {
   final List<FinancePosting>? financePostings;
   final List<FinanceCategory>? financeCategories;
   final List<FinanceParty>? financeParties;
+  /// Null means the backup predates budget serialization.
+  final List<FinanceBudget>? financeBudgets;
   /// Null means a legacy backup that predates HR serialization.
   final List<HrDepartment>? hrDepartments;
   final List<EmployeeAttendance>? employeeAttendance;
@@ -51,6 +54,7 @@ class BackupRestorePayload {
     required this.financePostings,
     required this.financeCategories,
     required this.financeParties,
+    this.financeBudgets,
     required this.hrDepartments,
     required this.employeeAttendance,
     required this.leaveRequests,
@@ -78,6 +82,7 @@ class BackupRestoreService {
     Box<FinancePosting>? financePostingsBox,
     Box<FinanceCategory>? financeCategoriesBox,
     Box<FinanceParty>? financePartiesBox,
+    Box<FinanceBudget>? financeBudgetsBox,
     Box<HrDepartment>? hrDepartmentsBox,
     Box<EmployeeAttendance>? employeeAttendanceBox,
     Box<LeaveRequest>? leaveRequestsBox,
@@ -100,6 +105,7 @@ class BackupRestoreService {
       financePostingsBox: financePostingsBox,
       financeCategoriesBox: financeCategoriesBox,
       financePartiesBox: financePartiesBox,
+      financeBudgetsBox: financeBudgetsBox,
       hrDepartmentsBox: hrDepartmentsBox,
       employeeAttendanceBox: employeeAttendanceBox,
       leaveRequestsBox: leaveRequestsBox,
@@ -135,6 +141,29 @@ class BackupRestoreService {
     Future<void> Function(String stage)? afterWrite,
   }) async {
     final hasFinancePayload = payload.financeAccounts != null;
+    final hasBudgetPayload = payload.financeBudgets != null;
+    if (hasBudgetPayload && financeBudgetsBox == null) {
+      throw const FormatException(
+        'Finance budget backup data was supplied but budget storage is unavailable.',
+      );
+    }
+    if (hasFinancePayload &&
+        !hasBudgetPayload &&
+        financeBudgetsBox != null) {
+      final restoredAccountIds =
+          payload.financeAccounts!.map((item) => item.id).toSet();
+      final restoredCategoryIds =
+          payload.financeCategories!.map((item) => item.id).toSet();
+      for (final budget in financeBudgetsBox.values) {
+        if (!restoredAccountIds.contains(budget.accountId) ||
+            (budget.categoryId != null &&
+                !restoredCategoryIds.contains(budget.categoryId))) {
+          throw FormatException(
+            'Restoring this older finance backup would orphan budget ${budget.id}.',
+          );
+        }
+      }
+    }
     if (hasFinancePayload &&
         (financeAccountsBox == null ||
             financeTransactionsBox == null ||
@@ -197,6 +226,8 @@ class BackupRestoreService {
         financeCategoriesBox == null ? null : Map<dynamic, FinanceCategory>.from(financeCategoriesBox.toMap());
     final financePartiesSnapshot =
         financePartiesBox == null ? null : Map<dynamic, FinanceParty>.from(financePartiesBox.toMap());
+    final financeBudgetsSnapshot =
+        financeBudgetsBox == null ? null : Map<dynamic, FinanceBudget>.from(financeBudgetsBox.toMap());
 
     final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
     final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
@@ -282,6 +313,13 @@ class BackupRestoreService {
         });
         await afterWrite?.call('financeParties.putAll');
       }
+      if (hasBudgetPayload) {
+        await financeBudgetsBox!.clear();
+        await financeBudgetsBox.putAll({
+          for (final item in payload.financeBudgets!) item.id: item,
+        });
+        await afterWrite?.call('financeBudgets.putAll');
+      }
       if (payload.appSettings != null) {
         await appSettingsBox.putAll(payload.appSettings!);
         await afterWrite?.call('appSettings.putAll');
@@ -342,6 +380,10 @@ class BackupRestoreService {
           await financePartiesBox!.clear();
           await financePartiesBox.putAll(financePartiesSnapshot);
         }
+        if (financeBudgetsSnapshot != null) {
+          await financeBudgetsBox!.clear();
+          await financeBudgetsBox.putAll(financeBudgetsSnapshot);
+        }
         await appSettingsBox.clear();
         await appSettingsBox.putAll(settingsSnapshot);
       } catch (rollbackError) {
@@ -385,6 +427,14 @@ class BackupRestoreService {
         : null;
     final financeParties = hasAnyFinanceKey
         ? _parseRecords(data, 'financeParties', _parseFinanceParty)
+        : null;
+    if (data.containsKey('financeBudgets') && !hasAnyFinanceKey) {
+      throw const FormatException(
+        'Finance budgets cannot be restored without finance collections.',
+      );
+    }
+    final financeBudgets = data.containsKey('financeBudgets')
+        ? _parseRecords(data, 'financeBudgets', _parseFinanceBudget)
         : null;
 
     const hrKeys = [
@@ -456,6 +506,13 @@ class BackupRestoreService {
         financeParties!,
       );
     }
+    if (financeBudgets != null) {
+      _validateFinanceBudgets(
+        financeBudgets,
+        financeAccounts!,
+        financeCategories!,
+      );
+    }
 
     return BackupRestorePayload(
       users: _parseRecords(data, 'users', _parseUser),
@@ -468,6 +525,7 @@ class BackupRestoreService {
       financePostings: financePostings,
       financeCategories: financeCategories,
       financeParties: financeParties,
+      financeBudgets: financeBudgets,
       hrDepartments: hrDepartments,
       employeeAttendance: employeeAttendance,
       leaveRequests: leaveRequests,
