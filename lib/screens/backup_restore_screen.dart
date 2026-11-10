@@ -87,6 +87,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             'hr_leave_policies',
             'hr_employee_terms',
             'hr_overtime_entries',
+            'hr_bonus_entries',
           ])
             if (Hive.box<dynamic>('app_settings').containsKey(key))
               key: Hive.box<dynamic>('app_settings').get(key),
@@ -167,6 +168,47 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       final rawDocuments = rawAppSettings is Map
           ? rawAppSettings['hr_employee_documents']
           : null;
+      final rawBonuses = rawAppSettings is Map
+          ? rawAppSettings['hr_bonus_entries']
+          : null;
+      if (rawBonuses == null) {
+        final existingBonuses = Hive.box<dynamic>('app_settings')
+            .get('hr_bonus_entries');
+        if (existingBonuses is Map && existingBonuses.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates bonus records. Export a current backup before restoring it, or remove existing bonus records explicitly.',
+          );
+        }
+      }
+      if (rawBonuses != null) {
+        if (rawBonuses is! Map) {
+          throw const FormatException('Bonus backup is malformed.');
+        }
+        final employeeIds = (data['employees'] as List? ?? [])
+            .whereType<Map>()
+            .map((item) => item['id'])
+            .whereType<String>()
+            .toSet();
+        for (final entry in rawBonuses.entries) {
+          if (entry.key is! String ||
+              !employeeIds.contains(entry.key) ||
+              entry.value is! List) {
+            throw const FormatException('Bonus record references an unknown employee.');
+          }
+          for (final item in entry.value as List) {
+            if (item is! Map ||
+                item['id'] is! String ||
+                item['date'] is! String ||
+                item['description'] is! String ||
+                item['description'].toString().trim().isEmpty ||
+                item['amountPaise'] is! int ||
+                (item['amountPaise'] as int) <= 0) {
+              throw const FormatException('Bonus record contains invalid fields.');
+            }
+            DateTime.parse(item['date'] as String);
+          }
+        }
+      }
       final rawOvertime = rawAppSettings is Map
           ? rawAppSettings['hr_overtime_entries']
           : null;
@@ -340,6 +382,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           'hr_leave_policies',
           'hr_employee_terms',
           'hr_overtime_entries',
+          'hr_bonus_entries',
         ]) {
           if (rawAppSettings.containsKey(key)) {
             await settings.put(key, rawAppSettings[key]);
