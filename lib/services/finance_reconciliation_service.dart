@@ -439,9 +439,8 @@ class FinanceReconciliationService {
       }
       final accrual = accruals.single;
       final accrualLines = postings.where((line) => line.transactionId == accrual.id).toList();
-      final expenseDebit = accrualLines.where((line) => {
-        'expense': true,
-      }[accountsById[line.accountId]?.accountType] == true)
+      final expenseDebit = accrualLines.where((line) =>
+          accountsById[line.accountId]?.accountType == 'expense')
           .fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
       final payableCredit = accrualLines.where((line) =>
           line.accountId == 'system:employee-reimbursements-payable')
