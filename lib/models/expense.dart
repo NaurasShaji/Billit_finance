@@ -29,6 +29,7 @@ class Expense extends HiveObject {
     required this.amount,
     required this.description,
     this.employeeId,
+    this.financeRevision = 0,
   });
 
   Map<String, dynamic> toJson() => {
