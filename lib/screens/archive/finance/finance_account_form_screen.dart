@@ -248,7 +248,7 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffolResponsivePage(child: Scaffold((
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit account' : 'New account'),
       ),
