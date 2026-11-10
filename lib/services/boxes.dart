@@ -14,4 +14,7 @@ class Boxes {
   static const hrDepartments = 'hr_departments';
   static const employeeAttendance = 'employee_attendance';
   static const leaveRequests = 'leave_requests';
+  static const salaryComponents = 'salary_components';
+  static const payrollRuns = 'payroll_runs';
+  static const payslips = 'payslips';
 }
