@@ -198,6 +198,25 @@ void main() {
     expect(slip.basePaise, (3000000 * 12 / 52).round());
   });
 
+  test('dated overtime is included in payroll and payslip totals', () async {
+    await payroll.addOvertimeEntry(
+      employeeId: 'monthly-1',
+      date: DateTime(2026, 11, 5),
+      hours: 2.5,
+      hourlyRatePaise: 120000,
+    );
+    final run = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+    );
+    final slip = payslips.values.singleWhere(
+      (item) => item.employeeId == 'monthly-1',
+    );
+    expect(slip.allowancesPaise, 300000);
+    expect(slip.netPaise, 3300000);
+    expect(run.totalGrossPaise, 3650000);
+  });
+
   test('approval and partial payslip payments post salary expenses once',
       () async {
     final start = DateTime(2026, 11, 1);
