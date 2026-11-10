@@ -231,6 +231,14 @@ class HrPayrollService {
     if (claim['status'] != 'approved' && claim['status'] != 'partially_paid' && claim['status'] != 'paid') throw const HrPayrollServiceException('Only approved reimbursement claims can be cancelled.');
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
     final payments = (claim['payments'] as List? ?? []).whereType<Map>().toList();
+    final recordedPaid = payments.fold<int>(0, (sum, payment) {
+      final amount = payment['amountPaise'];
+      if (amount is! int || amount <= 0) throw const HrPayrollServiceException('Reimbursement payment history contains an invalid amount.');
+      return sum + amount;
+    });
+    if (claim['paidPaise'] is! int || recordedPaid != claim['paidPaise']) {
+      throw const HrPayrollServiceException('Reimbursement paid total does not match its payment history. Reconcile before reversal.');
+    }
     // Reverse cash settlements first. This records the return of funds to the original payment account.
     for (final payment in payments.reversed) {
       final journalId = payment['journalId'];
