@@ -236,27 +236,42 @@ class BackupRestoreService {
         'Finance backup is incomplete; all finance collections are required.',
       );
     }
+    final financeAccounts = hasAnyFinanceKey
+        ? _parseRecords(data, 'financeAccounts', _parseFinanceAccount)
+        : null;
+    final financeTransactions = hasAnyFinanceKey
+        ? _parseRecords(data, 'financeTransactions', _parseFinanceTransaction)
+        : null;
+    final financePostings = hasAnyFinanceKey
+        ? _parseRecords(data, 'financePostings', _parseFinancePosting)
+        : null;
+    final financeCategories = hasAnyFinanceKey
+        ? _parseRecords(data, 'financeCategories', _parseFinanceCategory)
+        : null;
+    final financeParties = hasAnyFinanceKey
+        ? _parseRecords(data, 'financeParties', _parseFinanceParty)
+        : null;
+    if (hasAnyFinanceKey) {
+      _validateFinanceCollections(
+        financeAccounts!,
+        financeTransactions!,
+        financePostings!,
+        financeCategories!,
+        financeParties!,
+      );
+    }
+
     return BackupRestorePayload(
       users: _parseRecords(data, 'users', _parseUser),
       products: _parseRecords(data, 'products', _parseProduct),
       sales: _parseRecords(data, 'sales', _parseSale),
       expenses: _parseRecords(data, 'expenses', _parseExpense),
       employees: _parseRecords(data, 'employees', _parseEmployee),
-      financeAccounts: data.containsKey('financeAccounts')
-          ? _parseRecords(data, 'financeAccounts', _parseFinanceAccount)
-          : null,
-      financeTransactions: data.containsKey('financeTransactions')
-          ? _parseRecords(data, 'financeTransactions', _parseFinanceTransaction)
-          : null,
-      financePostings: data.containsKey('financePostings')
-          ? _parseRecords(data, 'financePostings', _parseFinancePosting)
-          : null,
-      financeCategories: data.containsKey('financeCategories')
-          ? _parseRecords(data, 'financeCategories', _parseFinanceCategory)
-          : null,
-      financeParties: data.containsKey('financeParties')
-          ? _parseRecords(data, 'financeParties', _parseFinanceParty)
-          : null,
+      financeAccounts: financeAccounts,
+      financeTransactions: financeTransactions,
+      financePostings: financePostings,
+      financeCategories: financeCategories,
+      financeParties: financeParties,
       appSettings: _parseSettings(data['appSettings']),
     );
   }
@@ -488,6 +503,81 @@ class BackupRestoreService {
       attendance: attendanceValue.toInt(),
       salaryPaid: _boolean(json, 'salaryPaid', path),
     );
+  }
+
+  void _validateFinanceCollections(
+    List<FinanceAccount> accounts,
+    List<FinanceTransaction> transactions,
+    List<FinancePosting> postings,
+    List<FinanceCategory> categories,
+    List<FinanceParty> parties,
+  ) {
+    final accountIds = accounts.map((item) => item.id).toSet();
+    final transactionById = {
+      for (final item in transactions) item.id: item,
+    };
+    final categoryIds = categories.map((item) => item.id).toSet();
+    final partyIds = parties.map((item) => item.id).toSet();
+    final postingsByTransaction = <String, List<FinancePosting>>{};
+
+    for (final category in categories) {
+      if (!accountIds.contains(category.accountId)) {
+        throw FormatException(
+          'financeCategories.${category.id} references an unknown account.',
+        );
+      }
+    }
+
+    for (final line in postings) {
+      if (!transactionById.containsKey(line.transactionId)) {
+        throw FormatException(
+          'financePostings.${line.id} references an unknown transaction.',
+        );
+      }
+      if (!accountIds.contains(line.accountId)) {
+        throw FormatException(
+          'financePostings.${line.id} references an unknown account.',
+        );
+      }
+      if (line.partyId != null && !partyIds.contains(line.partyId)) {
+        throw FormatException(
+          'financePostings.${line.id} references an unknown party.',
+        );
+      }
+      if (line.categoryId != null && !categoryIds.contains(line.categoryId)) {
+        throw FormatException(
+          'financePostings.${line.id} references an unknown category.',
+        );
+      }
+      final debit = line.debitPaise;
+      final credit = line.creditPaise;
+      if (debit < 0 || credit < 0 || (debit == 0) == (credit == 0)) {
+        throw FormatException(
+          'financePostings.${line.id} must contain one positive debit or credit.',
+        );
+      }
+      postingsByTransaction
+          .putIfAbsent(line.transactionId, () => <FinancePosting>[])
+          .add(line);
+    }
+
+    for (final transaction in transactions) {
+      if (transaction.status != 'posted') continue;
+      final lines = postingsByTransaction[transaction.id] ?? const [];
+      if (lines.length < 2) {
+        throw FormatException(
+          'Posted finance transaction ${transaction.id} requires at least two lines.',
+        );
+      }
+      final debits = lines.fold<int>(0, (sum, line) => sum + line.debitPaise);
+      final credits =
+          lines.fold<int>(0, (sum, line) => sum + line.creditPaise);
+      if (debits <= 0 || debits != credits) {
+        throw FormatException(
+          'Posted finance transaction ${transaction.id} is not balanced.',
+        );
+      }
+    }
   }
 
   int _integer(Map<String, dynamic> map, String key, String path,
