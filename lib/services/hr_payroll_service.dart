@@ -470,6 +470,9 @@ class HrPayrollService {
         paidAt: slips.every((slip) => slip.netPaise == 0) ? approvedAt : null,
       );
       await runsBox.put(updatedRun.id, updatedRun);
+      for (final slip in slips.where((item) => item.netPaise == 0)) {
+        await _settlePayrollAdvanceDeductions(slip.id);
+      }
       return updatedRun;
     } catch (_) {
       for (final old in oldSlips.values) {
