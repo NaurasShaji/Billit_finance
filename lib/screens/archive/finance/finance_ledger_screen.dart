@@ -8,6 +8,7 @@ import '../../../services/finance_ledger_service.dart';
 import '../../../services/finance_reporting_service.dart';
 import '../../../services/finance_service.dart';
 import 'finance_transaction_form_screen.dart';
+import 'finance_account_form_screen.dart';
 
 class FinanceLedgerScreen extends StatefulWidget {
   const FinanceLedgerScreen({super.key});
@@ -268,6 +269,14 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
     );
   }
 
+  Future<void> _openAccountForm([FinanceAccount? account]) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => FinanceAccountFormScreen(account: account),
+      ),
+    );
+  }
+
   Widget _accounts(
     List<FinanceAccount> accounts,
     List<FinancePosting> postings,
@@ -282,35 +291,52 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
     if (sorted.isEmpty) {
       return const Center(child: Text('No accounts have been created.'));
     }
-    return ListView.separated(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: sorted.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final account = sorted[index];
-        final balance = FinanceReportingService.normalBalancePaise(
-          account: account,
-          postings: postings,
-          postedTransactionIds: postedIds,
-        );
-        return ListTile(
-          tileColor: theme.colorScheme.surfaceContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            onPressed: () => _openAccountForm(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add account'),
           ),
-          title: Text(account.name),
-          subtitle: Text(
-            '${account.accountType.toUpperCase()}'
-            '${account.active ? '' : ' • ARCHIVED'}',
-          ),
-          trailing: Text(
-            _money(balance),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
+        ),
+        const SizedBox(height: 12),
+        for (final account in sorted) ...[
+          ListTile(
+            onTap: () => _openAccountForm(account),
+            tileColor: theme.colorScheme.surfaceContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            title: Text(account.name),
+            subtitle: Text(
+              '${account.accountType.toUpperCase()}'
+              '${account.active ? '' : ' • ARCHIVED'}'
+              ' • ${account.currencyCode}',
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _money(FinanceReportingService.normalBalancePaise(
+                    account: account,
+                    postings: postings,
+                    postedTransactionIds: postedIds,
+                  )),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.edit_outlined, size: 18),
+              ],
             ),
           ),
-        );
-      },
+          const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 
