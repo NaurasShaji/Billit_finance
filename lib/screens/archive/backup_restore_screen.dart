@@ -1129,6 +1129,52 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'wage': e.wage,
                 'attendance': e.attendance,
                 'salaryPaid': e.salaryPaid,
+                'employeeCode': e.employeeCode,
+                'phone': e.phone,
+                'email': e.email,
+                'departmentId': e.departmentId,
+                'designation': e.designation,
+                'joiningDate': e.joiningDate?.toIso8601String(),
+                'employmentStatus': e.employmentStatus,
+                'emergencyContact': e.emergencyContact,
+                'address': e.address,
+                'notes': e.notes,
+              })
+          .toList(),
+      'hrDepartments': Hive.box<HrDepartment>(Boxes.hrDepartments).values
+          .map((department) => {
+                'id': department.id,
+                'name': department.name,
+                'description': department.description,
+                'active': department.active,
+                'createdAt': department.createdAt.toIso8601String(),
+              })
+          .toList(),
+      'employeeAttendance':
+          Hive.box<EmployeeAttendance>(Boxes.employeeAttendance).values
+              .map((record) => {
+                    'id': record.id,
+                    'employeeId': record.employeeId,
+                    'date': record.date.toIso8601String(),
+                    'status': record.status,
+                    'checkIn': record.checkIn?.toIso8601String(),
+                    'checkOut': record.checkOut?.toIso8601String(),
+                    'notes': record.notes,
+                    'updatedAt': record.updatedAt.toIso8601String(),
+                  })
+              .toList(),
+      'leaveRequests': Hive.box<LeaveRequest>(Boxes.leaveRequests).values
+          .map((request) => {
+                'id': request.id,
+                'employeeId': request.employeeId,
+                'leaveType': request.leaveType,
+                'startDate': request.startDate.toIso8601String(),
+                'endDate': request.endDate.toIso8601String(),
+                'reason': request.reason,
+                'status': request.status,
+                'reviewedBy': request.reviewedBy,
+                'reviewedAt': request.reviewedAt?.toIso8601String(),
+                'createdAt': request.createdAt.toIso8601String(),
               })
           .toList(),
       'financeAccounts': financeAccountsBox.values
@@ -1209,6 +1255,10 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
       financeCategoriesBox:
           Hive.box<FinanceCategory>(Boxes.financeCategories),
       financePartiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      hrDepartmentsBox: Hive.box<HrDepartment>(Boxes.hrDepartments),
+      employeeAttendanceBox:
+          Hive.box<EmployeeAttendance>(Boxes.employeeAttendance),
+      leaveRequestsBox: Hive.box<LeaveRequest>(Boxes.leaveRequests),
     );
   }
 }
