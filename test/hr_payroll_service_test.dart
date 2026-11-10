@@ -235,11 +235,11 @@ void main() {
       hourlyRatePaise: 100000,
     );
     final pending = payroll.overtimeEntries('monthly-1').single;
-    var run = await payroll.generateRun(
+    final run = await payroll.generateRun(
       periodStart: DateTime(2026, 11, 1),
       periodEnd: DateTime(2026, 11, 30),
     );
-    var slip = payslips.values.singleWhere((item) => item.employeeId == 'monthly-1');
+    final slip = payslips.values.singleWhere((item) => item.employeeId == 'monthly-1');
     expect(slip.allowancesPaise, 0);
     expect(run.totalGrossPaise, 3000000);
 
@@ -249,13 +249,21 @@ void main() {
       reason: 'Not approved by supervisor',
     );
     expect(payroll.overtimeEntries('monthly-1').single['status'], 'rejected');
-    expect(
-      () => payroll.approveOvertimeEntry(
+    await expectLater(
+      payroll.approveOvertimeEntry(
         employeeId: 'monthly-1',
         entryId: pending['id'] as String,
       ),
       throwsA(isA<HrPayrollServiceException>()),
     );
+    final followUpRun = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 12, 1),
+    );
+    final followUpSlip = payslips.values.singleWhere(
+      (item) => item.payrollRunId == followUpRun.id && item.employeeId == 'monthly-1',
+    );
+    expect(followUpSlip.allowancesPaise, 0);
   });
 
   test('one-off bonus is included only in the payroll period containing its date', () async {
