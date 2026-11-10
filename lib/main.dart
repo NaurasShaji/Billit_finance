@@ -12,6 +12,7 @@ import 'services/desktop_window_service.dart';
 import 'services/drive_sync_service.dart';
 import 'services/finance_schema_migration.dart';
 import 'services/finance_source_sync_service.dart';
+import 'services/finance_recurring_service.dart';
 import 'services/schema_migration_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -85,6 +86,15 @@ Future<void> main() async {
     await settings.delete('finance_sync_errors');
   } else {
     await settings.put('finance_sync_errors', financeSyncIssues);
+  }
+
+  // Process due recurring journal entries. Stable source keys make startup
+  // retries safe if the app closes between posting and schedule advancement.
+  final recurringResult = await FinanceRecurringService().processDue();
+  if (recurringResult.issues.isEmpty) {
+    await settings.delete('finance_recurring_errors');
+  } else {
+    await settings.put('finance_recurring_errors', recurringResult.issues);
   }
 
   Future<void> setDefaultSetting(String key, dynamic value) async {
