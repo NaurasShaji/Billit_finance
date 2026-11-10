@@ -77,11 +77,20 @@ class HrPayrollService {
         start: start,
         end: end,
       );
+      final workTerms = HrService().employeeWorkTerms(employee);
+      final frequency = workTerms['payFrequency'] ?? 'monthly';
+      final monthlyBasePaise = _rupeesToPaise(
+        employee.wage,
+        payType == 'daily' ? 'Daily wage' : 'Monthly salary',
+      );
       final basePaise = payType == 'daily'
-          ? (_rupeesToPaise(employee.wage, 'Daily wage') *
-                  attendance.payableDays)
-              .round()
-          : _rupeesToPaise(employee.wage, 'Monthly salary');
+          ? (monthlyBasePaise * attendance.payableDays).round()
+          : switch (frequency) {
+              'daily' => (monthlyBasePaise * 12 / 365).round(),
+              'weekly' => (monthlyBasePaise * 12 / 52).round(),
+              'fortnightly' => (monthlyBasePaise / 2).round(),
+              _ => monthlyBasePaise,
+            };
 
       final components = componentsBox.values.where((component) =>
           component.employeeId == employee.id &&
