@@ -225,7 +225,7 @@ class HrService {
       throw const HrServiceException('Only pending leave requests can be reviewed.');
     }
 
-    final insertedAttendanceIds = <String>[];
+    final previousAttendance = <String, EmployeeAttendance?>{};
     if (decision == 'approved') {
       for (var date = day(request.startDate);
           !date.isAfter(day(request.endDate));
@@ -244,7 +244,8 @@ class HrService {
             !date.isAfter(day(request.endDate));
             date = date.add(const Duration(days: 1))) {
           final id = attendanceId(request.employeeId, date);
-          if (attendance.containsKey(id)) continue;
+          final existing = attendance.get(id);
+          previousAttendance[id] = existing;
           await attendance.put(
             id,
             EmployeeAttendance(
@@ -253,14 +254,19 @@ class HrService {
               date: date,
               status: 'leave',
               notes: 'Approved leave request $requestId',
+              checkIn: existing?.checkIn,
+              checkOut: existing?.checkOut,
             ),
           );
-          insertedAttendanceIds.add(id);
         }
       } catch (_) {
-        for (final id in insertedAttendanceIds.reversed) {
+        for (final entry in previousAttendance.entries.toList().reversed) {
           try {
-            await attendance.delete(id);
+            if (entry.value == null) {
+              await attendance.delete(entry.key);
+            } else {
+              await attendance.put(entry.key, entry.value!);
+            }
           } catch (_) {}
         }
         rethrow;
@@ -282,9 +288,13 @@ class HrService {
     try {
       await requests.put(reviewed.id, reviewed);
     } catch (_) {
-      for (final id in insertedAttendanceIds.reversed) {
+      for (final entry in previousAttendance.entries.toList().reversed) {
         try {
-          await attendance.delete(id);
+          if (entry.value == null) {
+            await attendance.delete(entry.key);
+          } else {
+            await attendance.put(entry.key, entry.value!);
+          }
         } catch (_) {}
       }
       rethrow;
