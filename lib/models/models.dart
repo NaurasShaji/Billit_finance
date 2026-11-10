@@ -3,3 +3,8 @@ export 'product.dart';
 export 'sale.dart';
 export 'expense.dart';
 export 'employee.dart';
+export 'finance_account.dart';
+export 'finance_transaction.dart';
+export 'finance_posting.dart';
+export 'finance_category.dart';
+export 'finance_party.dart';
