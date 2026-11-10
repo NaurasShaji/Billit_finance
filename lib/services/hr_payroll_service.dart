@@ -628,6 +628,11 @@ class HrPayrollService {
     final oldSlips = {for (final slip in slips) slip.id: slip};
     final approvedAt = DateTime.now();
     try {
+      // A zero-net payslip is settled on approval; post its advance recovery
+      // before changing the payslip state so journal failures remain retryable.
+      for (final slip in slips.where((item) => item.netPaise == 0)) {
+        await _settlePayrollAdvanceDeductions(slip.id);
+      }
       for (final slip in slips) {
         final updated = _copyPayslip(
           slip,
@@ -643,9 +648,6 @@ class HrPayrollService {
         paidAt: slips.every((slip) => slip.netPaise == 0) ? approvedAt : null,
       );
       await runsBox.put(updatedRun.id, updatedRun);
-      for (final slip in slips.where((item) => item.netPaise == 0)) {
-        await _settlePayrollAdvanceDeductions(slip.id);
-      }
       return updatedRun;
     } catch (_) {
       for (final old in oldSlips.values) {
@@ -768,10 +770,11 @@ class HrPayrollService {
       status: paidPaise >= slip.netPaise ? 'paid' : 'partially_paid',
       paidAt: paidPaise >= slip.netPaise ? DateTime.now() : null,
     );
-    await slipsBox.put(updatedSlip.id, updatedSlip);
     if (updatedSlip.status == 'paid') {
+      // Keep the payslip unpaid if the recovery journal cannot be posted.
       await _settlePayrollAdvanceDeductions(updatedSlip.id);
     }
+    await slipsBox.put(updatedSlip.id, updatedSlip);
 
     await _refreshRunStatus(run, slipsBox);
     return updatedSlip;
