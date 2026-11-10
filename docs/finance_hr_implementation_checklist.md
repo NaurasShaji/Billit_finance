@@ -252,7 +252,7 @@ Priority for the remaining Finance work is correctness and release safety, not a
 
 1. Verify the current Hive CE branch with dependency resolution, adapter regeneration, formatting, analysis, tests, and Android release build. The latest recorded validation runs failed; no Finance checklist item is considered release-verified until a green run exists.
 2. Close accounting correctness gaps: configurable POS payment destination mapping, payroll liability/payment linkage, employee advance corrections, and reversal-safe allocation/history.
-3. Keep low-value enterprise scope deferred: salary bands, complex HR reimbursements, advanced approval chains, and multi-user/cloud accounting.
+3. Keep low-value enterprise scope deferred: multi-company accounting, complex approval chains, statutory payroll automation, and multi-user/cloud accounting.
 4. Preserve existing POS, GST, inventory, invoice, printing, and Google Drive backup behaviour. Do not merge this branch to main until branch integration and legacy Hive data migration are tested.
 
 This checklist records implementation only when code exists; validation items remain open until a passing CI run is observed.
@@ -271,25 +271,24 @@ This checklist records implementation only when code exists; validation items re
 
 - [x] Add cash/bank/wallet account selection to the payslip payment dialog.
 - [x] Validate that the selected account is active, INR, and an asset account before recording payment.
-- [x] Pass the selected destination account to the payroll finance journal and reject a mismatch before marking the payslip paid. `FinanceSourceSyncService.syncExpense` now accepts and validates the selected active INR asset account, so payroll payments post to the chosen cash/bank/wallet account rather than always crediting cash.
+- [x] Pass the selected destination account to the payroll settlement journal and reject a mismatch before marking the payslip paid. New accrual-based payroll payments debit Payroll Payable and credit the selected active INR asset account; historical cash-basis payroll retains the legacy expense-sync path.
 - [x] Cover bank posting and invalid expense-account rejection in payroll service regression tests (execution pending).
-- [ ] Payroll liability accrual and settlement remain separate from the existing immediate salary-expense payment flow.
+- [x] Payroll liability accrual and settlement are implemented as a separate accrual-based flow for new approvals, with a compatibility path for historical cash-basis runs.
 
 
-## Payroll liability implementation gate — 10 November 2026
+## Payroll liability implementation — completed 10 November 2026
 
-The payroll liability item remains intentionally open. The current payment path creates a `Salary-Run` expense for each partial payment and syncs it as Dr Salaries and Wages / Cr selected cash or bank. The advance-recovery path separately debits Salaries and Wages and credits Employee Advances when the payslip is fully settled. This is internally consistent for the existing cash-basis model, but it cannot be converted to accrual accounting by merely adding a Payroll Payable credit at approval: that would double-count salary expense and leave arbitrary salary deductions without corresponding liability/control accounts.
+Newly approved payroll runs use accrual accounting:
 
-Required design before implementation:
+1. Approval posts gross Salaries and Wages once, with credits to net Payroll Payable, Employee Advances for advance deductions, and Payroll Deductions Payable for other deductions.
+2. Partial and final salary payments debit Payroll Payable and credit the operator-selected active INR asset account.
+3. Advance recovery is reflected in the accrual journal and the HR advance subledger; the legacy gross-up recovery journal is retained only for historical cash-basis runs.
+4. New payroll payments do not create ordinary Salary-Run Expense records. Previously approved cash-basis runs without an accrual journal retain the legacy payment path.
+5. Stable source identities protect approval, partial settlement, retries, and payroll adjustments. Finance reconciliation compares payslip gross/net, posted accruals, settlements, and Payroll Payable balance.
 
-1. At approval, snapshot and post gross salary expense once, with explicit credit lines for net payroll payable and each supported deduction/control account. Do not infer deduction accounts from free-text component names.
-2. At each partial/final payment, post Dr Payroll Payable / Cr the operator-selected active INR asset account. Payment identity must be stable per payment, not derived only from the current cumulative paid amount.
-3. Keep employee-advance recovery as a separate Dr Employee Advances / Cr the appropriate payroll deduction clearing account (or explicitly model it as a net-pay reduction at accrual); do not retain the current gross-up journal unchanged after introducing accrual posting.
-4. Prevent payroll payment Expense records from being imported as ordinary operating expenses. Existing installations need a compatibility strategy so historical cash-basis payroll journals are not silently duplicated or reclassified.
-5. Reconcile approved net payable, cumulative settlement journals, outstanding payslip balance, and payroll control-account balance. Include retries, partial payments, zero-net slips, approval rollback, and legacy paid runs in regression tests.
+Approved payroll adjustments post separate immutable journals and update the payslip and payroll-run snapshots with an audit record. The Payroll Deductions Payable account is available for subsequent statutory/third-party settlement through the existing journal adjustment workflow.
 
-Until these rules are implemented together, retain the existing cash-basis posting path. A partial liability implementation would produce misleading P&L and balance-sheet balances.
-
+Release validation and regression tests remain pending and are intentionally owned by the repository owner.
 
 ## Finance and remaining HR implementation update — 10 November 2026
 
