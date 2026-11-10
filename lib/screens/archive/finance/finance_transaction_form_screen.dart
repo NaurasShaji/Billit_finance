@@ -67,8 +67,8 @@ class _FinanceTransactionFormScreenState
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   String _debitType => switch (_type) {
-        'income' || 'transfer' => 'asset',
-        'customer_receipt' => 'cash_accounts',
+        'income' => 'asset',
+        'transfer' || 'customer_receipt' => 'cash_accounts',
         'supplier_payment' => 'payables',
         'adjustment' => 'all',
         _ => 'expense',
@@ -78,8 +78,7 @@ class _FinanceTransactionFormScreenState
         'income' => 'income',
         'expense' => 'asset_or_liability',
         'customer_receipt' => 'receivables',
-        'supplier_payment' => 'cash_accounts',
-        'transfer' => 'asset',
+        'supplier_payment' || 'transfer' => 'cash_accounts',
         'adjustment' => 'all',
         _ => 'asset',
       };
