@@ -97,6 +97,20 @@ void main() {
     );
   }
 
+  test('legacy FIFO receipts reduce the balance before a new allocation', () async {
+    await postInvoice();
+    await postReceipt();
+    final outstanding = FinancePaymentAllocationService().invoiceOutstandingPaise(
+      invoiceId: 'invoice-1',
+      partyId: 'customer-1',
+      partyType: 'customer',
+      transactions: transactions.values,
+      postings: postings.values,
+      excludeSettlementId: 'new-receipt-not-yet-posted',
+    );
+    expect(outstanding, 2000);
+  });
+
   test('persists partial invoice allocation and calculates remaining balances', () async {
     await postInvoice();
     await postReceipt();
