@@ -26,6 +26,12 @@ class FinanceReconciliationSummary {
     required this.sourceExpenseTotalPaise,
     required this.journalExpenseTotalPaise,
     required this.issues,
+    this.payrollAccrualCount = 0,
+    this.payrollGrossPaise = 0,
+    this.payrollJournalGrossPaise = 0,
+    this.payrollOutstandingPaise = 0,
+    this.payrollLiabilityPaise = 0,
+    this.payrollIssues = const [],
   });
 
   final int sourceSaleCount;
@@ -37,6 +43,17 @@ class FinanceReconciliationSummary {
   final int sourceExpenseTotalPaise;
   final int journalExpenseTotalPaise;
   final List<FinanceReconciliationIssue> issues;
+  final int payrollAccrualCount;
+  final int payrollGrossPaise;
+  final int payrollJournalGrossPaise;
+  final int payrollOutstandingPaise;
+  final int payrollLiabilityPaise;
+  final List<FinanceReconciliationIssue> payrollIssues;
+
+  int get payrollGrossDifferencePaise =>
+      payrollGrossPaise - payrollJournalGrossPaise;
+  int get payrollLiabilityDifferencePaise =>
+      payrollOutstandingPaise - payrollLiabilityPaise;
 
   int get saleDifferencePaise =>
       sourceSaleTotalPaise - journalSaleTotalPaise;
@@ -44,7 +61,10 @@ class FinanceReconciliationSummary {
       sourceExpenseTotalPaise - journalExpenseTotalPaise;
   bool get isBalanced => issues.isEmpty &&
       saleDifferencePaise == 0 &&
-      expenseDifferencePaise == 0;
+      expenseDifferencePaise == 0 &&
+      payrollIssues.isEmpty &&
+      payrollGrossDifferencePaise == 0 &&
+      payrollLiabilityDifferencePaise == 0;
 }
 
 class FinanceReconciliationService {
@@ -84,6 +104,7 @@ class FinanceReconciliationService {
     required Iterable<Expense> expenses,
     required Iterable<FinanceTransaction> transactions,
     required Iterable<FinancePosting> postings,
+    Iterable<Payslip> payslips = const [],
   }) {
     final saleRecords = sales.toList();
     final expenseRecords = expenses.toList();
@@ -237,6 +258,94 @@ class FinanceReconciliationService {
       }
     }
 
+    final payrollIssues = <FinanceReconciliationIssue>[];
+    final slipRecords = payslips.toList();
+    final slipsById = {for (final slip in slipRecords) slip.id: slip};
+    final accrualTransactions = posted.where((tx) =>
+        tx.sourceType == 'payroll_accrual').toList();
+    var payrollGross = 0;
+    var payrollJournalGross = 0;
+    var payrollOutstanding = 0;
+    var payrollAccrualCount = 0;
+    for (final slip in slipRecords) {
+      final accruals = accrualTransactions
+          .where((tx) => tx.sourceId == slip.id).toList();
+      if (accruals.isEmpty) continue; // Existing cash-basis payroll remains compatible.
+      if (accruals.length != 1) {
+        payrollIssues.add(FinanceReconciliationIssue(
+          sourceType: 'payroll_accrual',
+          sourceId: slip.id,
+          message: 'Multiple accrual journals exist for this payslip.',
+        ));
+        continue;
+      }
+      final accrual = accruals.single;
+      final expectedGross = slip.basePaise + slip.allowancesPaise;
+      payrollGross += expectedGross;
+      payrollAccrualCount++;
+      final lines = postings.where((line) =>
+          line.transactionId == accrual.id).toList();
+      final salaryDebit = lines.where((line) =>
+          line.accountId == 'system:salary-expense')
+          .fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
+      final payableCredit = lines.where((line) =>
+          line.accountId == 'system:payroll-payable')
+          .fold<int>(0, (sum, line) => sum + line.creditPaise - line.debitPaise);
+      payrollJournalGross += salaryDebit;
+      if (salaryDebit != expectedGross || payableCredit != slip.netPaise) {
+        payrollIssues.add(FinanceReconciliationIssue(
+          sourceType: 'payroll_accrual',
+          sourceId: slip.id,
+          message: 'Accrual does not match the payslip gross or net payable snapshot.',
+        ));
+      }
+
+      final payments = posted.where((tx) =>
+          tx.sourceType == 'payroll_payment' &&
+          tx.sourceId.startsWith('${slip.id}:from:')).toList();
+      var paidFromJournal = 0;
+      for (final payment in payments) {
+        final paymentLines = postings.where((line) =>
+            line.transactionId == payment.id).toList();
+        final payableDebit = paymentLines.where((line) =>
+            line.accountId == 'system:payroll-payable')
+            .fold<int>(0, (sum, line) => sum + line.debitPaise);
+        final assetCredit = paymentLines
+            .where((line) => line.creditPaise > 0 && line.accountId != 'system:payroll-payable')
+            .fold<int>(0, (sum, line) => sum + line.creditPaise);
+        if (paymentLines.length != 2 || payableDebit <= 0 ||
+            payableDebit != assetCredit) {
+          payrollIssues.add(FinanceReconciliationIssue(
+            sourceType: 'payroll_payment',
+            sourceId: payment.sourceId,
+            message: 'Payroll settlement journal is malformed or unbalanced.',
+          ));
+        }
+        paidFromJournal += payableDebit;
+      }
+      if (paidFromJournal != slip.paidPaise) {
+        payrollIssues.add(FinanceReconciliationIssue(
+          sourceType: 'payroll_payment',
+          sourceId: slip.id,
+          message: 'Payslip records ${slip.paidPaise} paise paid; journal settlements total ${paidFromJournal} paise.',
+        ));
+      }
+      payrollOutstanding += slip.outstandingPaise;
+    }
+    for (final accrual in accrualTransactions) {
+      if (!slipsById.containsKey(accrual.sourceId)) {
+        payrollIssues.add(FinanceReconciliationIssue(
+          sourceType: 'payroll_accrual',
+          sourceId: accrual.sourceId,
+          message: 'Accrual journal has no matching payslip.',
+        ));
+      }
+    }
+    final payrollLiability = -postings.where((line) =>
+        line.accountId == 'system:payroll-payable' &&
+        posted.any((tx) => tx.id == line.transactionId))
+        .fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
+
     return FinanceReconciliationSummary(
       sourceSaleCount: saleRecords.length,
       journalSaleCount: journalSaleCount,
@@ -246,7 +355,13 @@ class FinanceReconciliationService {
       journalExpenseCount: journalExpenseCount,
       sourceExpenseTotalPaise: sourceExpenseTotal,
       journalExpenseTotalPaise: journalExpenseTotal,
-      issues: issues,
+      issues: [...issues, ...payrollIssues],
+      payrollAccrualCount: payrollAccrualCount,
+      payrollGrossPaise: payrollGross,
+      payrollJournalGrossPaise: payrollJournalGross,
+      payrollOutstandingPaise: payrollOutstanding,
+      payrollLiabilityPaise: payrollLiability,
+      payrollIssues: payrollIssues,
     );
   }
 }
