@@ -44,9 +44,7 @@ class FinanceSourceSyncService {
     'upi': 'system:bank',
   };
 
-  /// Resolve a configured destination account for legacy expense/payment types.
-  /// Missing or invalid mappings are rejected rather than silently treating
-  /// every outgoing payment as cash.
+  /// Resolve a configured destination account for a POS payment method.
   static String paymentAccountFor({
     required String method,
     required Box<FinanceAccount> accountsBox,
@@ -56,55 +54,39 @@ class FinanceSourceSyncService {
     final mapping = raw is Map
         ? raw.map((key, value) => MapEntry(key.toString(), value.toString()))
         : const <String, String>{};
-    final accountId = mapping[method] ??
-        defaultPaymentAccountMapping[method];
+    final accountId = mapping[method] ?? defaultPaymentAccountMapping[method];
     if (accountId == null) {
       throw FinanceLedgerException('No payment account is configured for $method.');
     }
     final account = accountsBox.get(accountId);
-    if (account == null ||
-        !account.active ||
-        account.accountType != 'asset' ||
-        account.currencyCode != 'INR') {
-      throw FinanceLedgerException(
-        'The payment account configured for $method is missing or is not an active INR asset account.',
-      );
+    if (account == null || !account.active || account.accountType != 'asset' || account.currencyCode != 'INR') {
+      throw FinanceLedgerException('The account configured for $method must be an active INR asset account.');
     }
     return account.id;
   }
 
-  /// Save a configurable payment-method to account mapping. Only active INR
-  /// asset accounts are eligible, and each method must map to a distinct
-  /// logical destination if a shop chooses to separate them.
+  /// Persist configurable POS payment-method to account mappings. The
+  /// existing cash/card/UPI methods are required to keep POS reconciliation
+  /// deterministic; each can point to a separate cash/bank/wallet asset.
   Future<void> savePaymentAccountMapping({
     required Map<String, String> mapping,
     required Box<FinanceAccount> accountsBox,
     required Box<dynamic> settingsBox,
   }) async {
-    const allowed = {'cash', 'card', 'upi', 'wallet', 'bank'};
+    const requiredMethods = {'cash', 'card', 'upi'};
+    const allowed = {'cash', 'card', 'upi'};
     final normalized = <String, String>{};
     for (final entry in mapping.entries) {
       final method = entry.key.trim().toLowerCase();
-      if (!allowed.contains(method)) {
-        throw FinanceLedgerException('Unsupported payment method: ${entry.key}.');
-      }
+      if (!allowed.contains(method)) throw FinanceLedgerException('Unsupported POS payment method: ${entry.key}.');
       final account = accountsBox.get(entry.value);
-      if (account == null ||
-          !account.active ||
-          account.accountType != 'asset' ||
-          account.currencyCode != 'INR') {
-        throw FinanceLedgerException(
-          'Choose an active INR asset account for ${entry.key}.',
-        );
+      if (account == null || !account.active || account.accountType != 'asset' || account.currencyCode != 'INR') {
+        throw FinanceLedgerException('Choose an active INR asset account for ${entry.key}.');
       }
       normalized[method] = account.id;
     }
-    if (!normalized.containsKey('cash') ||
-        !normalized.containsKey('card') ||
-        !normalized.containsKey('upi')) {
-      throw const FinanceLedgerException(
-        'Cash, card, and UPI mappings are required.',
-      );
+    if (!normalized.keys.toSet().containsAll(requiredMethods)) {
+      throw const FinanceLedgerException('Cash, card, and UPI mappings are required.');
     }
     await settingsBox.put(paymentAccountSettingsKey, normalized);
   }
@@ -351,6 +333,7 @@ class FinanceSourceSyncService {
     required Box<FinancePosting> postingsBox,
     required Box<FinanceCategory> categoriesBox,
     required Box<FinanceParty> partiesBox,
+    Box<dynamic>? settingsBox,
   }) async {
     const sourceType = 'pos_sale';
     final sourceId = _sourceId(sale.id, sale.financeRevision);
@@ -393,9 +376,16 @@ class FinanceSourceSyncService {
 
     final transactionId =
         'finance:sale:${sale.id}:r${sale.financeRevision}';
-    final receiptAccount = sale.payment == PaymentMethod.cash
-        ? 'system:cash'
-        : 'system:bank';
+    final method = switch (sale.payment) {
+      PaymentMethod.cash => 'cash',
+      PaymentMethod.card => 'card',
+      PaymentMethod.upi => 'upi',
+    };
+    final receiptAccount = paymentAccountFor(
+      method: method,
+      accountsBox: accountsBox,
+      settingsBox: settingsBox,
+    );
     final lines = <FinancePosting>[
       FinancePosting(
         id: '$transactionId:receipt',
@@ -522,6 +512,7 @@ class FinanceSourceSyncService {
     required Box<FinancePosting> postingsBox,
     required Box<FinanceCategory> categoriesBox,
     required Box<FinanceParty> partiesBox,
+    Box<dynamic>? settingsBox,
   }) async {
     final issues = <String>[];
     for (final sale in salesBox.values) {
@@ -533,6 +524,7 @@ class FinanceSourceSyncService {
           postingsBox: postingsBox,
           categoriesBox: categoriesBox,
           partiesBox: partiesBox,
+          settingsBox: settingsBox,
         );
       } catch (error) {
         issues.add('Sale ${sale.id}: $error');
