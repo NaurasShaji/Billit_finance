@@ -75,7 +75,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Implement manual income, expense, and transfer journal workflows.
 - [x] Implement balanced journal adjustment entry UI workflow.
 - [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
-- [ ] Add configurable categories and payment methods.
+- [x] Add configurable income/expense categories with linked ledger accounts and category-aware manual journal entries.
+- [ ] Add configurable payment methods and account mapping for non-POS workflows.
 - [ ] Add transaction search, filtering, sorting, and date ranges.
 - [ ] Add recurring transactions.
 - [x] Add ledger integrity and balance tests (authored; execution pending).
