@@ -102,4 +102,26 @@ class FinanceSchemaMigration {
           }
         },
       );
+
+  /// Adds department, attendance, and leave persistence for the HR foundation.
+  static SchemaMigration get versionThreeToFour => SchemaMigration(
+        fromVersion: 3,
+        toVersion: 4,
+        apply: (_) async {
+          final departments =
+              await Hive.openBox<HrDepartment>(Boxes.hrDepartments);
+          await Hive.openBox<EmployeeAttendance>(Boxes.employeeAttendance);
+          await Hive.openBox<LeaveRequest>(Boxes.leaveRequests);
+          if (!departments.containsKey('system:general')) {
+            await departments.put(
+              'system:general',
+              HrDepartment(
+                id: 'system:general',
+                name: 'General',
+                description: 'Default department',
+              ),
+            );
+          }
+        },
+      );
 }
