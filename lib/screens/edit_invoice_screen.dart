@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/finance_source_sync_service.dart';
 import '../../services/invoice_service.dart'; // Added import
 import './product_selection_screen.dart';
 import '../widgets/responsive_page.dart';
@@ -221,9 +222,31 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
         ..cgstAmount = _currentCgst
         ..sgstAmount = _currentSgst
         ..igstAmount = _currentIgst
-        ..discount = _discount;
+        ..discount = _discount
+        ..financeRevision += 1;
 
       await widget.sale.save();
+
+      // A new immutable journal revision reverses the previous invoice snapshot.
+      try {
+        await FinanceSourceSyncService().syncSale(
+          sale: widget.sale,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+        );
+      } catch (financeError) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invoice updated; finance journal sync will retry on next launch: $financeError'),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
+      }
 
       if (mounted) {
         _showSuccessMessage('Invoice updated successfully');
