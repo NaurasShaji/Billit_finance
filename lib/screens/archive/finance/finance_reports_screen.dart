@@ -22,6 +22,32 @@ class FinanceReportsScreen extends StatefulWidget {
 
 class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
   FinancePeriod _period = FinancePeriod.month;
+  DateSpan? _customSpan;
+  String? _ledgerAccountId;
+
+  DateSpan get _span =>
+      _customSpan ?? FinanceService.spanFor(_period, DateTime.now());
+
+  Future<void> _pickDateRange() async {
+    final current = _span;
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDateRange: DateTimeRange(
+        start: current.start,
+        end: current.end.subtract(const Duration(days: 1)),
+      ),
+    );
+    if (range == null || !mounted) return;
+    setState(() {
+      _customSpan = DateSpan(
+        DateTime(range.start.year, range.start.month, range.start.day),
+        DateTime(range.end.year, range.end.month, range.end.day)
+            .add(const Duration(days: 1)),
+      );
+    });
+  }
 
   String _money(int paise) =>
       NumberFormat.simpleCurrency(locale: 'en_IN').format(paise / 100);
@@ -73,6 +99,8 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
     required DateSpan span,
     required int debitTotal,
     required int creditTotal,
+    required FinanceAccount? ledgerAccount,
+    required List<FinanceLedgerLine> ledgerRows,
   }) async {
     final settings = Hive.box<dynamic>('app_settings');
     final businessName =
@@ -137,6 +165,26 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
               ['TOTAL', '', _money(debitTotal), _money(creditTotal)],
             ],
           ),
+          if (ledgerAccount != null) ...[
+            pw.SizedBox(height: 18),
+            pw.Text(
+              'General ledger: ${ledgerAccount.name}',
+              style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Table.fromTextArray(
+              headers: ['Date', 'Transaction', 'Debit', 'Credit', 'Balance'],
+              data: [
+                for (final row in ledgerRows)
+                  [
+                    _date(row.transaction.date),
+                    row.transaction.transactionNumber,
+                    _money(row.debitPaise),
+                    _money(row.creditPaise),
+                    _money(row.runningBalancePaise),
+                  ],
+              ],
+            ),
+          ],
           pw.SizedBox(height: 14),
           pw.Text(
             'Prepared from posted journal transactions. POS gross profit is not used as accounting net profit.',
@@ -157,6 +205,8 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
     required DateSpan span,
     required int debitTotal,
     required int creditTotal,
+    required FinanceAccount? ledgerAccount,
+    required List<FinanceLedgerLine> ledgerRows,
   }) async {
     final workbook = Excel.createExcel();
     final summarySheet = workbook['Summary'];
@@ -217,6 +267,28 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
       DoubleCellValue(creditTotal / 100),
     ]);
 
+    if (ledgerAccount != null) {
+      final ledgerSheet = workbook['General Ledger'];
+      ledgerSheet.appendRow([
+        TextCellValue('Date'),
+        TextCellValue('Transaction'),
+        TextCellValue('Memo'),
+        TextCellValue('Debit (INR)'),
+        TextCellValue('Credit (INR)'),
+        TextCellValue('Running balance (INR)'),
+      ]);
+      for (final row in ledgerRows) {
+        ledgerSheet.appendRow([
+          TextCellValue(_date(row.transaction.date)),
+          TextCellValue(row.transaction.transactionNumber),
+          TextCellValue(row.transaction.memo),
+          DoubleCellValue(row.debitPaise / 100),
+          DoubleCellValue(row.creditPaise / 100),
+          DoubleCellValue(row.runningBalancePaise / 100),
+        ]);
+      }
+    }
+
     final bytes = workbook.save();
     if (bytes == null) {
       throw StateError('Could not generate the accounting workbook.');
@@ -231,7 +303,7 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final span = FinanceService.spanFor(_period, DateTime.now());
+    final span = _span;
     return Scaffold(
       appBar: AppBar(title: const Text('Accounting reports')),
       body: ValueListenableBuilder<Box<FinanceAccount>>(
@@ -262,6 +334,21 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                 postings: postings,
                 span: span,
               );
+              if (!accounts.any((account) => account.id == _ledgerAccountId)) {
+                _ledgerAccountId =
+                    accounts.isEmpty ? null : accounts.first.id;
+              }
+              final ledgerAccount = accounts
+                  .where((account) => account.id == _ledgerAccountId)
+                  .firstOrNull;
+              final ledgerRows = ledgerAccount == null
+                  ? <FinanceLedgerLine>[]
+                  : const FinanceReportingService().ledgerForAccount(
+                      account: ledgerAccount,
+                      transactions: transactions,
+                      postings: postings,
+                      span: span,
+                    );
               final debitTotal = rows.fold<int>(
                 0,
                 (sum, row) => sum + row.debitPaise,
@@ -274,8 +361,11 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
               return ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  SegmentedButton<FinancePeriod>(
-                    showSelectedIcon: false,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SegmentedButton<FinancePeriod>(
+                          showSelectedIcon: false,
                     segments: const [
                       ButtonSegment(
                         value: FinancePeriod.today,
@@ -290,10 +380,28 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                         label: Text('Year'),
                       ),
                     ],
-                    selected: {_period},
-                    onSelectionChanged: (value) =>
-                        setState(() => _period = value.first),
+                          selected: {_period},
+                          onSelectionChanged: (value) => setState(() {
+                            _period = value.first;
+                            _customSpan = null;
+                          }),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Choose custom date range',
+                        onPressed: _pickDateRange,
+                        icon: const Icon(Icons.date_range_outlined),
+                      ),
+                    ],
                   ),
+                  if (_customSpan != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: () => setState(() => _customSpan = null),
+                        child: const Text('Clear custom date range'),
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   Text(
                     '${_date(span.start)} – ${_date(span.end.subtract(const Duration(days: 1)))}',
@@ -331,6 +439,59 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                   ),
                   const SizedBox(height: 14),
                   Text(
+                    'General ledger',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _ledgerAccountId,
+                    decoration: const InputDecoration(
+                      labelText: 'Account',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final account in accounts)
+                        DropdownMenuItem(
+                          value: account.id,
+                          child: Text(account.name),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _ledgerAccountId = value),
+                  ),
+                  const SizedBox(height: 8),
+                  if (ledgerRows.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text('No ledger entries in this date range.'),
+                    ),
+                  for (final row in ledgerRows)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(row.transaction.transactionNumber),
+                      subtitle: Text(
+                        '${_date(row.transaction.date)} • '
+                        '${row.transaction.memo}',
+                      ),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            row.debitPaise > 0
+                                ? 'Dr ${_money(row.debitPaise)}'
+                                : 'Cr ${_money(row.creditPaise)}',
+                          ),
+                          Text(
+                            'Balance ${_money(row.runningBalancePaise)}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 14),
+                  Text(
                     'Account balances as at period end',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
@@ -361,6 +522,8 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                       span: span,
                       debitTotal: debitTotal,
                       creditTotal: creditTotal,
+                      ledgerAccount: ledgerAccount,
+                      ledgerRows: ledgerRows,
                     ),
                     icon: const Icon(Icons.picture_as_pdf_outlined),
                     label: const Text('Print / export PDF'),
@@ -373,6 +536,8 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                       span: span,
                       debitTotal: debitTotal,
                       creditTotal: creditTotal,
+                      ledgerAccount: ledgerAccount,
+                      ledgerRows: ledgerRows,
                     ),
                     icon: const Icon(Icons.table_view_outlined),
                     label: const Text('Export Excel workbook'),
