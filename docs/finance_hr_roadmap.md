@@ -72,6 +72,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Employee profiles with employee code, contact details, joining date, status, department, designation, address, and emergency contact.
 - [x] Department management and employee department/designation assignment.
 - [x] Emergency contact field.
+- [x] Dated employee employment history events (joining, designation, department, status, pay changes, and other events) stored per employee in the backed-up app-settings collection.
 - [ ] Employee document storage and access controls.
 
 ### Attendance and leave
