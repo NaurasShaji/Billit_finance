@@ -654,7 +654,7 @@ class HrPayrollService {
     final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
     final advanceAccount = accounts.get(employeeAdvanceAccountId);
     final offsetAccount = accounts.get(offsetAccountId);
-    if (advanceAccount == null || !advanceAccount.active || advanceAccount.accountType != 'asset' || advanceAccount.currencyCode != 'INR' || offsetAccount == null || !offsetAccount.active || offsetAccount.currencyCode != 'INR' || offsetAccount.id == employeeAdvanceAccountId) {
+    if (advanceAccount == null || !advanceAccount.active || advanceAccount.accountType != 'asset' || advanceAccount.currencyCode != 'INR' || offsetAccount == null || !offsetAccount.active || offsetAccount.accountType == 'asset' || offsetAccount.currencyCode != 'INR' || offsetAccount.id == employeeAdvanceAccountId) {
       throw const HrPayrollServiceException('Select an active INR offset account different from Employee Advances.');
     }
     final dateKey = '${date.year.toString().padLeft(4, '0')}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
