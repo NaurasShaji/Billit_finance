@@ -47,11 +47,14 @@ Future<void> main() async {
   await Hive.openBox('session');
   final settings = await Hive.openBox<dynamic>('app_settings');
 
-  // Existing installations are initialized as schema version 1, then upgraded
-  // to version 2 to create the finance ledger boxes and default chart of accounts.
+  // Existing installations are upgraded sequentially: v2 adds the ledger, and
+  // v3 adds accounts required for POS, GST, and payroll source synchronization.
   await SchemaMigrationService(
-    currentVersion: 2,
-    migrations: [FinanceSchemaMigration.versionOneToTwo],
+    currentVersion: 3,
+    migrations: [
+      FinanceSchemaMigration.versionOneToTwo,
+      FinanceSchemaMigration.versionTwoToThree,
+    ],
   ).run(settings);
 
   Future<void> setDefaultSetting(String key, dynamic value) async {
