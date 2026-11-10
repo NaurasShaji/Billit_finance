@@ -187,3 +187,8 @@ The reconciliation report remains diagnostic-only. No automatic balancing entry 
 - [x] Include opening-balance journals in per-advance reconciliation diagnostics.
 - [x] Author regression tests for successful opening, duplicate retry rejection, and repayment-history rejection (not run).
 - [ ] Build a separate investigation workflow for advances with partial, duplicate, or mismatched journal history; do not auto-correct those records.
+
+
+## Employee advance payroll journal diagnostics
+
+Payroll recovery reconciliation now validates more than the presence of a source-linked journal. It checks posted status, the two-line journal structure, Salaries and Wages debit, Employee Advances credit, matching debit/credit amounts, and that the combined payslip recovery journal covers the individual advance repayment amount. The report also flags malformed payroll repayment records. A regression test covers a payslip recovering instalments from multiple advances into one combined journal. Tests remain unexecuted.
