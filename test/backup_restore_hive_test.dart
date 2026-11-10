@@ -176,6 +176,17 @@ void main() {
     await users.put(oldUser.id, oldUser);
     await settings.put('existing_setting', 'keep-me');
     await settings.put('overridden_setting', 'old');
+    await financeBudgets.put(
+      'legacy-budget',
+      FinanceBudget(
+        id: 'legacy-budget',
+        name: 'Existing budget',
+        accountId: 'legacy-expense-account',
+        periodStart: DateTime(2026, 1, 1),
+        periodEnd: DateTime(2026, 1, 31),
+        budgetPaise: 10000,
+      ),
+    );
 
     await restore({
       'users': [
@@ -194,6 +205,7 @@ void main() {
     expect(settings.get('existing_setting'), 'keep-me');
     expect(settings.get('overridden_setting'), 'new');
     expect(settings.get('new_setting'), isTrue);
+    expect(financeBudgets.get('legacy-budget')!.budgetPaise, 10000);
   });
 
   test('malformed payload leaves all existing boxes unchanged', () async {
