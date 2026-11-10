@@ -319,8 +319,6 @@ class FinanceSourceSyncService {
         'Expense payment account must be an active INR asset account.',
       );
     }
-    final transactionId =
-        'finance:expense:${expense.id}:r${expense.financeRevision}';
     final correctionHistory = settingsBox?.get('finance_expense_corrections');
     final correction = correctionHistory is Map ? correctionHistory[sourceId] : null;
     final correctionReason = correction is Map && correction['reason'] is String
