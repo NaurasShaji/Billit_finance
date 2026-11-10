@@ -161,7 +161,7 @@ void main() {
     expect(run.totalGrossPaise, 3350000);
     expect(run.totalDeductionsPaise, 50000);
     expect(run.totalNetPaise, 3300000);
-    expect(payslips, hasLength(2));
+    expect(payslips.values, hasLength(2));
 
     final monthlySlip = payslips.values.singleWhere(
       (slip) => slip.employeeId == 'monthly-1',
@@ -266,7 +266,7 @@ void main() {
       ),
       throwsA(isA<HrPayrollServiceException>()),
     );
-    expect(expenses, isEmpty);
-    expect(transactions, isEmpty);
+    expect(expenses.isEmpty, isTrue);
+    expect(transactions.isEmpty, isTrue);
   });
 }
