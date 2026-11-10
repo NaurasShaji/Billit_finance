@@ -197,7 +197,7 @@ class _FinanceTransactionFormScreenState
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: _debitAccountId,
+                  value: _debitAccountId,
                   decoration: InputDecoration(
                     labelText: _debitLabel,
                     border: const OutlineInputBorder(),
@@ -216,7 +216,7 @@ class _FinanceTransactionFormScreenState
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: _creditAccountId,
+                  value: _creditAccountId,
                   decoration: InputDecoration(
                     labelText: _creditLabel,
                     border: const OutlineInputBorder(),
