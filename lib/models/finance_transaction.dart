@@ -6,7 +6,8 @@ part 'finance_transaction.g.dart';
 class FinanceTransaction {
   @HiveField(0) final String id;
   @HiveField(1) final String transactionNumber;
-  /// income, expense, transfer, opening_balance, adjustment, or reversal.
+  /// income, expense, transfer, customer_receipt, supplier_payment,
+  /// opening_balance, adjustment, or reversal.
   @HiveField(2) final String transactionType;
   /// draft, posted, or reversed.
   @HiveField(3) final String status;
