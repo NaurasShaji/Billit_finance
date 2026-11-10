@@ -99,6 +99,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Implement balanced journal adjustment entry UI workflow.
 - [x] Add expense correction workflow with a required reason and backed-up correction history; retain the original payment account, reverse the previous journal revision, post the corrected snapshot with the reason in its journal memo, and complete pending correction history after a retry; payroll-generated expenses remain locked to payroll correction controls.
 - [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
+- [x] Add bank statement reconciliation for active INR asset accounts: CSV import, duplicate-file protection, signed-amount/direction matching against posted ledger lines within a five-day date window, one-to-one match protection, unmatch audit history, and backed-up statement/match records. CSV import supports Date + Debit/Credit or signed Amount columns.
 - [x] Add configurable income/expense categories with linked ledger accounts and category-aware manual journal entries.
 - [x] Add configurable POS payment methods and account mapping for cash, card, and UPI. The Finance payment-account screen saves active INR asset-account mappings; startup and retry POS journal sync use them. Existing posted entries remain unchanged.
 - [x] Add posted-journal search (transaction number, memo, type, reference, and source ID), transaction-type and inclusive date-range filters, and sorting by date, amount, or transaction number. Flutter tests and UI verification remain pending.
@@ -312,3 +313,11 @@ Release validation and regression tests remain pending and are intentionally own
 - Leave policies now support per-type Saturday/Sunday and marked-holiday exclusion. Approved leave balance usage and attendance generation both apply the same settings, while pending request date ranges and overlap protection remain calendar-date based. Holiday exclusion uses the employee's existing attendance record marked as holiday.
 - Existing policy maps remain backward compatible: missing carry-forward and weekend fields default to zero/false. No Hive adapter or schema migration is required because policy data remains in the backed-up app-settings collection.
 - The Leave Management policy dialog exposes annual entitlement, carry-forward cap, weekend exclusion, and marked-holiday exclusion controls.
+
+## Bank statement reconciliation — 11 November 2026
+
+- Added a bank reconciliation screen from Accounts & Journal. Operators select an active INR asset account and import a bank CSV statement.
+- Imported lines are stored in the existing backed-up app-settings payload. Re-importing the exact same CSV for the same account is blocked by a deterministic file fingerprint.
+- Candidate matching requires the same bank account, exact signed amount/direction, a posted journal line, and a transaction date within five days. A ledger posting cannot be matched to multiple statement lines.
+- Match and unmatch decisions append history records; unmatching does not erase the prior match event. Statement lines remain available for follow-up until matched.
+- CSV format: Date, Description, optional Reference, Debit, Credit; alternatively Date, Description, optional Reference, signed Amount (deposits positive, withdrawals negative). No build or validation was run.
