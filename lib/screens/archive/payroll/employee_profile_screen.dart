@@ -9,6 +9,7 @@ import '../../../services/boxes.dart';
 import '../../../services/hr_service.dart';
 import '../../../services/hr_payroll_service.dart';
 import 'salary_components_screen.dart';
+import '../../../widgets/responsive_page.dart';
 
 class EmployeeProfileScreen extends StatefulWidget {
   const EmployeeProfileScreen({super.key, required this.employee});
@@ -628,7 +629,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd MMM yyyy');
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(title: const Text('Employee profile')),
       body: ValueListenableBuilder<Box<HrDepartment>>(
         valueListenable:
@@ -987,6 +988,6 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
           );
         },
       ),
-    );
+    ));
   }
 }
