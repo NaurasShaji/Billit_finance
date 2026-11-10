@@ -89,7 +89,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Reusable salary structures, grade templates, and effective-dated base pay changes.
 - [x] Payroll periods/runs with draft, approval, and paid states.
 - [ ] Statutory deduction configuration.
-- [x] Dated employee overtime records with hourly rate and hours; payroll includes overtime in gross pay and immutable payslip allowance totals. Overtime records are included in Google Drive backup/restore validation. Overtime approval workflow and statutory deduction configuration remain outstanding.
+- [x] Dated employee overtime records with hourly rate and hours; payroll includes only approved entries in gross pay and immutable payslip allowance totals. New entries require approval; rejection requires a reason. Legacy records without a status remain approved for compatibility. Overtime records are stored in the backed-up app-settings collection. Statutory deduction configuration remains outstanding.
 - [x] Employee advance register, outstanding balances, monthly instalment schedule, manual repayment history, employee-profile controls, backup/restore validation, and payroll deduction snapshots. Scheduled deductions reduce the advance only after the payslip is fully settled.
 - [x] Add the Employee Advances asset account through schema migration v9; post advance issuance (debit Employee Advances, credit selected INR asset account) and manual repayments (debit selected INR asset account, credit Employee Advances) as balanced, idempotency-keyed journal adjustments. The service accepts a cash/bank asset account ID; employee profile dialogs now let the operator select any active INR asset account for disbursement and repayment. Payroll instalment recoveries are still operational-only and are not yet journal-posted; reconciliation and reversal/correction remain open.
 - [x] Journal payroll instalment recovery when the payslip is fully settled: debit Salaries and Wages (gross-up for the deduction) and credit Employee Advances. Posting is stable-source checked and must succeed before the payslip is marked paid; pending snapshots are validated against the outstanding advance before posting. Regression tests are authored, not run.
@@ -192,3 +192,8 @@ The reconciliation report remains diagnostic-only. No automatic balancing entry 
 ## Employee advance payroll journal diagnostics
 
 Payroll recovery reconciliation now validates more than the presence of a source-linked journal. It checks posted status, the two-line journal structure, Salaries and Wages debit, Employee Advances credit, matching debit/credit amounts, and that the combined payslip recovery journal covers the individual advance repayment amount. The report also flags malformed payroll repayment records. A regression test covers a payslip recovering instalments from multiple advances into one combined journal. Tests remain unexecuted.
+
+
+## Overtime approval workflow
+
+New overtime entries are saved as pending and excluded from payroll until approved. The employee profile provides approve/reject controls; rejection requires a reason. Review decisions record a timestamp and note. Existing overtime entries without a status remain treated as approved to preserve historical payroll behavior. Regression coverage checks pending exclusion, rejection, and prevention of re-approving a rejected entry; tests have not been run.
