@@ -218,6 +218,7 @@ class FinanceSourceSyncService {
     required Expense expense,
     required Box<FinanceParty> partiesBox,
     Box<Employee>? employeesBox,
+    String? paymentAccountId,
   }) async {
     final employeeId = expense.employeeId;
     if (employeeId == null || employeeId.trim().isEmpty) return null;
@@ -311,7 +312,7 @@ class FinanceSourceSyncService {
         FinancePosting(
           id: '$transactionId:credit',
           transactionId: transactionId,
-          accountId: 'system:cash',
+          accountId: paymentAccountId ?? 'system:cash',
           creditPaise: amountPaise,
           memo: expense.description,
         ),
