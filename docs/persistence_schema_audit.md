@@ -37,8 +37,8 @@ All ten typed box names are centralized in `lib/services/boxes.dart`. The two dy
 | 4 | `Product` | 0–11 |
 | 5 | `PaymentMethod` enum | 0 cash, 1 card, 2 upi |
 | 6 | `SaleItem` | 0–11 |
-| 7 | `Sale` | 0–19 |
-| 8 | `Expense` | 0–5 |
+| 7 | `Sale` | 0–20 (field 20: finance revision) |
+| 8 | `Expense` | 0–6 (field 6: finance revision) |
 | 9 | `Employee` | 0–5 |
 | 10 | `FinanceAccount` | 0–6 |
 | 11 | `FinanceTransaction` | 0–11 |
@@ -56,7 +56,7 @@ Type ID 0 is unused. IDs 1–14 are now reserved. Finance models use string-valu
 - `Product`, `SaleItem`, and `Sale` generated readers contain defaults for several newer optional fields. Other fields are read with strict casts and have no migration fallback.
 - `Employee` fields 0–5 are all read as required values. Changing this model needs explicit compatibility handling for older records.
 - Enum values are persisted by numeric index. Do not reorder or remove enum values; append new values only, or implement an explicit migration.
-- `SchemaMigrationService` now stores the application schema version under `app_settings.schema_version` and runs during startup after existing boxes are opened. Installations without a marker are assigned legacy baseline version 1.
+- `SchemaMigrationService` stores the application schema version under `app_settings.schema_version` and runs during startup after existing boxes are opened. Installations without a marker are assigned legacy baseline version 1. Current schema version is 3.
 - The migration runner enforces sequential one-version steps, rejects invalid/future versions and missing/duplicate steps, and advances the stored version only after a migration callback succeeds. Migration callbacks must be idempotent because Hive has no cross-box transaction.
 - Finance schema migration 1→2 is registered at startup. It creates the five finance boxes and seeds nine default accounts using deterministic IDs. Finance migration and journal tests have been authored but have not yet been executed.
 - Adapter registration and box opening remain explicit calls in `main()`; adapter uniqueness/registration coverage is still pending.
@@ -72,5 +72,6 @@ The finance persistence layer now has `FinanceAccount`, `FinanceTransaction`, `F
 - Register an explicit schema migration before introducing each new persisted finance schema version.
 - Add adapter registry/type-ID uniqueness tests and run migration tests using representative legacy records.
 - Google Drive backup export, parser, restore snapshots, and rollback now include all five finance boxes; the integration tests are authored but still need execution.
+- `Sale.financeRevision` and `Expense.financeRevision` are additive Hive fields for immutable journal revision tracking; keep their generated adapters and backup serializers in sync.
 - Run the restore and finance persistence tests before release.
 - Centralize dynamic box names and document the keys owned by each module.
