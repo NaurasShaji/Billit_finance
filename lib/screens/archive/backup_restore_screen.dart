@@ -1035,6 +1035,8 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
         Hive.box<FinanceCategory>(Boxes.financeCategories);
     final financePartiesBox =
         Hive.box<FinanceParty>(Boxes.financeParties);
+    final financeBudgetsBox =
+        Hive.box<FinanceBudget>(Boxes.financeBudgets);
     final appSettingsBox = Hive.box<dynamic>('app_settings');
 
     return {
@@ -1280,6 +1282,20 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'active': party.active,
               })
           .toList(),
+      'financeBudgets': financeBudgetsBox.values
+          .map((budget) => {
+                'id': budget.id,
+                'name': budget.name,
+                'accountId': budget.accountId,
+                'categoryId': budget.categoryId,
+                'periodStart': budget.periodStart.toIso8601String(),
+                'periodEnd': budget.periodEnd.toIso8601String(),
+                'budgetPaise': budget.budgetPaise,
+                'active': budget.active,
+                'notes': budget.notes,
+                'createdAt': budget.createdAt.toIso8601String(),
+              })
+          .toList(),
     };
   }
 
@@ -1299,6 +1315,7 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
       financeCategoriesBox:
           Hive.box<FinanceCategory>(Boxes.financeCategories),
       financePartiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      financeBudgetsBox: Hive.box<FinanceBudget>(Boxes.financeBudgets),
       hrDepartmentsBox: Hive.box<HrDepartment>(Boxes.hrDepartments),
       employeeAttendanceBox:
           Hive.box<EmployeeAttendance>(Boxes.employeeAttendance),
