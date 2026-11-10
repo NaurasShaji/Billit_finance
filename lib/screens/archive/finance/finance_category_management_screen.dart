@@ -90,6 +90,13 @@ class _FinanceCategoryFormScreenState
   bool _active = true;
   bool _saving = false;
 
+  String _legacyCategoryId(Expense expense) {
+    final name = expense.category.trim().isEmpty
+        ? 'Uncategorised'
+        : expense.category.trim();
+    return 'legacy-expense-category:${Uri.encodeComponent(name.toLowerCase())}';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -144,9 +151,7 @@ class _FinanceCategoryFormScreenState
             .any((line) => line.categoryId == existing.id);
     final hasSourceExpenses = existing != null &&
         Hive.box<Expense>(Boxes.expenses).values.any((expense) {
-          final expectedId =
-              'legacy-expense-category:${Uri.encodeComponent(expense.category.trim().toLowerCase())}';
-          return expectedId == existing.id;
+          return _legacyCategoryId(expense) == existing.id;
         });
     if (existing != null &&
         (hasPostings || hasSourceExpenses) &&
