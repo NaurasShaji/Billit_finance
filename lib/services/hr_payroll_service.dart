@@ -1418,6 +1418,74 @@ class HrPayrollService {
     }
     return slipsBox.get(payslipId)!;
   }
+  Future<void> reversePayrollAdjustment({required String payslipId, required String adjustmentId, required String reason}) async {
+    if (reason.trim().isEmpty) throw const HrPayrollServiceException('A reversal reason is required.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(payrollAdjustmentsKey);
+    if (raw is! Map || raw[payslipId] is! List) throw const HrPayrollServiceException('Payroll adjustment history was not found.');
+    final all = <String, dynamic>{...Map<String, dynamic>.from(raw)};
+    final history = List<dynamic>.from(all[payslipId] as List);
+    final index = history.indexWhere((entry) => entry is Map && entry['id'] == adjustmentId);
+    if (index < 0) throw const HrPayrollServiceException('Payroll adjustment was not found.');
+    final record = Map<String, dynamic>.from(history[index] as Map);
+    if (record['status'] == 'reversed') return;
+    if (record['status'] != 'posted') throw const HrPayrollServiceException('Only a posted payroll adjustment can be reversed.');
+    if (history.skip(index + 1).whereType<Map>().any((entry) => entry['status'] == 'posted' || entry['status'] == 'pending')) throw const HrPayrollServiceException('Reverse later payroll adjustments first. Only the latest adjustment can be reversed.');
+    final slipsBox = Hive.box<Payslip>(Boxes.payslips);
+    final runsBox = Hive.box<PayrollRun>(Boxes.payrollRuns);
+    final slip = slipsBox.get(payslipId);
+    if (slip == null) throw const HrPayrollServiceException('Payslip was not found.');
+    final run = runsBox.get(slip.payrollRunId);
+    if (run == null) throw const HrPayrollServiceException('Payroll run was not found.');
+    final type = record['type'];
+    final amount = record['amountPaise'];
+    if (type is! String || amount is! int || amount <= 0) throw const HrPayrollServiceException('Payroll adjustment history is malformed.');
+    final earningDelta = type == 'earning_increase' ? amount : type == 'earning_decrease' ? -amount : 0;
+    final deductionDelta = type == 'deduction_increase' ? amount : type == 'deduction_decrease' ? -amount : 0;
+    final restoredAllowances = slip.allowancesPaise - earningDelta;
+    final restoredDeductions = slip.deductionsPaise - deductionDelta;
+    final restoredNet = slip.basePaise + restoredAllowances - restoredDeductions;
+    if (restoredAllowances < 0 || restoredDeductions < 0 || restoredNet < slip.paidPaise) throw const HrPayrollServiceException('Reversing this adjustment would make the recorded salary payment exceed the corrected payslip. Resolve the employee recovery separately.');
+    final transactionId = record['journalId'] is String ? record['journalId'] as String : 'finance:payroll-adjustment:$adjustmentId';
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final original = transactions.get(transactionId);
+    if (original == null || original.status != 'posted') throw const HrPayrollServiceException('Original payroll adjustment journal is unavailable.');
+    final reversalId = 'finance:reversal:$transactionId';
+    final existingReversal = transactions.values.where((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == transactionId && tx.status == 'posted').toList();
+    if (existingReversal.isEmpty) {
+      await FinanceLedgerService().reverseTransaction(
+        originalTransactionId: transactionId, reversalId: reversalId, reversalNumber: 'REV-PAY-ADJ-${adjustmentId.hashCode.abs()}', reversalDate: DateTime.now(),
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: transactions,
+        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings), categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+        partiesBox: Hive.box<FinanceParty>(Boxes.financeParties), memo: 'Payroll adjustment reversal: ${reason.trim()}',
+      );
+    } else if (existingReversal.length != 1) {
+      throw const HrPayrollServiceException('Multiple reversals exist for this payroll adjustment. Reconcile manually.');
+    }
+    final updatedSlip = _copyPayslip(
+      slip, allowancesPaise: restoredAllowances, deductionsPaise: restoredDeductions,
+      status: restoredNet == slip.paidPaise ? 'paid' : slip.paidPaise > 0 ? 'partially_paid' : 'approved',
+      clearPaidAt: restoredNet != slip.paidPaise,
+    );
+    await slipsBox.put(updatedSlip.id, updatedSlip);
+    final updatedRun = _copyRun(
+      run,
+      status: restoredNet != slip.paidPaise && run.status == 'paid' ? 'approved' : run.status,
+      clearPaidAt: restoredNet != slip.paidPaise && run.status == 'paid',
+      totalGrossPaise: run.totalGrossPaise - earningDelta,
+      totalDeductionsPaise: run.totalDeductionsPaise - deductionDelta,
+      totalNetPaise: run.totalNetPaise - earningDelta + deductionDelta,
+    );
+    await runsBox.put(updatedRun.id, updatedRun);
+    record['status'] = 'reversed';
+    record['reversedAt'] = DateTime.now().toIso8601String();
+    record['reversalJournalId'] = reversalId;
+    record['reversalReason'] = reason.trim();
+    history[index] = record;
+    all[payslipId] = history;
+    await settings.put(payrollAdjustmentsKey, all);
+    await _refreshRunStatus(updatedRun, slipsBox);
+  }
   Future<void> _refreshRunStatus(
     PayrollRun run,
     Box<Payslip> slipsBox,
@@ -1699,6 +1767,7 @@ class HrPayrollService {
     int? deductionsPaise,
     String? status,
     DateTime? paidAt,
+    bool clearPaidAt = false,
   }) =>
       Payslip(
         id: slip.id,
@@ -1712,7 +1781,7 @@ class HrPayrollService {
         paidPaise: paidPaise ?? slip.paidPaise,
         status: status ?? slip.status,
         generatedAt: slip.generatedAt,
-        paidAt: paidAt ?? slip.paidAt,
+        paidAt: clearPaidAt ? null : paidAt ?? slip.paidAt,
       );
 
   PayrollRun _copyRun(
@@ -1723,6 +1792,7 @@ class HrPayrollService {
     int? totalGrossPaise,
     int? totalDeductionsPaise,
     int? totalNetPaise,
+    bool clearPaidAt = false,
   }) =>
       PayrollRun(
         id: run.id,
@@ -1731,7 +1801,7 @@ class HrPayrollService {
         status: status ?? run.status,
         createdAt: run.createdAt,
         approvedAt: approvedAt ?? run.approvedAt,
-        paidAt: paidAt ?? run.paidAt,
+        paidAt: clearPaidAt ? null : paidAt ?? run.paidAt,
         totalGrossPaise: totalGrossPaise ?? run.totalGrossPaise,
         totalDeductionsPaise: totalDeductionsPaise ?? run.totalDeductionsPaise,
         totalNetPaise: totalNetPaise ?? run.totalNetPaise,
