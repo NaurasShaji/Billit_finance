@@ -346,9 +346,13 @@ class HrPayrollService {
     }
 
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
-    final repayments = advance['repayments'] is List
-        ? (advance['repayments'] as List).whereType<Map>().toList()
-        : <Map>[];
+    if (advance['repayments'] is! List ||
+        (advance['repayments'] as List).isNotEmpty) {
+      throw const HrPayrollServiceException(
+        'This advance has repayment history or malformed repayment data. Its opening balance requires manual reconstruction.',
+      );
+    }
+    final repayments = <Map>[];
     final repaymentIds = repayments
         .where((item) => item['source'] == 'manual' && item['id'] is String)
         .map((item) => item['id'] as String)
