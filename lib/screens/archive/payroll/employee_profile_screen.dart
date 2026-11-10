@@ -965,7 +965,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                   );
                 }),
                 if (HrPayrollService().overtimeEntries(widget.employee.id).isEmpty)
-                  const Text('No overtime recorded. Overtime is included in the payroll period containing its date.'),
+                  const Text('No overtime recorded. New entries require approval before generating the payroll run; reviewed entries cannot be changed after a run snapshots that date.'),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
