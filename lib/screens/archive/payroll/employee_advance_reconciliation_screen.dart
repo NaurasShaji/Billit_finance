@@ -416,67 +416,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
     String? offsetAccountId = accounts.first.id;
     DateTime effectiveDate = DateTime.now();
     int? parsePaise(String value) {
-      final match = RegExp(r'^\\d+(?:\\.\\d{1,2})?
-    BuildContext context, {
-    required String employeeId,
-    required String advanceId,
-    required int outstandingPaise,
-  }) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      helpText: 'Opening balance effective date',
-    );
-    if (date == null || !context.mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Post advance opening balance?'),
-        content: Text(
-          'This will debit Employee Advances and credit Opening Balance Equity by ${_money(outstandingPaise)} as of ${DateFormat.yMMMd().format(date)}. It will not recreate historical cash movements. Only continue if this is the verified outstanding balance at the selected cut-off date.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Post opening balance'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    try {
-      await HrPayrollService().recordLegacyAdvanceOpeningBalance(
-        employeeId: employeeId,
-        advanceId: advanceId,
-        asOfDate: date,
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Opening balance journal posted.')),
-      );
-    } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not post opening balance: $error')),
-      );
-    }
-  }
-
-  Widget _detail(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(children: [
-          Expanded(child: Text(label)),
-          const SizedBox(width: 12),
-          Flexible(child: Text(value, textAlign: TextAlign.end)),
-        ]),
-      );
-}).firstMatch(value.trim());
+      final match = RegExp(r'^\d+(?:\.\d{1,2})?$').firstMatch(value.trim());
       if (match == null) return null;
       final parts = value.trim().split('.');
       final whole = int.tryParse(parts[0]);
