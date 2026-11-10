@@ -12,6 +12,9 @@ import '../archive/payroll/add_employee_screen.dart';
 import '../archive/payroll/daily_wage_screen.dart';
 import '../archive/payroll/monthly_salary_screen.dart';
 import '../archive/payroll/payroll_report_screen.dart';
+import '../archive/payroll/employee_profile_screen.dart';
+import '../archive/payroll/attendance_screen.dart';
+import '../archive/payroll/leave_management_screen.dart';
 
 /// Top-level Team screen: who works here, who has been paid, who is due.
 class TeamTab extends StatelessWidget {
@@ -41,6 +44,9 @@ class TeamTab extends StatelessWidget {
 
               // Unpaid first, then alphabetical.
               final sorted = [...employees]..sort((a, b) {
+                  final activeA = a.employmentStatus == 'active';
+                  final activeB = b.employmentStatus == 'active';
+                  if (activeA != activeB) return activeA ? -1 : 1;
                   final pa = PayrollService.isPaid(a, expenses, now,
                       allEmployees: employees);
                   final pb = PayrollService.isPaid(b, expenses, now,
@@ -97,6 +103,18 @@ class TeamTab extends StatelessWidget {
                           icon: const Icon(Icons.assessment_outlined),
                           label: const Text('Payroll report'),
                         ),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              _open(context, const AttendanceScreen()),
+                          icon: const Icon(Icons.fact_check_outlined),
+                          label: const Text('Attendance'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              _open(context, const LeaveManagementScreen()),
+                          icon: const Icon(Icons.event_available_outlined),
+                          label: const Text('Leave'),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -123,6 +141,10 @@ class TeamTab extends StatelessWidget {
                             _confirmAndPay(context, e, expenses, employees, currency),
                         onHistory: () => _showHistory(
                             context, e, expenses, employees, currency),
+                        onProfile: () => _open(
+                          context,
+                          EmployeeProfileScreen(employee: e),
+                        ),
                       ),
                   ],
                 ],
@@ -408,6 +430,7 @@ class _EmployeeCard extends StatelessWidget {
     required this.currency,
     required this.onPay,
     required this.onHistory,
+    required this.onProfile,
   });
 
   final Employee employee;
@@ -417,19 +440,24 @@ class _EmployeeCard extends StatelessWidget {
   final NumberFormat currency;
   final VoidCallback onPay;
   final VoidCallback onHistory;
+  final VoidCallback onProfile;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isDaily = employee.type == PayrollService.typeDaily;
-    final statusColor = paid ? Colors.green : Colors.orange;
+    final active = employee.employmentStatus == 'active';
+    final statusColor =
+        !active ? Colors.grey : paid ? Colors.green : Colors.orange;
     final partiallyPaid = paidAmount > 0.005 && !paid;
-    final statusText = paid
-        ? (isDaily ? 'Paid today' : 'Paid this month')
-        : partiallyPaid
-            ? 'Partially paid · ${currency.format(outstanding)} due'
-            : (isDaily ? 'Not paid today' : 'Salary due');
+    final statusText = !active
+        ? employee.employmentStatus.replaceAll('_', ' ').toUpperCase()
+        : paid
+            ? (isDaily ? 'Paid today' : 'Paid this month')
+            : partiallyPaid
+                ? 'Partially paid · ${currency.format(outstanding)} due'
+                : (isDaily ? 'Not paid today' : 'Salary due');
     final initial =
         employee.name.trim().isEmpty ? '?' : employee.name.trim()[0].toUpperCase();
 
@@ -440,7 +468,7 @@ class _EmployeeCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: onHistory,
+          onTap: onProfile,
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -498,11 +526,18 @@ class _EmployeeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (!paid)
+                IconButton(
+                  tooltip: 'Payment history',
+                  onPressed: onHistory,
+                  icon: const Icon(Icons.history),
+                ),
+                if (active && !paid)
                   FilledButton.tonal(onPressed: onPay, child: const Text('Pay'))
-                else
+                else if (active)
                   Icon(Icons.check_circle_rounded,
-                      color: Colors.green.shade600.adaptive(context)),
+                      color: Colors.green.shade600.adaptive(context))
+                else
+                  const Icon(Icons.person_off_outlined),
               ],
             ),
           ),
