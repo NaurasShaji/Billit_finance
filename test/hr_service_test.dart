@@ -7,7 +7,7 @@ import 'package:billit/services/hr_service.dart';
 import 'package:billit/services/payroll_service.dart';
 import 'package:billit/services/schema_migration_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 
 void main() {
   late Directory directory;
