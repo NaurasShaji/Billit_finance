@@ -33,6 +33,67 @@ class HrPayrollService {
     return 'payroll:${key(start)}:${key(end)}';
   }
 
+  static const bonusSettingsKey = 'hr_bonus_entries';
+
+  List<Map<String, dynamic>> bonusEntries(String employeeId) {
+    final raw = Hive.box<dynamic>('app_settings').get(bonusSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) return const [];
+    return (raw[employeeId] as List)
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
+        .where((entry) =>
+            entry['id'] is String &&
+            entry['date'] is String &&
+            entry['amountPaise'] is int &&
+            entry['description'] is String)
+        .toList()
+      ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+  }
+
+  Future<void> addBonusEntry({
+    required String employeeId,
+    required DateTime date,
+    required int amountPaise,
+    String description = 'Bonus',
+  }) async {
+    if (Hive.box<Employee>(Boxes.employees).get(employeeId) == null) {
+      throw const HrPayrollServiceException('Employee was not found.');
+    }
+    if (amountPaise <= 0) {
+      throw const HrPayrollServiceException('Bonus amount must be positive.');
+    }
+    if (description.trim().isEmpty) {
+      throw const HrPayrollServiceException('Enter a bonus description.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(bonusSettingsKey);
+    final allEntries = <String, dynamic>{
+      if (raw is Map) ...Map<String, dynamic>.from(raw),
+    };
+    final entries = allEntries[employeeId] is List
+        ? List<dynamic>.from(allEntries[employeeId] as List)
+        : <dynamic>[];
+    entries.add({
+      'id': const Uuid().v4(),
+      'date': _day(date).toIso8601String(),
+      'amountPaise': amountPaise,
+      'description': description.trim(),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    allEntries[employeeId] = entries;
+    await settings.put(bonusSettingsKey, allEntries);
+  }
+
+  int _bonusPaise(String employeeId, DateTime start, DateTime end) {
+    return bonusEntries(employeeId).where((entry) {
+      final date = _day(DateTime.parse(entry['date'] as String));
+      return !date.isBefore(start) && !date.isAfter(end);
+    }).fold<int>(
+      0,
+      (total, entry) => total + (entry['amountPaise'] as int),
+    );
+  }
+
   static const overtimeSettingsKey = 'hr_overtime_entries';
 
   List<Map<String, dynamic>> overtimeEntries(String employeeId) {
@@ -171,7 +232,8 @@ class HrPayrollService {
         }
       }
       final overtime = _approvedOvertimePaise(employee.id, start, end);
-      final gross = basePaise + allowances + overtime;
+      final bonus = _bonusPaise(employee.id, start, end);
+      final gross = basePaise + allowances + overtime + bonus;
       final net = gross - deductions;
       if (net < 0) {
         throw HrPayrollServiceException(
@@ -185,7 +247,7 @@ class HrPayrollService {
         employeeId: employee.id,
         payType: payType,
         basePaise: basePaise,
-        allowancesPaise: allowances + overtime,
+        allowancesPaise: allowances + overtime + bonus,
         deductionsPaise: deductions,
         payableDays: attendance.payableDays,
       );
