@@ -232,3 +232,14 @@ Payroll recovery reconciliation now validates more than the presence of a source
 ## Overtime approval workflow
 
 New overtime entries are saved as pending and excluded from payroll until approved. The employee profile provides approve/reject controls; rejection requires a reason. Review decisions record a timestamp and note. Overtime entries cannot be added or reviewed once a payroll run snapshots their date, preventing retroactive changes to generated payslips. Existing overtime entries without a status remain treated as approved to preserve historical payroll behavior. Regression coverage checks pending exclusion, rejection, and prevention of re-approving a rejected entry; tests have not been run.
+
+
+## Salary structure implementation update
+
+- [x] Save active employee earning/deduction components as reusable named salary structures in app settings (included in the existing backup payload).
+- [x] Apply a saved structure to an employee from an effective date; close prior active components on the preceding day and roll back partial writes best-effort.
+- [x] Record effective-dated base-pay changes and include them in employment history.
+- [x] Use the latest base-pay rate effective on the payroll run start date when generating a payslip.
+- [x] Reject duplicate base-pay effective dates and changes overlapping a generated payroll period.
+- [x] Author regression tests for salary structure replacement and future-dated base-pay changes (not run).
+- [ ] Add grade-based salary bands and mid-period base-pay proration.
