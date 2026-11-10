@@ -36,6 +36,7 @@ class HrPayrollService {
 
   static const advanceSettingsKey = 'hr_employee_advances';
   static const advancePayrollKey = 'hr_advance_payroll_deductions';
+  static const payrollAdjustmentsKey = 'hr_payroll_adjustments';
 
   static const employeeAdvanceAccountId = 'system:employee-advances';
 
@@ -1133,6 +1134,117 @@ class HrPayrollService {
     await _refreshRunStatus(run, slipsBox);
     return updatedSlip;
   }
+  Future<Payslip> adjustApprovedPayslip({
+    required String payslipId,
+    required String adjustmentType,
+    required int amountPaise,
+    required DateTime effectiveDate,
+    required String reason,
+  }) async {
+    const types = {'earning_increase', 'earning_decrease', 'deduction_increase', 'deduction_decrease'};
+    if (!types.contains(adjustmentType) || amountPaise <= 0 || reason.trim().isEmpty) throw const HrPayrollServiceException('Choose a valid adjustment, positive amount, and reason.');
+    final slipsBox = Hive.box<Payslip>(Boxes.payslips);
+    final runsBox = Hive.box<PayrollRun>(Boxes.payrollRuns);
+    final slip = slipsBox.get(payslipId);
+    if (slip == null) throw const HrPayrollServiceException('Payslip was not found.');
+    if (slip.status != 'approved' && slip.status != 'partially_paid') throw const HrPayrollServiceException('Only unpaid or partially paid approved payslips can be adjusted.');
+    final run = runsBox.get(slip.payrollRunId);
+    if (run == null || (run.status != 'approved' && run.status != 'paid')) throw const HrPayrollServiceException('Payroll run must be approved before making an adjustment.');
+    final date = _day(effectiveDate);
+    if (date.isBefore(_day(run.periodStart)) || date.isAfter(_day(DateTime.now()))) throw const HrPayrollServiceException('Adjustment date must be within the payroll period and cannot be in the future.');
+    final earningDelta = adjustmentType == 'earning_increase' ? amountPaise : adjustmentType == 'earning_decrease' ? -amountPaise : 0;
+    final deductionDelta = adjustmentType == 'deduction_increase' ? amountPaise : adjustmentType == 'deduction_decrease' ? -amountPaise : 0;
+    final newAllowances = slip.allowancesPaise + earningDelta;
+    final newDeductions = slip.deductionsPaise + deductionDelta;
+    final newNet = slip.basePaise + newAllowances - newDeductions;
+    if (newAllowances < 0 || newDeductions < 0 || newNet < slip.paidPaise) throw const HrPayrollServiceException('Adjustment would create a negative component or reduce net pay below the amount already paid.');
+    final netDelta = earningDelta - deductionDelta;
+    final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    _requirePayrollAccount('system:salary-expense', 'expense');
+    _requirePayrollAccount(payrollPayableAccountId, 'liability');
+    _requirePayrollAccount(payrollDeductionsPayableAccountId, 'liability');
+    final debitAccount = switch (adjustmentType) {
+      'earning_increase' => 'system:salary-expense',
+      'earning_decrease' => payrollPayableAccountId,
+      'deduction_increase' => payrollPayableAccountId,
+      _ => payrollDeductionsPayableAccountId,
+    };
+    final creditAccount = switch (adjustmentType) {
+      'earning_increase' => payrollPayableAccountId,
+      'earning_decrease' => 'system:salary-expense',
+      'deduction_increase' => payrollDeductionsPayableAccountId,
+      _ => payrollPayableAccountId,
+    };
+    if (debitAccount == payrollPayableAccountId && amountPaise > slip.outstandingPaise) throw const HrPayrollServiceException('Adjustment exceeds the payslip net amount still payable.');
+    if (adjustmentType == 'deduction_decrease') {
+      final liabilityBalance = -FinanceLedgerService().balancePaise(accountId: payrollDeductionsPayableAccountId, transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions), postingsBox: Hive.box<FinancePosting>(Boxes.financePostings));
+      if (amountPaise > liabilityBalance) throw const HrPayrollServiceException('The payroll deductions payable control account does not contain enough withheld balance for this correction.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(payrollAdjustmentsKey);
+    final all = <String, dynamic>{if (raw is Map) ...Map<String, dynamic>.from(raw)};
+    final history = (all[payslipId] is List ? List<dynamic>.from(all[payslipId] as List) : <dynamic>[]);
+    final dateKey = '${date.year.toString().padLeft(4, '0')}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
+    final sourceId = '${slip.id}|$adjustmentType|$amountPaise|$dateKey|${reason.trim()}';
+    final adjustmentId = Uri.encodeComponent(sourceId);
+    final existingRecord = history.whereType<Map>().where((item) => item['id'] == adjustmentId).toList();
+    if (existingRecord.isNotEmpty && existingRecord.length != 1) throw const HrPayrollServiceException('Duplicate payroll adjustment records require reconciliation.');
+    final beforeAllowances = slip.allowancesPaise;
+    final beforeDeductions = slip.deductionsPaise;
+    final afterAllowances = beforeAllowances + earningDelta;
+    final afterDeductions = beforeDeductions + deductionDelta;
+    Map<String, dynamic> record;
+    if (existingRecord.isEmpty) {
+      record = {'id': adjustmentId, 'payslipId': slip.id, 'type': adjustmentType, 'amountPaise': amountPaise, 'date': date.toIso8601String(), 'reason': reason.trim(), 'beforeAllowancesPaise': beforeAllowances, 'beforeDeductionsPaise': beforeDeductions, 'afterAllowancesPaise': afterAllowances, 'afterDeductionsPaise': afterDeductions, 'status': 'pending'};
+      history.add(record);
+      all[payslipId] = history;
+      await settings.put(payrollAdjustmentsKey, all);
+    } else {
+      record = Map<String, dynamic>.from(existingRecord.single);
+      if (record['type'] != adjustmentType || record['amountPaise'] != amountPaise || record['reason'] != reason.trim()) throw const HrPayrollServiceException('Existing payroll adjustment identity conflicts with this request.');
+      final currentMatchesBefore = slip.allowancesPaise == record['beforeAllowancesPaise'] && slip.deductionsPaise == record['beforeDeductionsPaise'];
+      final currentMatchesAfter = slip.allowancesPaise == record['afterAllowancesPaise'] && slip.deductionsPaise == record['afterDeductionsPaise'];
+      if (!currentMatchesBefore && !currentMatchesAfter) throw const HrPayrollServiceException('Payslip changed after this adjustment was initiated. Reconcile before retrying.');
+      if (record['status'] == 'posted' && currentMatchesAfter) return slip;
+    }
+    final transactionId = 'finance:payroll-adjustment:$adjustmentId';
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final postings = Hive.box<FinancePosting>(Boxes.financePostings);
+    final existingJournal = transactions.values.where((tx) => tx.sourceType == 'payroll_adjustment' && tx.sourceId == adjustmentId).toList();
+    if (existingJournal.isEmpty) {
+      await FinanceLedgerService().postTransaction(
+        transaction: FinanceTransaction(id: transactionId, transactionNumber: 'PAY-ADJ-$dateKey-${adjustmentId.hashCode.abs()}', transactionType: 'adjustment', date: date, memo: 'Payroll adjustment for $payslipId: ${reason.trim()}', sourceType: 'payroll_adjustment', sourceId: adjustmentId),
+        postings: [
+          FinancePosting(id: '$transactionId:debit', transactionId: transactionId, accountId: debitAccount, debitPaise: amountPaise, memo: reason.trim()),
+          FinancePosting(id: '$transactionId:credit', transactionId: transactionId, accountId: creditAccount, creditPaise: amountPaise, memo: reason.trim()),
+        ],
+        accountsBox: accounts, transactionsBox: transactions, postingsBox: postings,
+        categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories), partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      );
+    } else {
+      if (existingJournal.length != 1 || existingJournal.single.id != transactionId || existingJournal.single.status != 'posted') throw const HrPayrollServiceException('Conflicting payroll adjustment journal exists.');
+      final lines = postings.values.where((line) => line.transactionId == transactionId).toList();
+      if (lines.length != 2 || lines.where((line) => line.accountId == debitAccount).fold<int>(0, (sum, line) => sum + line.debitPaise) != amountPaise || lines.where((line) => line.accountId == creditAccount).fold<int>(0, (sum, line) => sum + line.creditPaise) != amountPaise) throw const HrPayrollServiceException('Existing payroll adjustment journal does not match this adjustment.');
+    }
+    final current = slipsBox.get(payslipId)!;
+    if (current.allowancesPaise == record['beforeAllowancesPaise'] && current.deductionsPaise == record['beforeDeductionsPaise']) {
+      final updated = _copyPayslip(current, allowancesPaise: record['afterAllowancesPaise'] as int, deductionsPaise: record['afterDeductionsPaise'] as int, status: newNet == current.paidPaise ? 'paid' : current.status, paidAt: newNet == current.paidPaise ? DateTime.now() : current.paidAt);
+      await slipsBox.put(updated.id, updated);
+      final updatedRun = _copyRun(run, totalGrossPaise: run.totalGrossPaise + earningDelta, totalDeductionsPaise: run.totalDeductionsPaise + deductionDelta, totalNetPaise: run.totalNetPaise + netDelta);
+      await runsBox.put(updatedRun.id, updatedRun);
+    }
+    final latest = settings.get(payrollAdjustmentsKey);
+    final latestAll = <String, dynamic>{if (latest is Map) ...Map<String, dynamic>.from(latest)};
+    final latestHistory = List<dynamic>.from(latestAll[payslipId] as List? ?? []);
+    final recordIndex = latestHistory.indexWhere((item) => item is Map && item['id'] == adjustmentId);
+    if (recordIndex >= 0) {
+      final postedRecord = Map<String, dynamic>.from(latestHistory[recordIndex] as Map)..['status'] = 'posted'..['journalId'] = transactionId;
+      latestHistory[recordIndex] = postedRecord;
+      latestAll[payslipId] = latestHistory;
+      await settings.put(payrollAdjustmentsKey, latestAll);
+    }
+    return slipsBox.get(payslipId)!;
+  }
   Future<void> _refreshRunStatus(
     PayrollRun run,
     Box<Payslip> slipsBox,
@@ -1305,6 +1417,8 @@ class HrPayrollService {
   Payslip _copyPayslip(
     Payslip slip, {
     int? paidPaise,
+    int? allowancesPaise,
+    int? deductionsPaise,
     String? status,
     DateTime? paidAt,
   }) =>
@@ -1314,8 +1428,8 @@ class HrPayrollService {
         employeeId: slip.employeeId,
         payType: slip.payType,
         basePaise: slip.basePaise,
-        allowancesPaise: slip.allowancesPaise,
-        deductionsPaise: slip.deductionsPaise,
+        allowancesPaise: allowancesPaise ?? slip.allowancesPaise,
+        deductionsPaise: deductionsPaise ?? slip.deductionsPaise,
         payableDays: slip.payableDays,
         paidPaise: paidPaise ?? slip.paidPaise,
         status: status ?? slip.status,
@@ -1328,6 +1442,9 @@ class HrPayrollService {
     String? status,
     DateTime? approvedAt,
     DateTime? paidAt,
+    int? totalGrossPaise,
+    int? totalDeductionsPaise,
+    int? totalNetPaise,
   }) =>
       PayrollRun(
         id: run.id,
@@ -1337,9 +1454,9 @@ class HrPayrollService {
         createdAt: run.createdAt,
         approvedAt: approvedAt ?? run.approvedAt,
         paidAt: paidAt ?? run.paidAt,
-        totalGrossPaise: run.totalGrossPaise,
-        totalDeductionsPaise: run.totalDeductionsPaise,
-        totalNetPaise: run.totalNetPaise,
+        totalGrossPaise: totalGrossPaise ?? run.totalGrossPaise,
+        totalDeductionsPaise: totalDeductionsPaise ?? run.totalDeductionsPaise,
+        totalNetPaise: totalNetPaise ?? run.totalNetPaise,
         memo: run.memo,
       );
 }
