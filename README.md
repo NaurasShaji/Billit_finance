@@ -1,6 +1,6 @@
 # Billit
 
-Billit is a point-of-sale and retail management app for billing, inventory, GST, reporting, backups, and printer workflows. It uses Hive for local data storage and includes billing, inventory, reporting, backup, and printer workflows.
+Billit is a point-of-sale and retail management app for billing, inventory, GST, reporting, backups, and printer workflows. It uses Hive CE for local data storage and includes billing, inventory, reporting, backup, and printer workflows.
 
 ![Billit app logo](assets/icon/billit_logo.svg)
 
@@ -107,7 +107,7 @@ These are default credentials for a new local installation. Change the admin pas
 
 ## Development
 
-Hive adapters are checked into `lib/models/`. After changing a Hive model, regenerate the adapters:
+Hive CE adapters are checked into `lib/models/`. After changing a persisted model, regenerate the adapters:
 
 ```bash
 dart run build_runner build --delete-conflicting-outputs
@@ -134,7 +134,9 @@ assets/         App icons and other bundled assets
 
 ## Data and backups
 
-The app stores business data locally with Hive. The accounting journal uses integer paise, balanced debit/credit postings, and reversal records for corrections. Export backups regularly and store them somewhere safe. Legacy backups without finance collections remain supported; restoring one preserves the current finance boxes. Google Drive backup requires signing in to a Google account and an available Google Sign-In configuration for the target platform.
+The app stores business data locally with Hive CE.
+Storage engine migration and release validation requirements are documented in [`docs/hive_ce_migration.md`](docs/hive_ce_migration.md).
+ The accounting journal uses integer paise, balanced debit/credit postings, and reversal records for corrections. Export backups regularly and store them somewhere safe. Legacy backups without finance collections remain supported; restoring one preserves the current finance boxes. Google Drive backup requires signing in to a Google account and an available Google Sign-In configuration for the target platform.
 
 ## Android launcher icon
 
