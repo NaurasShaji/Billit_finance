@@ -153,7 +153,9 @@ class _FinancePartyStatementScreenState
                         Text(
                           _from == null && _to == null
                               ? 'All posted journal activity'
-                              : '${_from == null ? 'Beginning' : DateFormat('dd MMM yyyy').format(_from!)} – ${_to == null ? 'Today onward' : DateFormat('dd MMM yyyy').format(_to!)}',
+                              : _to == null
+                                  ? 'From ${DateFormat('dd MMM yyyy').format(_from!)} onward'
+                                  : '${_from == null ? 'Beginning' : DateFormat('dd MMM yyyy').format(_from!)} – ${DateFormat('dd MMM yyyy').format(_to!)}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
