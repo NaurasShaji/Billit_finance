@@ -1648,13 +1648,13 @@ class HrPayrollService {
     return matches.length == 1 ? matches.single : null;
   }
 
-  Future<Map<String, dynamic>> createSalaryGrade({required String name, required int minPaise, required int maxPaise}) async {
+  Future<Map<String, dynamic>> createSalaryGrade({required String name, required String payBasis, required int minPaise, required int maxPaise}) async {
     final cleanName = name.trim();
-    if (cleanName.isEmpty || minPaise <= 0 || maxPaise < minPaise) throw const HrPayrollServiceException('Enter a grade name and a valid minimum/maximum salary range.');
+    if (cleanName.isEmpty || (payBasis != 'daily' && payBasis != 'monthly') || minPaise <= 0 || maxPaise < minPaise) throw const HrPayrollServiceException('Enter a grade name, pay basis, and valid minimum/maximum salary range.');
     final settings = Hive.box<dynamic>('app_settings');
     final grades = salaryGrades();
     if (grades.any((grade) => (grade['name'] as String).toLowerCase() == cleanName.toLowerCase())) throw const HrPayrollServiceException('A salary grade with this name already exists.');
-    final grade = {'id': const Uuid().v4(), 'name': cleanName, 'minPaise': minPaise, 'maxPaise': maxPaise, 'active': true, 'createdAt': DateTime.now().toIso8601String()};
+    final grade = {'id': const Uuid().v4(), 'name': cleanName, 'payBasis': payBasis, 'minPaise': minPaise, 'maxPaise': maxPaise, 'active': true, 'createdAt': DateTime.now().toIso8601String()};
     await settings.put(salaryGradesKey, [...grades, grade]);
     return grade;
   }
@@ -1664,6 +1664,7 @@ class HrPayrollService {
     if (employee == null) throw const HrPayrollServiceException('Employee was not found.');
     final grades = salaryGrades().where((grade) => grade['id'] == gradeId).toList();
     if (grades.length != 1) throw const HrPayrollServiceException('Select an active salary grade.');
+    if (grades.single['payBasis'] != employee.type) throw const HrPayrollServiceException('Salary grade pay basis must match the employee pay type.');
     final date = _day(effectiveDate);
     final hasPayrollSnapshot = Hive.box<PayrollRun>(Boxes.payrollRuns).values.any((run) =>
         !date.isAfter(_day(run.periodEnd)) && !date.isBefore(_day(run.periodStart)));
