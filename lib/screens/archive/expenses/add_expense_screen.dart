@@ -160,7 +160,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                   ),
                                 ),
                                 child: DropdownButtonFormField<String>(
-                                  initialValue: _selectedCategory,
+                                  value: _selectedCategory,
                                   decoration: const InputDecoration(
                                     prefixIcon: Icon(Icons.category_outlined),
                                     border: InputBorder.none,
