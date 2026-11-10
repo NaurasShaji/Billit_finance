@@ -296,8 +296,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _saveExpense,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.surface,
-                              foregroundColor: theme.colorScheme.onSurface,
+                              backgroundColor: theme.colorScheme.primary,
+                              foregroundColor: theme.colorScheme.onPrimary,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -310,7 +310,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                          theme.colorScheme.onError),
+                                          theme.colorScheme.onPrimary),
                                     ),
                                   )
                                 : const Row(
@@ -562,7 +562,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Expense saved; finance journal sync will retry on next launch: $financeError'),
-              backgroundColor: Colors.orange.shade800,
+              backgroundColor: theme.colorScheme.errorContainer,
             ),
           );
         }
