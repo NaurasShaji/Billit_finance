@@ -15,3 +15,4 @@ export 'salary_component.dart';
 export 'payroll_run.dart';
 export 'payslip.dart';
 export 'finance_budget.dart';
+export 'finance_recurring_template.dart';
