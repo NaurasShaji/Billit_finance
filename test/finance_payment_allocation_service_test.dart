@@ -117,6 +117,27 @@ void main() {
     expect(allocations.length, 1);
   });
 
+  test('batch allocation validates all rows before writing any record', () async {
+    await postInvoice();
+    await postReceipt();
+    final service = FinancePaymentAllocationService();
+    await expectLater(
+      service.allocateBatch(
+        settlementTransactionId: 'receipt-1',
+        partyId: 'customer-1',
+        partyType: 'customer',
+        drafts: [
+          const FinanceAllocationDraft(id: 'batch-1', invoiceTransactionId: 'invoice-1', amountPaise: 5000),
+          const FinanceAllocationDraft(id: 'batch-2', invoiceTransactionId: 'invoice-1', amountPaise: 4000),
+        ],
+        transactions: transactions.values,
+        postings: postings.values,
+      ),
+      throwsA(isA<FinanceAllocationException>()),
+    );
+    expect(allocations, isEmpty);
+  });
+
   test('reversing a settlement makes its allocations ineffective but preserves history', () async {
     await postInvoice();
     await postReceipt();
