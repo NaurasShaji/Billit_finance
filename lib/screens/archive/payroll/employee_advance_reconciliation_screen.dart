@@ -9,14 +9,44 @@ import '../../../services/hr_payroll_service.dart';
 class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
   const EmployeeAdvanceReconciliationScreen({super.key});
 
+  static const _advanceAccountId = HrPayrollService.employeeAdvanceAccountId;
+
   String _money(int paise) =>
       NumberFormat.simpleCurrency(locale: 'en_IN').format(paise / 100);
+
+  int _amount(Object? value) => value is int && value >= 0 ? value : 0;
+
+  List<FinancePosting> _linesFor(
+    Box<FinancePosting> postings,
+    String transactionId,
+  ) =>
+      postings.values.where((line) => line.transactionId == transactionId).toList();
+
+  bool _matchesJournal({
+    required FinanceTransaction transaction,
+    required List<FinancePosting> lines,
+    required String debitAccountId,
+    required String creditAccountId,
+    required int amountPaise,
+  }) {
+    if (transaction.status != 'posted' || lines.length != 2) return false;
+    final debit = lines.where((line) => line.accountId == debitAccountId).toList();
+    final credit = lines.where((line) => line.accountId == creditAccountId).toList();
+    return debit.length == 1 &&
+        credit.length == 1 &&
+        debit.single.debitPaise == amountPaise &&
+        debit.single.creditPaise == 0 &&
+        credit.single.creditPaise == amountPaise &&
+        credit.single.debitPaise == 0;
+  }
 
   @override
   Widget build(BuildContext context) {
     final settings = Hive.box<dynamic>('app_settings');
     final employees = Hive.box<Employee>(Boxes.employees);
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final postings = Hive.box<FinancePosting>(Boxes.financePostings);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Employee advance reconciliation')),
       body: ValueListenableBuilder<Box<dynamic>>(
@@ -27,158 +57,246 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
         builder: (context, settingsBox, _) =>
             ValueListenableBuilder<Box<FinanceTransaction>>(
           valueListenable: transactions.listenable(),
-          builder: (context, transactionBox, __) {
-            final summary = HrPayrollService().advanceReconciliation();
-            final raw = settingsBox.get(HrPayrollService.advanceSettingsKey);
-            final rows = <Widget>[];
-            var legacyCount = 0;
-            var advanceCount = 0;
-            if (raw is Map) {
-              for (final entry in raw.entries) {
-                final employee = employees.get(entry.key);
-                if (entry.value is! List) continue;
-                final advances = (entry.value as List).whereType<Map>();
-                for (final item in advances) {
-                  if (item['id'] is! String) continue;
-                  advanceCount++;
-                  final advanceId = item['id'] as String;
-                  final issue = transactionBox.values.where((tx) =>
-                    tx.sourceType == 'employee_advance_issue' && tx.sourceId == advanceId).toList();
-                  final repayments = (item['repayments'] as List? ?? []).whereType<Map>().toList();
-                  final missingManual = repayments.where((repayment) {
-                    if (repayment['source'] != 'manual' || repayment['id'] is! String) return false;
-                    return !transactionBox.values.any((tx) =>
-                      tx.sourceType == 'employee_advance_repayment' &&
-                      tx.sourceId == repayment['id']);
-                  }).length;
-                  if (issue.isEmpty || missingManual > 0) legacyCount++;
-                  final principal = item['principalPaise'] as int? ?? 0;
-                  final outstanding = item['outstandingPaise'] as int? ?? 0;
-                  final issueStatus = issue.isEmpty
-                      ? 'Missing issue journal — legacy or unreconciled'
-                      : issue.single.status == 'posted'
-                          ? 'Issue journal: ${issue.single.transactionNumber}'
-                          : 'Issue journal is not posted';
-                  final payrollIds = repayments
-                      .where((repayment) => repayment['source'] == 'payroll' && repayment['payslipId'] is String)
-                      .map((repayment) => repayment['payslipId'] as String)
-                      .toSet();
-                  final payrollJournals = transactionBox.values.where((tx) =>
-                    tx.sourceType == 'payroll_advance_recovery' && payrollIds.contains(tx.sourceId)).length;
-                  rows.add(Card(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    child: ExpansionTile(
-                      title: Text(item['description'] as String? ?? 'Employee advance'),
-                      subtitle: Text('${employee?.name ?? 'Unknown employee'} · Outstanding ${_money(outstanding)}'),
-                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      children: [
-                        _detail('Advance ID', advanceId),
-                        _detail('Principal', _money(principal)),
-                        _detail('Outstanding', _money(outstanding)),
-                        _detail('Status', item['status'] as String? ?? 'unknown'),
-                        _detail('Issue date', item['issueDate'] as String? ?? '—'),
-                        _detail('Issue journal', issueStatus),
-                        _detail('Repayment records', repayments.length.toString()),
-                        _detail('Payroll recovery journals', payrollJournals.toString()),
-                        if (missingManual > 0)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.warning_amber_rounded),
-                            title: Text('$missingManual manual repayment journal(s) missing'),
-                          ),
-                        if (repayments.isNotEmpty) ...[
-                          const Divider(),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text('Repayment history', style: Theme.of(context).textTheme.titleSmall),
-                          ),
-                          for (final repayment in repayments)
-                            ListTile(
-                              dense: true,
+          builder: (context, transactionBox, __) =>
+              ValueListenableBuilder<Box<FinancePosting>>(
+            valueListenable: postings.listenable(),
+            builder: (context, postingBox, ___) {
+              final summary = HrPayrollService().advanceReconciliation();
+              final raw = settingsBox.get(HrPayrollService.advanceSettingsKey);
+              final rows = <Widget>[];
+              var advanceCount = 0;
+              var issueProblemCount = 0;
+              var repaymentProblemCount = 0;
+              var malformedCount = 0;
+
+              if (raw is Map) {
+                for (final entry in raw.entries) {
+                  final employee = employees.get(entry.key);
+                  if (entry.value is! List) {
+                    malformedCount++;
+                    continue;
+                  }
+                  for (final value in entry.value as List) {
+                    if (value is! Map || value['id'] is! String) {
+                      malformedCount++;
+                      continue;
+                    }
+                    final item = Map<String, dynamic>.from(value);
+                    final advanceId = item['id'] as String;
+                    advanceCount++;
+                    final principal = _amount(item['principalPaise']);
+                    final outstanding = _amount(item['outstandingPaise']);
+                    final repaymentValues = item['repayments'];
+                    final repayments = repaymentValues is List
+                        ? repaymentValues.whereType<Map>().toList()
+                        : <Map>[];
+                    if (repaymentValues != null && repaymentValues is! List) {
+                      malformedCount++;
+                    }
+
+                    final issueJournals = transactionBox.values.where((tx) =>
+                        tx.sourceType == 'employee_advance_issue' &&
+                        tx.sourceId == advanceId).toList();
+                    var issueValid = false;
+                    if (issueJournals.length == 1) {
+                      final issueLines = _linesFor(postingBox, issueJournals.single.id);
+                      final creditLines = issueLines.where((line) => line.creditPaise > 0).toList();
+                      issueValid = creditLines.length == 1 &&
+                          _matchesJournal(
+                            transaction: issueJournals.single,
+                            lines: issueLines,
+                            debitAccountId: _advanceAccountId,
+                            creditAccountId: creditLines.single.accountId,
+                            amountPaise: principal,
+                          );
+                    }
+
+                    var missingManual = 0;
+                    var invalidManual = 0;
+                    var manualCount = 0;
+                    final payrollPayslipIds = <String>{};
+                    for (final repayment in repayments) {
+                      final source = repayment['source'];
+                      if (source == 'payroll' && repayment['payslipId'] is String) {
+                        payrollPayslipIds.add(repayment['payslipId'] as String);
+                      }
+                      if (source != 'manual' || repayment['id'] is! String) continue;
+                      manualCount++;
+                      final linked = transactionBox.values.where((tx) =>
+                          tx.sourceType == 'employee_advance_repayment' &&
+                          tx.sourceId == repayment['id']).toList();
+                      if (linked.isEmpty) {
+                        missingManual++;
+                      } else if (linked.length != 1) {
+                        invalidManual++;
+                      } else {
+                        final linkedLines = _linesFor(postingBox, linked.single.id);
+                        final debitLines = linkedLines.where((line) => line.debitPaise > 0).toList();
+                        if (debitLines.length != 1 ||
+                            !_matchesJournal(
+                              transaction: linked.single,
+                              lines: linkedLines,
+                              debitAccountId: debitLines.length == 1 ? debitLines.single.accountId : '',
+                              creditAccountId: _advanceAccountId,
+                              amountPaise: _amount(repayment['amountPaise']),
+                            )) {
+                          invalidManual++;
+                        }
+                      }
+                    }
+
+                    final payrollJournals = transactionBox.values.where((tx) =>
+                        tx.sourceType == 'payroll_advance_recovery' &&
+                        payrollPayslipIds.contains(tx.sourceId)).toList();
+                    final duplicatePayrollJournals =
+                        payrollJournals.map((tx) => tx.sourceId).toSet().length != payrollJournals.length;
+                    final issueProblem = !issueValid;
+                    final repaymentProblem = missingManual > 0 ||
+                        invalidManual > 0 || duplicatePayrollJournals;
+                    if (issueProblem) issueProblemCount++;
+                    if (repaymentProblem) repaymentProblemCount++;
+
+                    final issueLabel = issueJournals.isEmpty
+                        ? 'Missing issue journal'
+                        : issueJournals.length > 1
+                            ? 'Duplicate issue journals (\${issueJournals.length})'
+                            : issueValid
+                                ? 'Issue journal: \${issueJournals.single.transactionNumber}'
+                                : 'Issue journal is unposted or does not match principal';
+
+                    rows.add(Card(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: ExpansionTile(
+                        title: Text(item['description'] is String
+                            ? item['description'] as String
+                            : 'Employee advance'),
+                        subtitle: Text(
+                          '\${employee?.name ?? 'Unknown employee'} · Outstanding \${_money(outstanding)}',
+                        ),
+                        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        children: [
+                          _detail('Advance ID', advanceId),
+                          _detail('Principal', _money(principal)),
+                          _detail('Outstanding', _money(outstanding)),
+                          _detail('Status', item['status'] is String ? item['status'] as String : 'unknown'),
+                          _detail('Issue date', item['issueDate'] is String ? item['issueDate'] as String : '—'),
+                          _detail('Issue journal', issueLabel),
+                          _detail('Manual repayment records', manualCount.toString()),
+                          _detail('Missing manual journals', missingManual.toString()),
+                          _detail('Invalid/duplicate manual journals', invalidManual.toString()),
+                          _detail('Payroll recovery records', payrollPayslipIds.length.toString()),
+                          _detail('Linked payroll recovery journals', payrollJournals.length.toString()),
+                          if (duplicatePayrollJournals)
+                            const ListTile(
                               contentPadding: EdgeInsets.zero,
-                              title: Text(_money(repayment['amountPaise'] as int? ?? 0)),
-                              subtitle: Text('${repayment['source'] ?? 'unknown'} · ${repayment['date'] ?? ''}'),
-                              trailing: repayment['source'] == 'manual'
-                                  ? Icon(
-                                      transactionBox.values.any((tx) =>
+                              leading: Icon(Icons.warning_amber_rounded),
+                              title: Text('Duplicate payroll recovery journals detected'),
+                            ),
+                          if (missingManual > 0 || invalidManual > 0 || issueProblem)
+                            const ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.warning_amber_rounded),
+                              title: Text('Journal coverage requires investigation'),
+                            ),
+                          if (repayments.isNotEmpty) ...[
+                            const Divider(),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Repayment history', style: Theme.of(context).textTheme.titleSmall),
+                            ),
+                            for (final repayment in repayments)
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(_money(_amount(repayment['amountPaise']))),
+                                subtitle: Text('\${repayment['source'] ?? 'unknown'} · \${repayment['date'] ?? ''}'),
+                                trailing: repayment['source'] == 'manual'
+                                    ? Icon(transactionBox.values.any((tx) =>
                                         tx.sourceType == 'employee_advance_repayment' &&
                                         tx.sourceId == repayment['id'])
                                         ? Icons.check_circle_outline
-                                        : Icons.warning_amber_rounded,
-                                    )
-                                  : const Icon(Icons.receipt_long_outlined),
-                            ),
+                                        : Icons.warning_amber_rounded)
+                                    : const Icon(Icons.receipt_long_outlined),
+                              ),
+                          ],
                         ],
-                      ],
-                    ),
-                  ));
+                      ),
+                    ));
+                  }
                 }
+              } else if (raw != null) {
+                malformedCount++;
               }
-            }
-            final difference = summary['differencePaise'] ?? 0;
-            final balanced = difference == 0;
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(balanced ? Icons.verified_outlined : Icons.warning_amber_rounded,
-                            color: balanced ? Colors.green : Theme.of(context).colorScheme.error),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(
-                            balanced ? 'Control account matches HR register' : 'Advance balances do not reconcile',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          )),
-                        ]),
-                        const SizedBox(height: 12),
-                        _detail('HR subledger outstanding', _money(summary['subledgerPaise'] ?? 0)),
-                        _detail('Employee Advances control account', _money(summary['journalPaise'] ?? 0)),
-                        const Divider(),
-                        _detail('Difference (journal − subledger)', _money(difference)),
-                        _detail('Advance records', advanceCount.toString()),
-                        _detail('Records with missing issue/manual journals', legacyCount.toString()),
-                      ],
+
+              final difference = summary['differencePaise'] ?? 0;
+              final balanced = difference == 0;
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Icon(
+                              balanced ? Icons.verified_outlined : Icons.warning_amber_rounded,
+                              color: balanced ? Colors.green : Theme.of(context).colorScheme.error,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(
+                              balanced ? 'Control account matches HR register' : 'Advance balances do not reconcile',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            )),
+                          ]),
+                          const SizedBox(height: 12),
+                          _detail('HR subledger outstanding', _money(summary['subledgerPaise'] ?? 0)),
+                          _detail('Employee Advances control account', _money(summary['journalPaise'] ?? 0)),
+                          const Divider(),
+                          _detail('Difference (journal − subledger)', _money(difference)),
+                          _detail('Advance records', advanceCount.toString()),
+                          _detail('Issue-journal exceptions', issueProblemCount.toString()),
+                          _detail('Repayment-journal exceptions', repaymentProblemCount.toString()),
+                          _detail('Malformed register records', malformedCount.toString()),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(14),
-                    child: Text(
-                      'Do not post a balancing adjustment solely to force this report to zero. Older advances may have been recorded before journal integration. Reconstruct their actual cash/bank disbursement and repayment history first. Posted journal corrections must use immutable reversals and matching HR-register corrections; this screen is currently diagnostic and does not modify either ledger.',
+                  const SizedBox(height: 12),
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(14),
+                      child: Text(
+                        'This report is diagnostic only. A zero aggregate difference does not prove that each advance is correctly journalled. Do not post a balancing adjustment to force the total to zero. Historical advances require verified opening-balance treatment, and posted corrections must use immutable reversals with matching HR-register corrections.',
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text('Advance register', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 8),
-                if (rows.isEmpty)
-                  const Card(child: ListTile(
-                    leading: Icon(Icons.info_outline),
-                    title: Text('No employee advances recorded'),
-                  ))
-                else
-                  ...rows,
-              ],
-            );
-          },
+                  const SizedBox(height: 12),
+                  Text('Advance register', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  if (rows.isEmpty)
+                    const Card(child: ListTile(
+                      leading: Icon(Icons.info_outline),
+                      title: Text('No employee advances recorded'),
+                    ))
+                  else
+                    ...rows,
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _detail(String label, String value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(children: [
-      Expanded(child: Text(label)),
-      const SizedBox(width: 12),
-      Flexible(child: Text(value, textAlign: TextAlign.end)),
-    ]),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(children: [
+          Expanded(child: Text(label)),
+          const SizedBox(width: 12),
+          Flexible(child: Text(value, textAlign: TextAlign.end)),
+        ]),
+      );
 }
