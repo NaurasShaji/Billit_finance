@@ -149,6 +149,53 @@ void main() {
       );
     });
 
+    test('rejects posted finance transactions with unbalanced postings', () {
+      expect(
+        () => service.parse({
+          'financeAccounts': [
+            {
+              'id': 'cash',
+              'name': 'Cash',
+              'accountType': 'asset',
+            },
+            {
+              'id': 'expense',
+              'name': 'Expense',
+              'accountType': 'expense',
+            },
+          ],
+          'financeTransactions': [
+            {
+              'id': 'txn',
+              'transactionNumber': 'TXN-1',
+              'transactionType': 'expense',
+              'status': 'posted',
+              'date': '2026-01-01T00:00:00.000',
+            },
+          ],
+          'financePostings': [
+            {
+              'id': 'debit',
+              'transactionId': 'txn',
+              'accountId': 'expense',
+              'debitPaise': 100,
+              'creditPaise': 0,
+            },
+            {
+              'id': 'credit',
+              'transactionId': 'txn',
+              'accountId': 'cash',
+              'debitPaise': 0,
+              'creditPaise': 90,
+            },
+          ],
+          'financeCategories': [],
+          'financeParties': [],
+        }),
+        throwsFormatException,
+      );
+    });
+
     test('rejects fractional paise values in finance postings', () {
       expect(
         () => service.parse({
