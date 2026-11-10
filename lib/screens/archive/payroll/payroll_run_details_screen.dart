@@ -6,6 +6,7 @@ import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_payroll_service.dart';
 import 'payslip_details_screen.dart';
+import '../../../widgets/responsive_page.dart';
 
 class PayrollRunDetailsScreen extends StatefulWidget {
   const PayrollRunDetailsScreen({super.key, required this.runId});
@@ -161,12 +162,12 @@ class _PayrollRunDetailsScreenState extends State<PayrollRunDetailsScreen> {
       builder: (context, runs, _) {
         final run = runs.get(widget.runId);
         if (run == null) {
-          return Scaffold(
+          return ResponsivePage(child: Scaffold(
             appBar: AppBar(title: const Text('Payroll run')),
             body: const Center(child: Text('Payroll run not found.')),
-          );
+          ));
         }
-        return Scaffold(
+        return ResponsivePage(child: Scaffold(
           appBar: AppBar(
             title: const Text('Payroll run'),
             actions: [
@@ -267,7 +268,7 @@ class _PayrollRunDetailsScreenState extends State<PayrollRunDetailsScreen> {
               );
             },
           ),
-        );
+        ));
       },
     );
   }
