@@ -255,7 +255,7 @@ class _FinanceAgeingScreenState extends State<FinanceAgeingScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ScaffolResponsivePage(child: Scaffold((
+  Widget build(BuildContext context) => ResponsivePage(child: Scaffold(
         appBar: AppBar(title: const Text('Receivables / payables ageing')),
         body: ValueListenableBuilder<Box<Map>>(
           valueListenable: Hive.box<Map>(Boxes.financePaymentAllocations).listenable(),
