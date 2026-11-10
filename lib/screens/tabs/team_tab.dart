@@ -141,6 +141,9 @@ class TeamTab extends StatelessWidget {
                         employee: e,
                         paid: PayrollService.isPaid(e, expenses, now,
                             allEmployees: employees),
+                        attendanceStatus: e.type == PayrollService.typeDaily
+                            ? PayrollService.attendanceFor(e, now)?.status
+                            : null,
                         paidAmount: PayrollService.paidAmountFor(
                           e, expenses, now, allEmployees: employees),
                         outstanding: PayrollService.outstandingFor(
@@ -434,6 +437,7 @@ class _EmployeeCard extends StatelessWidget {
   const _EmployeeCard({
     required this.employee,
     required this.paid,
+    required this.attendanceStatus,
     required this.paidAmount,
     required this.outstanding,
     required this.currency,
@@ -444,6 +448,7 @@ class _EmployeeCard extends StatelessWidget {
 
   final Employee employee;
   final bool paid;
+  final String? attendanceStatus;
   final double paidAmount;
   final double outstanding;
   final NumberFormat currency;
@@ -457,16 +462,26 @@ class _EmployeeCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isDaily = employee.type == PayrollService.typeDaily;
     final active = employee.employmentStatus == 'active';
-    final statusColor =
-        !active ? Colors.grey : paid ? Colors.green : Colors.orange;
+    final attendanceNotEligible = isDaily &&
+        (attendanceStatus == null ||
+            (attendanceStatus != 'present' && attendanceStatus != 'half_day'));
+    final statusColor = !active || attendanceNotEligible
+        ? Colors.grey
+        : paid
+            ? Colors.green
+            : Colors.orange;
     final partiallyPaid = paidAmount > 0.005 && !paid;
     final statusText = !active
         ? employee.employmentStatus.replaceAll('_', ' ').toUpperCase()
-        : paid
-            ? (isDaily ? 'Paid today' : 'Paid this month')
-            : partiallyPaid
-                ? 'Partially paid · ${currency.format(outstanding)} due'
-                : (isDaily ? 'Not paid today' : 'Salary due');
+        : attendanceNotEligible
+            ? attendanceStatus == null
+                ? 'Attendance not marked'
+                : 'No wage due today'
+            : paid
+                ? (isDaily ? 'Paid today' : 'Paid this month')
+                : partiallyPaid
+                    ? 'Partially paid · ${currency.format(outstanding)} due'
+                    : (isDaily ? 'Wage due' : 'Salary due');
     final initial =
         employee.name.trim().isEmpty ? '?' : employee.name.trim()[0].toUpperCase();
 
@@ -540,9 +555,9 @@ class _EmployeeCard extends StatelessWidget {
                   onPressed: onHistory,
                   icon: const Icon(Icons.history),
                 ),
-                if (active && !paid)
+                if (active && !attendanceNotEligible && !paid)
                   FilledButton.tonal(onPressed: onPay, child: const Text('Pay'))
-                else if (active)
+                else if (active && !attendanceNotEligible)
                   Icon(Icons.check_circle_rounded,
                       color: Colors.green.shade600.adaptive(context))
                 else
