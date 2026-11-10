@@ -408,6 +408,28 @@ class BackupRestoreService {
         ? _parseRecords(data, 'leaveRequests', _parseLeaveRequest)
         : null;
 
+    const payrollKeys = [
+      'salaryComponents',
+      'payrollRuns',
+      'payslips',
+    ];
+    final hasAnyPayrollKey = payrollKeys.any(data.containsKey);
+    if (hasAnyPayrollKey &&
+        (!hasAnyHrKey || !payrollKeys.every(data.containsKey))) {
+      throw const FormatException(
+        'Payroll backup is incomplete; HR and all payroll collections are required.',
+      );
+    }
+    final salaryComponents = hasAnyPayrollKey
+        ? _parseRecords(data, 'salaryComponents', _parseSalaryComponent)
+        : null;
+    final payrollRuns = hasAnyPayrollKey
+        ? _parseRecords(data, 'payrollRuns', _parsePayrollRun)
+        : null;
+    final payslips = hasAnyPayrollKey
+        ? _parseRecords(data, 'payslips', _parsePayslip)
+        : null;
+
     final employees = _parseRecords(data, 'employees', _parseEmployee);
     if (hasAnyHrKey) {
       _validateHrCollections(
@@ -415,6 +437,14 @@ class BackupRestoreService {
         hrDepartments!,
         employeeAttendance!,
         leaveRequests!,
+      );
+    }
+    if (hasAnyPayrollKey) {
+      _validatePayrollCollections(
+        employees,
+        salaryComponents!,
+        payrollRuns!,
+        payslips!,
       );
     }
     if (hasAnyFinanceKey) {
@@ -441,6 +471,9 @@ class BackupRestoreService {
       hrDepartments: hrDepartments,
       employeeAttendance: employeeAttendance,
       leaveRequests: leaveRequests,
+      salaryComponents: salaryComponents,
+      payrollRuns: payrollRuns,
+      payslips: payslips,
       appSettings: _parseSettings(data['appSettings']),
     );
   }
