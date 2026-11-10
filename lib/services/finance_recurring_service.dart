@@ -51,7 +51,7 @@ class FinanceRecurringService {
     final year = date.year + monthIndex ~/ 12;
     final month = monthIndex % 12 + 1;
     final lastDay = DateTime(year, month + 1, 0).day;
-    return DateTime(year, month, date.day.clamp(1, lastDay));
+    return DateTime(year, month, date.day.clamp(1, lastDay).toInt());
   }
 
   static DateTime _nextDate(DateTime date, String interval) => switch (interval) {
