@@ -47,8 +47,8 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
         title: const Text('Expense Records'),
-        backgroundColor: Colors.red.shade600,
-        foregroundColor: Colors.white,
+        backgroundColor: theme.colorScheme.surface,
+        foregroundColor: theme.colorScheme.onSurface,
         elevation: 0,
         centerTitle: true,
         bottom: PreferredSize(
@@ -56,7 +56,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: TabBar(
@@ -69,8 +69,8 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 color: context.panelColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              labelColor: Colors.red.shade600,
-              unselectedLabelColor: Colors.white,
+              labelColor: theme.colorScheme.primary,
+              unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
               tabs: const [
@@ -156,13 +156,13 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.12),
+                          color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: IconButton(
                           tooltip: 'Previous',
                           icon: Icon(Icons.chevron_left,
-                              color: Colors.red.shade600),
+                              color: theme.colorScheme.error),
                           onPressed: () =>
                               setState(() => _anchor = _previous(_anchor)),
                         ),
@@ -171,13 +171,13 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.12),
+                            color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.35),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: TextButton.icon(
                             onPressed: _pickPeriod,
                             icon: Icon(Icons.calendar_today,
-                                color: Colors.blue.shade600, size: 20),
+                                color: theme.colorScheme.secondary, size: 20),
                             label: Text(
                               _tab.index == 0
                                   ? dateFmt.format(_anchor)
@@ -186,7 +186,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                       : _anchor.year.toString(),
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: Colors.blue.shade700.adaptive(context),
+                                color: theme.colorScheme.secondary,
                                 fontSize: 16,
                               ),
                             ),
@@ -196,13 +196,13 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                       const SizedBox(width: 8),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.12),
+                          color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: IconButton(
                           tooltip: 'Next',
                           icon: Icon(Icons.chevron_right,
-                              color: Colors.red.shade600),
+                              color: theme.colorScheme.error),
                           onPressed: () =>
                               setState(() => _anchor = _next(_anchor)),
                         ),
@@ -242,12 +242,12 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.green.withValues(alpha: 0.12),
+                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
                                       Icons.analytics_outlined,
-                                      color: Colors.green.shade600,
+                                      color: theme.colorScheme.primary,
                                       size: 24,
                                     ),
                                   ),
@@ -287,21 +287,21 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                 'Monthly Salaries',
                                 currency.format(salaryMonthly),
                                 Icons.payments_outlined,
-                                Colors.blue,
+                                theme.colorScheme.secondary,
                               ),
                               const SizedBox(height: 12),
                               _buildSummaryRow(
                                 'Daily Wages',
                                 currency.format(salaryDaily),
                                 Icons.schedule_outlined,
-                                Colors.orange,
+                                theme.colorScheme.tertiary,
                               ),
                               const SizedBox(height: 12),
                               _buildSummaryRow(
                                 'Other Expenses',
                                 currency.format(otherExpenses),
                                 Icons.receipt_long_outlined,
-                                Colors.purple,
+                                theme.colorScheme.primary,
                               ),
 
                               const SizedBox(height: 16),
@@ -315,7 +315,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                 'Total Expenses',
                                 currency.format(netExpenses),
                                 Icons.account_balance_wallet_outlined,
-                                Colors.red,
+                                theme.colorScheme.error,
                                 isBold: true,
                               ),
                             ],
@@ -406,12 +406,12 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: Colors.indigo.withValues(alpha: 0.12),
+                                      color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Icon(
                                       Icons.receipt_long_outlined,
-                                      color: Colors.indigo.shade600,
+                                      color: theme.colorScheme.tertiary,
                                       size: 20,
                                     ),
                                   ),
@@ -507,19 +507,19 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
   }
 
   Widget _buildSummaryRow(
-      String title, String value, IconData icon, MaterialColor color,
+      String title, String value, IconData icon, Color color,
       {bool isBold = false}) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.shade50,
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: color.shade600,
+            color: color,
             size: 18,
           ),
         ),
@@ -578,7 +578,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 icon,
                 size: 16,
                 color: isSelected
-                    ? Colors.white
+                    ? Theme.of(context).colorScheme.onPrimary
                     : theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
               const SizedBox(width: 8),
@@ -588,7 +588,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: isSelected
-                      ? Colors.white
+                      ? Theme.of(context).colorScheme.onPrimary
                       : theme.colorScheme.onSurface.withValues(alpha: 0.8),
                 ),
               ),
@@ -603,7 +603,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
       DateFormat dateFmt, ThemeData theme) {
     final isSalary = expense.category == 'Salary-Monthly' ||
         expense.category == 'Salary-Daily';
-    final color = isSalary ? Colors.blue : Colors.orange;
+    final color = isSalary ? theme.colorScheme.secondary : theme.colorScheme.tertiary;
     final icon = isSalary ? Icons.payments_outlined : Icons.receipt_outlined;
 
     return Padding(
@@ -613,12 +613,12 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.shade50,
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
-              color: color.shade600,
+              color: color,
               size: 20,
             ),
           ),
@@ -643,7 +643,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                       expense.category,
                       style: TextStyle(
                         fontSize: 13,
-                        color: color.shade600,
+                        color: color,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -668,7 +668,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Colors.red.shade600,
+                  color: theme.colorScheme.error,
                 ),
               ),
               const SizedBox(height: 8),
@@ -685,12 +685,12 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                     ),
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.12),
+                      color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: IconButton(
                       onPressed: () => _deleteExpense(expense),
-                      icon: Icon(Icons.delete_outline, color: Colors.red.shade600, size: 18),
+                      icon: Icon(Icons.delete_outline, color: theme.colorScheme.error, size: 18),
                       padding: const EdgeInsets.all(6),
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       tooltip: 'Delete expense',
@@ -908,7 +908,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           children: [
             Icon(
               Icons.warning_amber_outlined,
-              color: Colors.orange.shade600,
+              color: Theme.of(context).colorScheme.tertiary,
               size: 24,
             ),
             const SizedBox(width: 12),
@@ -930,9 +930,9 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.12),
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.4)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -951,7 +951,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                     '${expense.category} • ${NumberFormat.simpleCurrency(locale: 'en_IN').format(expense.amount)}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.red.shade700.adaptive(context),
+                      color: Theme.of(context).colorScheme.error,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -963,7 +963,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
               'This action cannot be undone.',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.red.shade600,
+                color: theme.colorScheme.error,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -977,8 +977,8 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.surface,
+              foregroundColor: theme.colorScheme.onSurface,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
             ),
@@ -1006,14 +1006,14 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 children: [
                   Icon(
                     Icons.check_circle_outline,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 20,
                   ),
                   SizedBox(width: 12),
                   Text('Expense deleted successfully'),
                 ],
               ),
-              backgroundColor: Colors.green.shade600,
+              backgroundColor: theme.colorScheme.primary,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
@@ -1029,14 +1029,14 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 children: [
                   const Icon(
                     Icons.error_outline,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
                   Text('Failed to delete expense: $e'),
                 ],
               ),
-              backgroundColor: Colors.red.shade600,
+              backgroundColor: theme.colorScheme.surface,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
