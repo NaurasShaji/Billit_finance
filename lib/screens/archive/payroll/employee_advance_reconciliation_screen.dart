@@ -289,6 +289,20 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                                 label: const Text('Record verified opening balance'),
                               ),
                             ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _correctAdvanceBalance(
+                                context,
+                                employeeId: entry.key.toString(),
+                                advanceId: advanceId,
+                                outstandingPaise: outstanding,
+                                issueDate: DateTime.tryParse(item['issueDate']?.toString() ?? '') ?? DateTime.now(),
+                              ),
+                              icon: const Icon(Icons.edit_note_outlined),
+                              label: const Text('Correct verified balance'),
+                            ),
+                          ),
                           if (repayments.isNotEmpty) ...[
                             const Divider(),
                             Align(
@@ -383,6 +397,166 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
   }
 
 
+  Future<void> _correctAdvanceBalance(
+    BuildContext context, {
+    required String employeeId,
+    required String advanceId,
+    required int outstandingPaise,
+    required DateTime issueDate,
+  }) async {
+    final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts).values
+        .where((account) => account.active && account.currencyCode == 'INR' && account.id != _advanceAccountId)
+        .toList()..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    if (accounts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Create an active INR offset account before correcting an advance.')));
+      return;
+    }
+    final amountController = TextEditingController(text: (outstandingPaise / 100).toStringAsFixed(2));
+    final reasonController = TextEditingController();
+    String? offsetAccountId = accounts.first.id;
+    DateTime effectiveDate = DateTime.now();
+    int? parsePaise(String value) {
+      final match = RegExp(r'^\\d+(?:\\.\\d{1,2})?
+    BuildContext context, {
+    required String employeeId,
+    required String advanceId,
+    required int outstandingPaise,
+  }) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: 'Opening balance effective date',
+    );
+    if (date == null || !context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Post advance opening balance?'),
+        content: Text(
+          'This will debit Employee Advances and credit Opening Balance Equity by ${_money(outstandingPaise)} as of ${DateFormat.yMMMd().format(date)}. It will not recreate historical cash movements. Only continue if this is the verified outstanding balance at the selected cut-off date.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Post opening balance'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await HrPayrollService().recordLegacyAdvanceOpeningBalance(
+        employeeId: employeeId,
+        advanceId: advanceId,
+        asOfDate: date,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Opening balance journal posted.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not post opening balance: $error')),
+      );
+    }
+  }
+
+  Widget _detail(String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(children: [
+          Expanded(child: Text(label)),
+          const SizedBox(width: 12),
+          Flexible(child: Text(value, textAlign: TextAlign.end)),
+        ]),
+      );
+}).firstMatch(value.trim());
+      if (match == null) return null;
+      final parts = value.trim().split('.');
+      final whole = int.tryParse(parts[0]);
+      if (whole == null) return null;
+      final fraction = parts.length == 1 ? 0 : int.parse(parts[1].padRight(2, '0'));
+      return whole * 100 + fraction;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Correct advance balance'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Current HR balance: ${_money(outstandingPaise)}'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Verified outstanding balance (INR)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: offsetAccountId,
+                  decoration: const InputDecoration(labelText: 'Correction offset account', border: OutlineInputBorder()),
+                  items: [for (final account in accounts) DropdownMenuItem(value: account.id, child: Text('${account.name} · ${account.accountType}'))],
+                  onChanged: (value) => setDialogState(() => offsetAccountId = value),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonController,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'Reason for correction', hintText: 'Explain the verified discrepancy', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(context: dialogContext, initialDate: effectiveDate, firstDate: DateTime(issueDate.year, issueDate.month, issueDate.day), lastDate: DateTime.now(), helpText: 'Correction effective date');
+                    if (picked != null) setDialogState(() => effectiveDate = picked);
+                  },
+                  icon: const Icon(Icons.calendar_today_outlined),
+                  label: Text('Effective date: ${DateFormat.yMMMd().format(effectiveDate)}'),
+                ),
+                const Text('This posts an immutable adjustment journal and updates the HR register. It does not rewrite or delete prior journals. Select the offset account based on the verified cause.'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                final amount = parsePaise(amountController.text);
+                if (amount == null || reasonController.text.trim().isEmpty || offsetAccountId == null) return;
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Post correction'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      final amount = parsePaise(amountController.text);
+      if (amount == null || offsetAccountId == null) return;
+      try {
+        await HrPayrollService().correctEmployeeAdvanceBalance(employeeId: employeeId, advanceId: advanceId, correctedOutstandingPaise: amount, effectiveDate: effectiveDate, reason: reasonController.text, offsetAccountId: offsetAccountId!);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Advance balance correction posted.')));
+      } catch (error) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not correct advance balance: $error')));
+      }
+    }
+    amountController.dispose();
+    reasonController.dispose();
+  }
   Future<void> _recordOpeningBalance(
     BuildContext context, {
     required String employeeId,
