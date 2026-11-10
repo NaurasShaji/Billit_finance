@@ -32,6 +32,7 @@ Work branch: `feature/finance-team-promotion`
 - Added budget tracking and actual-versus-budget calculations, plus accounting reports for P&L, cash flow, and trial balance with PDF and Excel workbook export.
 - Added a Hive CE persistence smoke test covering adapter Type IDs 1–22 and close/reopen persistence across legacy, finance, HR, budget, and recurring-template boxes.
 - Added optional due dates to manual receivable/payable journal entries. The due date is persisted as an additive nullable Hive field and carried into posted transaction records. Due-date ageing and invoice-level allocation remain outstanding; adapter generation and migration compatibility are unverified.
+- Added a receivables/payables ageing report reachable from the customer/supplier directory. It shows open invoice balances and ageing buckets as of a selected date; posted receipts/payments are applied FIFO to the oldest eligible invoice for reporting. This FIFO allocation is calculated at report time and is not persisted. Backup restore parsing now preserves nullable transaction due dates. Adapter generation, backup export verification, and Flutter tests remain pending.
 - **Validation remains pending:** no Flutter commands have been run in this environment. The Hive CE workflow must regenerate `pubspec.lock` and adapters, then run formatting, analysis, tests, and Android build.
 
 ## Phase 0 — Repository audit and safe foundation
@@ -91,7 +92,7 @@ Work branch: `feature/finance-team-promotion`
 
 - [x] Customer and supplier records with contact and tax identifiers.
 - [x] Receivables and payables linked to customer/supplier party records.
-- [ ] Due dates and ageing reports.
+- [x] Optional due dates for manual receivable/payable entries and receivables/payables ageing report with current, 1–30, 31–60, 61–90, and 90+ day buckets. Report applies settlements FIFO for calculation; persisted invoice-payment allocations remain outstanding.
 - [x] Partial customer receipts and supplier payments with party-level outstanding balances.
 - [ ] Invoice-level payment allocation.
 - [x] Budget creation, period tracking, and actual-versus-budget reporting from posted expense journal lines (tests authored; execution pending).
