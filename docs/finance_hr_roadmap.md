@@ -78,7 +78,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Daily attendance records with present, absent, half-day, leave, and holiday states.
 - [x] Attendance date selection/calendar view and monthly attendance summaries.
 - [x] Leave types, requests, overlap validation, approval/rejection, and attendance generation for approved leave.
-- [ ] Leave balance accrual and policy configuration.
+- [x] Configurable annual leave entitlements and monthly accrual from the later of 1 January or employee joining date; approved leave days reduce the current calendar-year balance. Policies persist in the backed-up app-settings collection. Carry-forward and holiday/weekend exclusions are not implemented.
 - [ ] Attendance-driven wage and salary calculations.
 
 ### Compensation and payroll
