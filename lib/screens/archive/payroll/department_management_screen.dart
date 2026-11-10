@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import '../../../widgets/responsive_page.dart';
 
 class DepartmentManagementScreen extends StatelessWidget {
   const DepartmentManagementScreen({super.key});
@@ -95,7 +96,7 @@ class DepartmentManagementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Departments'),
         actions: [
@@ -172,6 +173,6 @@ class DepartmentManagementScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('Department'),
       ),
-    );
+    ));
   }
 }
