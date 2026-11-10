@@ -12,14 +12,6 @@ class FinanceLedgerException implements Exception {
 
 /// Posting and balance operations for the append-only finance journal.
 class FinanceLedgerService {
-  static const _accountTypes = {
-    'asset',
-    'liability',
-    'equity',
-    'income',
-    'expense',
-  };
-
   static const _transactionTypes = {
     'income',
     'expense',
