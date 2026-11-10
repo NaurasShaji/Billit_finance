@@ -28,11 +28,22 @@ Billit is a point-of-sale and retail management app for billing, inventory, GST,
 - See revenue, profit, and invoice counts for the selected reporting period.
 - Browse recorded sales and access invoice actions from the report views.
 
-### Finance and Team (expenses and employee payroll)
+### Finance and Team
 
 Finance and Team are top-level tabs for admins.
 
-- Record business expenses with an amount, description, date, and category.
+Finance includes the existing POS/expense summary plus an accounting ledger:
+- Record manual income, expenses, and cash/bank transfers.
+- Review the chart of accounts, normal balances, and posted journal.
+- View journal-based period income, expenses, accounting profit, and cash flow.
+- POS sales, GST collected, general expenses, and payroll expenses are imported into the ledger with stable source references.
+- Invoice edits and deletions create reversal entries instead of changing posted accounting history.
+- POS gross profit remains separate from journal-based accounting profit.
+- Legacy expense and POS records remain in their existing Hive boxes and continue to drive the operational screens.
+
+Team currently supports daily-wage and monthly-salary employees:
+- Add employees and set their pay type or amount.
+- Record partial salary and wage payments and review outstanding balances.
 - Use built-in expense categories such as rent, utilities, transport, supplies, maintenance, and miscellaneous, or add a category.
 - Browse expense history by day, month, or year; navigate between periods and filter salary expenses separately from other expenses.
 - Add employees as daily-wage or monthly-salary staff, set their pay amount, edit their pay type or amount, and delete employee records.
@@ -41,7 +52,7 @@ Finance and Team are top-level tabs for admins.
 
 ### Backup, printer, and account tools
 
-- Back up products, sales, expenses, and employee records to Google Drive, browse available backups, and restore a selected backup.
+- Back up products, sales, expenses, employees, settings, and all finance ledger records to Google Drive, browse available backups, and restore a selected backup.
 - Configure recurring Google Drive backups by interval. Restoring replaces current business data, so keep a current backup before restoring.
 - Scan paired Bluetooth devices and select a default thermal printer.
 - Change account passwords through the admin account.
@@ -54,7 +65,7 @@ Finance and Team are top-level tabs for admins.
 
 ## Requirements
 
-- Flutter SDK with Dart **3.3 or later**
+- Flutter SDK with Dart **3.6 or later**
 - A supported Flutter target, such as Chrome or an Android device/emulator
 
 ## Getting started
@@ -120,7 +131,7 @@ assets/         App icons and other bundled assets
 
 ## Data and backups
 
-The app stores business data locally with Hive. Export backups regularly and store them somewhere safe. Google Drive backup requires signing in to a Google account and an available Google Sign-In configuration for the target platform.
+The app stores business data locally with Hive. The accounting journal uses integer paise, balanced debit/credit postings, and reversal records for corrections. Export backups regularly and store them somewhere safe. Legacy backups without finance collections remain supported; restoring one preserves the current finance boxes. Google Drive backup requires signing in to a Google account and an available Google Sign-In configuration for the target platform.
 
 ## Android launcher icon
 
