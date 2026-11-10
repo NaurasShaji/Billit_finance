@@ -129,16 +129,18 @@ class HrService {
     final accrualStart = employee.joiningDate == null || employee.joiningDate!.isBefore(yearStart)
         ? yearStart
         : day(employee.joiningDate!);
+    final monthDifference = (date.year - accrualStart.year) * 12 +
+        date.month - accrualStart.month;
     final completedMonths = date.isBefore(accrualStart)
         ? 0
-        : (date.year - accrualStart.year) * 12 + date.month - accrualStart.month +
-            (date.day >= accrualStart.day ? 1 : 0);
+        : (monthDifference - (date.day < accrualStart.day ? 1 : 0)).clamp(0, 12);
     final entitled = (policy.annualEntitlementDays * completedMonths / 12)
         .clamp(0.0, policy.annualEntitlementDays.toDouble());
     final used = Hive.box<LeaveRequest>(Boxes.leaveRequests).values
         .where((request) => request.employeeId == employeeId &&
             request.leaveType == leaveType && request.status == 'approved' &&
-            request.startDate.year == date.year)
+            !day(request.endDate).isBefore(yearStart) &&
+            !day(request.startDate).isAfter(date))
         .fold<int>(0, (sum, request) {
           final start = request.startDate.isBefore(yearStart) ? yearStart : day(request.startDate);
           final end = request.endDate.isAfter(date) ? date : day(request.endDate);
