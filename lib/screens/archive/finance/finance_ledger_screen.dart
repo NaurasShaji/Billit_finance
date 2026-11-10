@@ -9,6 +9,7 @@ import '../../../services/finance_reporting_service.dart';
 import '../../../services/finance_service.dart';
 import 'finance_transaction_form_screen.dart';
 import 'finance_account_form_screen.dart';
+import 'finance_general_ledger_screen.dart';
 
 class FinanceLedgerScreen extends StatefulWidget {
   const FinanceLedgerScreen({super.key});
@@ -118,6 +119,15 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
         appBar: AppBar(
           title: const Text('Accounts & Journal'),
           actions: [
+            IconButton(
+              tooltip: 'General ledger',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const FinanceGeneralLedgerScreen(),
+                ),
+              ),
+              icon: const Icon(Icons.menu_book_outlined),
+            ),
             IconButton(
               onPressed: _newTransaction,
               tooltip: 'New transaction',
