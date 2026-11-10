@@ -24,6 +24,7 @@ class _FinanceTransactionFormScreenState
   String? _debitAccountId;
   String? _creditAccountId;
   String? _categoryId;
+  String? _partyId;
   bool _saving = false;
 
   @override
@@ -48,26 +49,54 @@ class _FinanceTransactionFormScreenState
 
   List<FinanceAccount> _accounts(Box<FinanceAccount> box, String type) =>
       box.values
-          .where((account) =>
-              account.active && (type == 'all' || account.accountType == type))
+          .where((account) {
+            if (!account.active) return false;
+            return switch (type) {
+              'all' => true,
+              'asset_or_liability' =>
+                account.accountType == 'asset' ||
+                    account.accountType == 'liability',
+              'receivables' => account.id == 'system:receivables',
+              'payables' => account.id == 'system:payables',
+              _ => account.accountType == type,
+            };
+          })
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   String _debitType => switch (_type) {
-        'income' || 'transfer' => 'asset',
+        'income' || 'transfer' || 'customer_receipt' => 'asset',
+        'supplier_payment' => 'payables',
         'adjustment' => 'all',
         _ => 'expense',
       };
 
   String _creditType => switch (_type) {
         'income' => 'income',
+        'expense' => 'asset_or_liability',
+        'customer_receipt' => 'receivables',
+        'supplier_payment' || 'transfer' => 'asset',
         'adjustment' => 'all',
         _ => 'asset',
       };
 
+  String? get _partyTypeFilter => switch (_type) {
+        'income' || 'customer_receipt' => 'customer',
+        'expense' || 'supplier_payment' => 'supplier',
+        _ => null,
+      };
+
+  bool get _partyRequired =>
+      _type == 'customer_receipt' ||
+      _type == 'supplier_payment' ||
+      (_type == 'income' && _debitAccountId == 'system:receivables') ||
+      (_type == 'expense' && _creditAccountId == 'system:payables');
+
   String get _debitLabel => switch (_type) {
-        'income' => 'Deposit to',
+        'income' => 'Deposit to / receivable',
         'transfer' => 'Transfer to',
+        'customer_receipt' => 'Received into',
+        'supplier_payment' => 'Accounts payable',
         'adjustment' => 'Debit account',
         _ => 'Expense account',
       };
@@ -75,8 +104,10 @@ class _FinanceTransactionFormScreenState
   String get _creditLabel => switch (_type) {
         'income' => 'Income account',
         'transfer' => 'Transfer from',
+        'customer_receipt' => 'Accounts receivable',
+        'supplier_payment' => 'Paid from',
         'adjustment' => 'Credit account',
-        _ => 'Paid from',
+        _ => 'Paid from / payable',
       };
 
   Future<void> _save() async {
@@ -90,12 +121,33 @@ class _FinanceTransactionFormScreenState
         amountPaise <= 0) {
       return;
     }
-    if ((_type == 'transfer' || _type == 'adjustment') &&
+    if ((_type == 'transfer' ||
+            _type == 'adjustment' ||
+            _type == 'customer_receipt' ||
+            _type == 'supplier_payment') &&
         debitAccountId == creditAccountId) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Choose two different accounts.')),
       );
       return;
+    }
+    if (_partyRequired && (_partyId == null || _partyId!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select the customer or supplier for this entry.')),
+      );
+      return;
+    }
+    if (_partyId != null) {
+      final party = Hive.box<FinanceParty>(Boxes.financeParties).get(_partyId);
+      final expectedType = _partyTypeFilter;
+      if (party == null ||
+          !party.active ||
+          (expectedType != null && party.partyType != expectedType)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select an active party of the correct type.')),
+        );
+        return;
+      }
     }
 
     setState(() => _saving = true);
@@ -122,6 +174,7 @@ class _FinanceTransactionFormScreenState
             accountId: debitAccountId,
             debitPaise: amountPaise,
             categoryId: _type == 'expense' ? _categoryId : null,
+            partyId: _partyId,
             memo: _memoController.text.trim(),
           ),
           FinancePosting(
@@ -130,6 +183,7 @@ class _FinanceTransactionFormScreenState
             accountId: creditAccountId,
             creditPaise: amountPaise,
             categoryId: _type == 'income' ? _categoryId : null,
+            partyId: _partyId,
             memo: _memoController.text.trim(),
           ),
         ],
@@ -188,6 +242,14 @@ class _FinanceTransactionFormScreenState
                     DropdownMenuItem(value: 'expense', child: Text('Expense')),
                     DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
                     DropdownMenuItem(
+                      value: 'customer_receipt',
+                      child: Text('Customer receipt'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'supplier_payment',
+                      child: Text('Supplier payment'),
+                    ),
+                    DropdownMenuItem(
                       value: 'adjustment',
                       child: Text('Journal adjustment'),
                     ),
@@ -197,6 +259,7 @@ class _FinanceTransactionFormScreenState
                     _debitAccountId = null;
                     _creditAccountId = null;
                     _categoryId = null;
+                    _partyId = null;
                   }),
                 ),
                 const SizedBox(height: 20),
@@ -300,6 +363,52 @@ class _FinanceTransactionFormScreenState
                     },
                   ),
                 ],
+                if (_type != 'transfer') ...[
+                  const SizedBox(height: 16),
+                  ValueListenableBuilder<Box<FinanceParty>>(
+                    valueListenable:
+                        Hive.box<FinanceParty>(Boxes.financeParties).listenable(),
+                    builder: (context, partiesBox, _) {
+                      final availableParties = partiesBox.values
+                          .where((party) =>
+                              party.active &&
+                              (_partyTypeFilter == null ||
+                                  party.partyType == _partyTypeFilter))
+                          .toList()
+                        ..sort((a, b) => a.name.compareTo(b.name));
+                      if (!availableParties
+                          .any((party) => party.id == _partyId)) {
+                        _partyId = null;
+                      }
+                      return DropdownButtonFormField<String?>(
+                        value: _partyId,
+                        decoration: InputDecoration(
+                          labelText: _partyRequired
+                              ? 'Customer / supplier (required)'
+                              : 'Party (optional)',
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: [
+                          if (!_partyRequired)
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('No party'),
+                            ),
+                          for (final party in availableParties)
+                            DropdownMenuItem<String?>(
+                              value: party.id,
+                              child: Text(party.name),
+                            ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _partyId = value),
+                        validator: (value) => _partyRequired && value == null
+                            ? 'Select a party'
+                            : null,
+                      );
+                    },
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _memoController,
@@ -330,9 +439,16 @@ class _FinanceTransactionFormScreenState
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  _type == 'adjustment'
-                      ? 'Use adjustments for corrections between any two accounts. Posted entries are immutable; correct mistakes with a reversal.'
-                      : 'Posted transactions are immutable. Correct mistakes by creating a reversal.',
+                  switch (_type) {
+                    'customer_receipt' =>
+                      'Records a customer payment against accounts receivable. Partial receipts are supported.',
+                    'supplier_payment' =>
+                      'Records a supplier payment against accounts payable. Partial payments are supported.',
+                    'adjustment' =>
+                      'Use adjustments for corrections between any two accounts. Posted entries are immutable; correct mistakes with a reversal.',
+                    _ =>
+                      'Posted transactions are immutable. Correct mistakes by creating a reversal.',
+                  },
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
