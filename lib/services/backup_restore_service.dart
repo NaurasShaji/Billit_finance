@@ -37,6 +37,7 @@ class BackupRestorePayload {
   final List<FinanceBudget>? financeBudgets;
   /// Null means the backup predates recurring-template serialization.
   final List<FinanceRecurringTemplate>? financeRecurringTemplates;
+  final List<Map<String, dynamic>>? financePaymentAllocations;
   /// Null means a legacy backup that predates HR serialization.
   final List<HrDepartment>? hrDepartments;
   final List<EmployeeAttendance>? employeeAttendance;
@@ -59,6 +60,7 @@ class BackupRestorePayload {
     required this.financeParties,
     this.financeBudgets,
     this.financeRecurringTemplates,
+    this.financePaymentAllocations,
     required this.hrDepartments,
     required this.employeeAttendance,
     required this.leaveRequests,
@@ -88,6 +90,7 @@ class BackupRestoreService {
     Box<FinanceParty>? financePartiesBox,
     Box<FinanceBudget>? financeBudgetsBox,
     Box<FinanceRecurringTemplate>? financeRecurringTemplatesBox,
+    Box<Map>? financePaymentAllocationsBox,
     Box<HrDepartment>? hrDepartmentsBox,
     Box<EmployeeAttendance>? employeeAttendanceBox,
     Box<LeaveRequest>? leaveRequestsBox,
@@ -112,6 +115,7 @@ class BackupRestoreService {
       financePartiesBox: financePartiesBox,
       financeBudgetsBox: financeBudgetsBox,
       financeRecurringTemplatesBox: financeRecurringTemplatesBox,
+      financePaymentAllocationsBox: financePaymentAllocationsBox,
       hrDepartmentsBox: hrDepartmentsBox,
       employeeAttendanceBox: employeeAttendanceBox,
       leaveRequestsBox: leaveRequestsBox,
@@ -151,6 +155,10 @@ class BackupRestoreService {
     final hasFinancePayload = payload.financeAccounts != null;
     final hasBudgetPayload = payload.financeBudgets != null;
     final hasRecurringPayload = payload.financeRecurringTemplates != null;
+    final hasAllocationPayload = payload.financePaymentAllocations != null;
+    if (hasAllocationPayload && financePaymentAllocationsBox == null) {
+      throw const FormatException('Payment allocation backup data was supplied but allocation storage is unavailable.');
+    }
     if (hasRecurringPayload && financeRecurringTemplatesBox == null) {
       throw const FormatException(
         'Recurring finance backup data was supplied but recurring-template storage is unavailable.',
@@ -267,6 +275,9 @@ class BackupRestoreService {
     final financeRecurringTemplatesSnapshot = financeRecurringTemplatesBox == null
         ? null
         : Map<dynamic, FinanceRecurringTemplate>.from(financeRecurringTemplatesBox.toMap());
+    final financePaymentAllocationsSnapshot = financePaymentAllocationsBox == null
+        ? null
+        : Map<dynamic, Map>.from(financePaymentAllocationsBox.toMap());
 
     final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
     final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
@@ -359,6 +370,13 @@ class BackupRestoreService {
         });
         await afterWrite?.call('financeBudgets.putAll');
       }
+      if (hasAllocationPayload) {
+        await financePaymentAllocationsBox!.clear();
+        await financePaymentAllocationsBox.putAll({
+          for (final item in payload.financePaymentAllocations!) item['id']: item,
+        });
+        await afterWrite?.call('financePaymentAllocations.putAll');
+      }
       if (hasRecurringPayload) {
         await financeRecurringTemplatesBox!.clear();
         await financeRecurringTemplatesBox.putAll({
@@ -434,6 +452,10 @@ class BackupRestoreService {
           await financeRecurringTemplatesBox!.clear();
           await financeRecurringTemplatesBox.putAll(financeRecurringTemplatesSnapshot);
         }
+        if (financePaymentAllocationsSnapshot != null) {
+          await financePaymentAllocationsBox!.clear();
+          await financePaymentAllocationsBox.putAll(financePaymentAllocationsSnapshot);
+        }
         await appSettingsBox.clear();
         await appSettingsBox.putAll(settingsSnapshot);
       } catch (rollbackError) {
@@ -478,6 +500,35 @@ class BackupRestoreService {
     final financeParties = hasAnyFinanceKey
         ? _parseRecords(data, 'financeParties', _parseFinanceParty)
         : null;
+    final financePaymentAllocations = data.containsKey('financePaymentAllocations')
+        ? _parseRecords(data, 'financePaymentAllocations', (json) => Map<String, dynamic>.from(json))
+        : null;
+    if (financePaymentAllocations != null && !hasAnyFinanceKey) {
+      throw const FormatException('Payment allocations cannot be restored without finance collections.');
+    }
+    if (financePaymentAllocations != null) {
+      final transactionIds = financeTransactions!.map((t) => t.id).toSet();
+      final partyIds = financeParties!.map((p) => p.id).toSet();
+      final seenPairs = <String>{};
+      for (final allocation in financePaymentAllocations) {
+        final settlementId = allocation['settlementTransactionId'];
+        final invoiceId = allocation['invoiceTransactionId'];
+        final partyId = allocation['partyId'];
+        final amount = allocation['amountPaise'];
+        final createdAt = allocation['createdAt'];
+        if (settlementId is! String || !transactionIds.contains(settlementId) ||
+            invoiceId is! String || !transactionIds.contains(invoiceId) ||
+            partyId is! String || !partyIds.contains(partyId) ||
+            amount is! int || amount <= 0 || createdAt is! String ||
+            DateTime.tryParse(createdAt) == null) {
+          throw const FormatException('Finance payment allocation contains invalid references or values.');
+        }
+        final pair = '$settlementId::$invoiceId';
+        if (!seenPairs.add(pair)) {
+          throw const FormatException('Duplicate invoice allocation pair in backup.');
+        }
+      }
+    }
     if (data.containsKey('financeBudgets') && !hasAnyFinanceKey) {
       throw const FormatException(
         'Finance budgets cannot be restored without finance collections.',
@@ -598,6 +649,7 @@ class BackupRestoreService {
       financeParties: financeParties,
       financeBudgets: financeBudgets,
       financeRecurringTemplates: financeRecurringTemplates,
+      financePaymentAllocations: financePaymentAllocations,
       hrDepartments: hrDepartments,
       employeeAttendance: employeeAttendance,
       leaveRequests: leaveRequests,
