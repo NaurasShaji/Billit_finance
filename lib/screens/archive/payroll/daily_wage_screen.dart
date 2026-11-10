@@ -31,8 +31,8 @@ class DailyWageScreen extends StatelessWidget {
             icon: const Icon(Icons.fact_check_outlined),
           ),
         ],
-        backgroundColor: Colors.orange.shade600,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.tertiary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 0,
         centerTitle: true,
       ),
@@ -119,12 +119,12 @@ class DailyWageScreen extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange.withValues(alpha: 0.12),
+                                  color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.35),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
                                   Icons.schedule_outlined,
-                                  color: Colors.orange.shade600,
+                                  color: Theme.of(context).colorScheme.tertiary,
                                   size: 24,
                                 ),
                               ),
@@ -164,7 +164,7 @@ class DailyWageScreen extends StatelessWidget {
                                   'Total Employees',
                                   '${dailyEmployees.length}',
                                   Icons.people_outlined,
-                                  Colors.blue,
+                                  Theme.of(context).colorScheme.secondary,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -173,7 +173,7 @@ class DailyWageScreen extends StatelessWidget {
                                   'Paid Today',
                                   '${paidEmployeeCount}',
                                   Icons.check_circle_outlined,
-                                  Colors.green,
+                                  Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ],
@@ -240,15 +240,15 @@ class DailyWageScreen extends StatelessWidget {
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
                                         color: isPaidToday
-                                            ? Colors.green.withValues(alpha: 0.12)
-                                            : Colors.orange.withValues(alpha: 0.12),
+                                            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35)
+                                            : Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.35),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Icon(
                                         Icons.person_outlined,
                                         color: isPaidToday
-                                            ? Colors.green.shade600
-                                            : Colors.orange.shade600,
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).colorScheme.tertiary,
                                         size: 20,
                                       ),
                                     ),
@@ -284,8 +284,8 @@ class DailyWageScreen extends StatelessWidget {
                                           horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
                                         color: isPaidToday
-                                            ? Colors.green.withValues(alpha: 0.18)
-                                            : Colors.red.withValues(alpha: 0.18),
+                                            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.45)
+                                            : Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.45),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Row(
@@ -297,8 +297,8 @@ class DailyWageScreen extends StatelessWidget {
                                                 : Icons.pending,
                                             size: 16,
                                             color: isPaidToday
-                                                ? Colors.green.shade700.adaptive(context)
-                                                : Colors.red.shade700.adaptive(context),
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.error,
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
@@ -311,8 +311,8 @@ class DailyWageScreen extends StatelessWidget {
                                               fontSize: 12,
                                               fontWeight: FontWeight.w600,
                                               color: isPaidToday
-                                                  ? Colors.green.shade700.adaptive(context)
-                                                  : Colors.red.shade700.adaptive(context),
+                                                  ? Theme.of(context).colorScheme.primary
+                                                  : Theme.of(context).colorScheme.error,
                                             ),
                                           ),
                                         ],
@@ -351,7 +351,7 @@ class DailyWageScreen extends StatelessWidget {
                                               color: isPaidToday
                                                   ? theme.colorScheme.onSurface
                                                       .withValues(alpha: 0.4)
-                                                  : Colors.orange.shade600,
+                                                  : Theme.of(context).colorScheme.tertiary,
                                             ),
                                             border: InputBorder.none,
                                             contentPadding:
@@ -404,8 +404,8 @@ class DailyWageScreen extends StatelessWidget {
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: isPaidToday
                                               ? Theme.of(context).colorScheme.outline
-                                              : Colors.orange.shade600,
-                                          foregroundColor: Colors.white,
+                                              : Theme.of(context).colorScheme.tertiary,
+                                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                           disabledBackgroundColor:
                                               Theme.of(context).colorScheme.surfaceContainerHighest,
                                           disabledForegroundColor:
@@ -438,23 +438,23 @@ class DailyWageScreen extends StatelessWidget {
   }
 
   Widget _buildSummaryItem(
-      String label, String value, IconData icon, MaterialColor color) {
+      String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.shade50,
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color.shade600, size: 24),
+          Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: color.shade700,
+              color: color,
             ),
           ),
           const SizedBox(height: 4),
@@ -463,7 +463,7 @@ class DailyWageScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: color.shade600,
+              color: color,
             ),
             textAlign: TextAlign.center,
           ),
@@ -485,7 +485,7 @@ class DailyWageScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please enter a valid amount'),
-          backgroundColor: Colors.red.shade600,
+          backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -501,7 +501,7 @@ class DailyWageScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.payment, color: Colors.orange.shade600),
+            Icon(Icons.payment, color: Theme.of(context).colorScheme.tertiary),
             const SizedBox(width: 8),
             const Text('Confirm Payment'),
           ],
@@ -515,20 +515,20 @@ class DailyWageScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.12),
+                color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   Icon(Icons.currency_rupee,
-                      color: Colors.orange.shade600, size: 20),
+                      color: Theme.of(context).colorScheme.tertiary, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     currency.format(amount),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Colors.orange.shade700.adaptive(context),
+                      color: Theme.of(context).colorScheme.tertiary,
                     ),
                   ),
                 ],
@@ -544,8 +544,8 @@ class DailyWageScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange.shade600,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.tertiary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
             ),
@@ -563,7 +563,7 @@ class DailyWageScreen extends StatelessWidget {
           SnackBar(
             content:
                 Text('Paid ${currency.format(amount)} to ${employee.name}'),
-            backgroundColor: Colors.green.shade600,
+            backgroundColor: Theme.of(context).colorScheme.primary,
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
