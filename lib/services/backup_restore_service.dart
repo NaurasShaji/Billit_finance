@@ -1226,9 +1226,14 @@ class BackupRestoreService {
       }
       if (template.partyId != null) {
         final party = partiesById[template.partyId];
-        final expectedPartyType =
-            template.transactionType == 'income' ? 'customer' : 'supplier';
-        if (party == null || party.partyType != expectedPartyType) {
+        final expectedPartyType = template.transactionType == 'income'
+            ? 'customer'
+            : template.transactionType == 'expense'
+                ? 'supplier'
+                : null;
+        if (party == null ||
+            expectedPartyType == null ||
+            party.partyType != expectedPartyType) {
           throw FormatException(
             'financeRecurringTemplates.${template.id} references an invalid party.',
           );
