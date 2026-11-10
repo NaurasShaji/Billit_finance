@@ -163,3 +163,15 @@ Payroll recovery accounting update: when a payslip is fully settled, the system 
 ## Employee advance reconciliation report
 
 The Team tab now links to an operator-facing report showing aggregate HR subledger and finance control-account balances, the difference, per-employee advance records, issue-journal coverage, manual repayment-journal coverage, payroll recovery journal counts, and repayment history. Missing issue/manual repayment journals are flagged for investigation. No automatic balancing entry or journal reversal is offered: a reversal without a corresponding subledger correction is unsafe. Historical opening-balance treatment and controlled correction/reversal remain open. No tests, formatting, analysis, or builds were run.
+
+
+## Employee advance reconciliation hardening (2026-11-10)
+
+- [x] Prevent reconciliation report crashes when an advance has multiple issue journals.
+- [x] Detect missing, duplicate, unposted, and mismatched issue-journal coverage.
+- [x] Validate manual repayment journal structure, posting status, account direction, and amount.
+- [x] Detect missing and duplicate payroll recovery journals by payslip source.
+- [x] Surface malformed advance register records and listen for finance posting changes.
+- [ ] Add a controlled historical opening-balance and correction workflow after per-advance legacy journal history can be safely distinguished from current balances.
+
+The reconciliation report remains diagnostic-only. No automatic balancing entry is created. No tests, formatting, analysis, or builds were run.
