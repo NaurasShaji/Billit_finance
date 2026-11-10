@@ -360,7 +360,9 @@ class HrPayrollService {
 
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
     if (advance['repayments'] is! List ||
-        (advance['repayments'] as List).isNotEmpty) {
+        (advance['repayments'] as List).isNotEmpty ||
+        (advance['corrections'] is List &&
+            (advance['corrections'] as List).isNotEmpty)) {
       throw const HrPayrollServiceException(
         'This advance has repayment history or malformed repayment data. Its opening balance requires manual reconstruction.',
       );
@@ -380,7 +382,8 @@ class HrPayrollService {
     final hasLinkedHistory = transactions.values.any((tx) =>
         (tx.sourceType == 'employee_advance_issue' && tx.sourceId == advanceId) ||
         (tx.sourceType == 'payroll_advance_recovery' && payslipIds.contains(tx.sourceId)) ||
-        (tx.sourceType == 'employee_advance_opening_balance' && tx.sourceId == advanceId));
+        (tx.sourceType == 'employee_advance_opening_balance' && tx.sourceId == advanceId) ||
+        (tx.sourceType == 'employee_advance_correction' && tx.sourceId.startsWith('$advanceId:')));
     if (hasLinkedHistory) {
       throw const HrPayrollServiceException(
         'This advance already has linked journal history. Do not create an opening balance; reconcile its existing entries instead.',
@@ -480,7 +483,10 @@ class HrPayrollService {
     final postings = Hive.box<FinancePosting>(Boxes.financePostings);
     final existing = transactions.values.where((tx) => tx.sourceType == 'employee_advance_correction' && tx.sourceId == correctionId).toList();
     if (existing.isNotEmpty) {
-      if (existing.length != 1 || existing.single.id != transactionId || existing.single.status != 'posted') throw const HrPayrollServiceException('A conflicting correction journal already exists.');
+      if (existing.length != 1 || existing.single.id != transactionId || existing.single.status != 'posted' ||
+          transactions.values.any((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == transactionId && tx.status == 'posted')) {
+        throw const HrPayrollServiceException('A conflicting or reversed correction journal already exists.');
+      }
       final lines = postings.values.where((line) => line.transactionId == transactionId).toList();
       final expectedDebit = delta > 0 ? employeeAdvanceAccountId : offsetAccountId;
       final expectedCredit = delta > 0 ? offsetAccountId : employeeAdvanceAccountId;
