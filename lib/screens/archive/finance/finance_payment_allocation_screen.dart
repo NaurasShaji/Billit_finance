@@ -156,6 +156,12 @@ class _FinancePaymentAllocationScreenState
                 padding: const EdgeInsets.all(16),
                 children: [
                   const Text('Choose a customer or supplier, then select a posted receipt/payment and an outstanding invoice.'),
+                  if (!partiesBox.values.any((p) => p.active && (p.partyType == 'customer' || p.partyType == 'supplier')))
+                    const Card(child: ListTile(
+                      leading: Icon(Icons.info_outline),
+                      title: Text('No customers or suppliers yet'),
+                      subtitle: Text('Add a customer or supplier and record an invoice and settlement before allocating payments.'),
+                    )),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     value: _partyId,
@@ -181,8 +187,10 @@ class _FinancePaymentAllocationScreenState
                           child: Text('${t.transactionNumber} • ${DateFormat('dd MMM yyyy').format(t.date)}'),
                         ),
                     ],
-                    onChanged: (value) => setState(() => _settlementId = value),
+                    onChanged: settlements.isEmpty ? null : (value) => setState(() => _settlementId = value),
                   ),
+                  if (party != null && settlements.isEmpty)
+                    const Padding(padding: EdgeInsets.only(top: 8), child: Text('No unallocated receipts or supplier payments are available for this party.')),
                   if (settlement != null) Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text('Unallocated settlement: ${_money(settlementRemaining)}'),
@@ -198,8 +206,10 @@ class _FinancePaymentAllocationScreenState
                           child: Text('${t.transactionNumber} • ${DateFormat('dd MMM yyyy').format(t.date)}'),
                         ),
                     ],
-                    onChanged: (value) => setState(() => _invoiceId = value),
+                    onChanged: invoices.isEmpty ? null : (value) => setState(() => _invoiceId = value),
                   ),
+                  if (party != null && invoices.isEmpty)
+                    const Padding(padding: EdgeInsets.only(top: 8), child: Text('No outstanding invoices are available for this party.')),
                   if (invoice != null) Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text('Invoice outstanding: ${_money(invoiceRemaining)}'),
