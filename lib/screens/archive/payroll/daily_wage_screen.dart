@@ -7,6 +7,7 @@ import '../../../models/expense.dart';
 import '../../../services/boxes.dart';
 import 'attendance_screen.dart';
 import '../../../utils/theme_colors.dart';
+import '../../../widgets/responsive_page.dart';
 
 class DailyWageScreen extends StatelessWidget {
   const DailyWageScreen({super.key});
@@ -16,7 +17,7 @@ class DailyWageScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final currency = NumberFormat.simpleCurrency(locale: 'en_IN');
 
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       backgroundColor:
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
@@ -433,7 +434,7 @@ class DailyWageScreen extends StatelessWidget {
           );
         },
       ),
-    );
+    ));
   }
 
   Widget _buildSummaryItem(
