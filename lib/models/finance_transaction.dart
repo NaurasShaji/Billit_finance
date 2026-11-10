@@ -1,4 +1,4 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 part 'finance_transaction.g.dart';
 
 /// Posted records are immutable; corrections use reversing transactions.
