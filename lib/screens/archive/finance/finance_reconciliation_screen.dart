@@ -6,6 +6,7 @@ import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_reconciliation_service.dart';
 import '../../../services/finance_source_sync_service.dart';
+import '../../../services/hr_payroll_service.dart';
 
 class FinanceReconciliationScreen extends StatefulWidget {
   const FinanceReconciliationScreen({super.key});
@@ -77,7 +78,10 @@ class _FinanceReconciliationScreenState
                 ValueListenableBuilder<Box<Payslip>>(
               valueListenable: Hive.box<Payslip>(Boxes.payslips).listenable(),
               builder: (context, payslipsBox, ____) =>
-                  ValueListenableBuilder<Box<FinancePosting>>(
+                  ValueListenableBuilder<Box<dynamic>>(
+                valueListenable: Hive.box<dynamic>('app_settings').listenable(keys: [HrPayrollService.employeeReimbursementsKey]),
+                builder: (context, settingsBox, _____) =>
+                    ValueListenableBuilder<Box<FinancePosting>>(
               valueListenable:
                   Hive.box<FinancePosting>(Boxes.financePostings).listenable(),
               builder: (context, postingsBox, ____) {
@@ -87,6 +91,9 @@ class _FinanceReconciliationScreenState
                   transactions: transactionsBox.values,
                   postings: postingsBox.values,
                   payslips: payslipsBox.values,
+                  reimbursements: (settingsBox.get(HrPayrollService.employeeReimbursementsKey, defaultValue: const <dynamic>[]) as List)
+                      .whereType<Map>()
+                      .map((entry) => Map<String, dynamic>.from(entry)),
                 );
                 return ListView(
                   padding: const EdgeInsets.all(20),
@@ -135,6 +142,38 @@ class _FinanceReconciliationScreenState
                               'Difference',
                               _money(summary.payrollLiabilityDifferencePaise),
                               valueColor: summary.payrollLiabilityDifferencePaise == 0
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.error,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _section(
+                      'Employee reimbursements',
+                      sourceCount: summary.reimbursementAccrualCount,
+                      journalCount: summary.reimbursementAccrualCount,
+                      sourceTotal: summary.reimbursementExpensePaise,
+                      journalTotal: summary.reimbursementJournalExpensePaise,
+                      difference: summary.reimbursementExpenseDifferencePaise,
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Reimbursement payable control', style: Theme.of(context).textTheme.titleMedium),
+                            const SizedBox(height: 10),
+                            _row('Claim outstanding', _money(summary.reimbursementOutstandingPaise)),
+                            _row('Ledger liability', _money(summary.reimbursementLiabilityPaise)),
+                            const Divider(height: 20),
+                            _row(
+                              'Difference',
+                              _money(summary.reimbursementLiabilityDifferencePaise),
+                              valueColor: summary.reimbursementLiabilityDifferencePaise == 0
                                   ? Theme.of(context).colorScheme.primary
                                   : Theme.of(context).colorScheme.error,
                             ),
@@ -193,6 +232,7 @@ class _FinanceReconciliationScreenState
                 );
               },
             ),
+                    ),
                   ),
                 ),
               ),
