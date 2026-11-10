@@ -197,8 +197,16 @@ void main() {
 
   test('rejects unbalanced entries without writing anything', () async {
     final entry = transaction();
-    final lines = balancedLines(entry.id);
-    lines[1].creditPaise = 12549;
+    final validLines = balancedLines(entry.id);
+    final lines = [
+      validLines.first,
+      FinancePosting(
+        id: validLines.last.id,
+        transactionId: entry.id,
+        accountId: 'system:cash',
+        creditPaise: 12549,
+      ),
+    ];
 
     await expectLater(
       FinanceLedgerService().postTransaction(
