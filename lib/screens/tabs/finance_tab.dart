@@ -57,8 +57,13 @@ class _FinanceTabState extends State<FinanceTab> {
                 expenses: expensesBox.values.toList(),
                 span: FinanceService.spanFor(_period, DateTime.now()),
               );
-              final syncIssues = (Hive.box<dynamic>('app_settings').get(
+              final settings = Hive.box<dynamic>('app_settings');
+              final syncIssues = (settings.get(
                 'finance_sync_errors',
+                defaultValue: const <String>[],
+              ) as List).cast<String>();
+              final recurringIssues = (settings.get(
+                'finance_recurring_errors',
                 defaultValue: const <String>[],
               ) as List).cast<String>();
 
@@ -69,6 +74,10 @@ class _FinanceTabState extends State<FinanceTab> {
                   if (syncIssues.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     _syncWarning(syncIssues.length),
+                  ],
+                  if (recurringIssues.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _recurringWarning(recurringIssues.length),
                   ],
                   const SizedBox(height: 18),
                   SizedBox(
@@ -160,6 +169,44 @@ class _FinanceTabState extends State<FinanceTab> {
         ),
       ),
     );
+  }
+
+  Widget _recurringWarning(int issueCount) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.error.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event_busy_outlined, color: scheme.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$issueCount recurring transaction(s) could not be processed.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          TextButton(
+            onPressed: _retryRecurring,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _retryRecurring() async {
+    final result = await FinanceRecurringService().processDue();
+    final settings = Hive.box<dynamic>('app_settings');
+    if (result.issues.isEmpty) {
+      await settings.delete('finance_recurring_errors');
+    } else {
+      await settings.put('finance_recurring_errors', result.issues);
+    }
   }
 
   Widget _syncWarning(int issueCount) {
