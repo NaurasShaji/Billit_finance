@@ -553,6 +553,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           employeesBox: Hive.box<Employee>(Boxes.employees),
         );
       } catch (financeError) {
+        await FinanceSourceSyncService.recordIssue(
+          Hive.box<dynamic>('app_settings'),
+          'Expense ${expense.id}: $financeError',
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
