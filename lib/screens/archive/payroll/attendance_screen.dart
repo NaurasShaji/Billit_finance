@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_service.dart';
+import 'attendance_report_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -89,6 +90,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       appBar: AppBar(
         title: const Text('Attendance'),
         actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AttendanceReportScreen()),
+            ),
+            tooltip: 'Attendance report',
+            icon: const Icon(Icons.assessment_outlined),
+          ),
           IconButton(
             onPressed: _pickDate,
             tooltip: 'Select date',
