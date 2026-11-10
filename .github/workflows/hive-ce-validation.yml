@@ -36,6 +36,13 @@ jobs:
       - name: Regenerate Hive CE adapters
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Reject legacy Hive package references
+        run: |
+          if grep -R -nE "package:hive/|package:hive_flutter/|^[[:space:]]*hive_flutter:|^[[:space:]]*hive:[[:space:]]|^[[:space:]]*hive_generator:" lib test pubspec.yaml; then
+            echo "Legacy Hive package reference found."
+            exit 1
+          fi
+
       - name: Format Dart sources
         run: dart format lib test
 
