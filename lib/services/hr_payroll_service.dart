@@ -185,7 +185,7 @@ class HrPayrollService {
         employeeId: employee.id,
         payType: payType,
         basePaise: basePaise,
-        allowancesPaise: allowances,
+        allowancesPaise: allowances + overtime,
         deductionsPaise: deductions,
         payableDays: attendance.payableDays,
       );
