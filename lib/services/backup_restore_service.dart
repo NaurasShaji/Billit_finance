@@ -1091,6 +1091,42 @@ class BackupRestoreService {
     }
   }
 
+  void _validateFinanceBudgets(
+    List<FinanceBudget> budgets,
+    List<FinanceAccount> accounts,
+    List<FinanceCategory> categories,
+  ) {
+    final accountsById = {for (final item in accounts) item.id: item};
+    final categoriesById = {for (final item in categories) item.id: item};
+    for (final budget in budgets) {
+      final account = accountsById[budget.accountId];
+      if (account == null ||
+          account.accountType != 'expense' ||
+          account.currencyCode != 'INR') {
+        throw FormatException(
+          'financeBudgets.${budget.id} must reference an INR expense account.',
+        );
+      }
+      if (budget.name.trim().isEmpty ||
+          budget.budgetPaise <= 0 ||
+          budget.periodEnd.isBefore(budget.periodStart)) {
+        throw FormatException(
+          'financeBudgets.${budget.id} contains invalid budget details.',
+        );
+      }
+      if (budget.categoryId != null) {
+        final category = categoriesById[budget.categoryId];
+        if (category == null ||
+            category.kind != 'expense' ||
+            category.accountId != budget.accountId) {
+          throw FormatException(
+            'financeBudgets.${budget.id} references an incompatible expense category.',
+          );
+        }
+      }
+    }
+  }
+
   void _validateFinanceCollections(
     List<FinanceAccount> accounts,
     List<FinanceTransaction> transactions,
@@ -1325,6 +1361,24 @@ class BackupRestoreService {
       email: _optionalString(json, 'email', '', path),
       taxIdentifier: _optionalString(json, 'taxIdentifier', '', path),
       active: _boolean(json, 'active', path, fallback: true),
+    );
+  }
+
+  FinanceBudget _parseFinanceBudget(Map<String, dynamic> json) {
+    const path = 'financeBudgets';
+    return FinanceBudget(
+      id: _requiredString(json, 'id', path),
+      name: _requiredString(json, 'name', path),
+      accountId: _requiredString(json, 'accountId', path),
+      categoryId: _nullableString(json, 'categoryId', path),
+      periodStart: _date(json, 'periodStart', path),
+      periodEnd: _date(json, 'periodEnd', path),
+      budgetPaise: _integer(json, 'budgetPaise', path),
+      active: _boolean(json, 'active', path, fallback: true),
+      notes: _optionalString(json, 'notes', '', path),
+      createdAt: json['createdAt'] == null
+          ? DateTime.now()
+          : _date(json, 'createdAt', path),
     );
   }
 
