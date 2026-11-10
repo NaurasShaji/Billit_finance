@@ -916,10 +916,20 @@ class HrPayrollService {
   Future<Payslip> payPayslip({
     required String payslipId,
     required int amountPaise,
+    String cashAccountId = 'system:cash',
   }) async {
     if (amountPaise <= 0) {
       throw const HrPayrollServiceException(
         'Payment amount must be positive.',
+      );
+    }
+    final paymentAccount = Hive.box<FinanceAccount>(Boxes.financeAccounts).get(cashAccountId);
+    if (paymentAccount == null ||
+        !paymentAccount.active ||
+        paymentAccount.accountType != 'asset' ||
+        paymentAccount.currencyCode != 'INR') {
+      throw const HrPayrollServiceException(
+        'Select an active INR cash, bank, or wallet account for payroll payment.',
       );
     }
     final runsBox = Hive.box<PayrollRun>(Boxes.payrollRuns);
@@ -977,7 +987,7 @@ class HrPayrollService {
         date: DateTime.now(),
         category: 'Salary-Run',
         amount: amountPaise / 100,
-        description: 'Payroll run ${run.id}, payslip ${slip.id}',
+        description: 'Payroll run ${run.id}, payslip ${slip.id}; account=$cashAccountId',
         employeeId: slip.employeeId,
       );
       await expensesBox.put(expense.id, expense);
@@ -1000,6 +1010,18 @@ class HrPayrollService {
         partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
         employeesBox: Hive.box<Employee>(Boxes.employees),
       );
+      // Ensure this payroll payment was journalled to the account the operator
+      // selected. The source-sync journal remains immutable and retry-safe.
+      final journalId = 'finance:expense:${expense.id}:r${expense.financeRevision}';
+      final paymentPosting = Hive.box<FinancePosting>(Boxes.financePostings)
+          .values
+          .where((line) => line.transactionId == journalId && line.creditPaise > 0)
+          .toList();
+      if (paymentPosting.length != 1 || paymentPosting.single.accountId != cashAccountId) {
+        throw const HrPayrollServiceException(
+          'Payroll payment account does not match its finance journal. Reconcile the payment before continuing.',
+        );
+      }
     } catch (error) {
       // Do not mark the payslip as paid when its accounting journal failed.
       // Keep the source expense so startup reconciliation or a later retry can
