@@ -6,6 +6,7 @@ import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_payroll_service.dart';
 import '../../../services/hr_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class SalaryComponentsScreen extends StatelessWidget {
   const SalaryComponentsScreen({super.key, required this.employee});
@@ -407,7 +408,7 @@ class SalaryComponentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.simpleCurrency(locale: 'en_IN');
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: Text('Salary structure · ${employee.name}'),
         actions: [
@@ -486,6 +487,6 @@ class SalaryComponentsScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('Add component'),
       ),
-    );
+    ));
   }
 }
