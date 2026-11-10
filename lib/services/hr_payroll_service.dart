@@ -431,6 +431,84 @@ class HrPayrollService {
     );
   }
 
+  Future<void> correctEmployeeAdvanceBalance({
+    required String employeeId,
+    required String advanceId,
+    required int correctedOutstandingPaise,
+    required DateTime effectiveDate,
+    required String reason,
+    required String offsetAccountId,
+  }) async {
+    if (correctedOutstandingPaise < 0 || reason.trim().isEmpty) throw const HrPayrollServiceException('Enter a non-negative verified balance and a correction reason.');
+    final employees = Hive.box<Employee>(Boxes.employees);
+    if (employees.get(employeeId) == null) throw const HrPayrollServiceException('Employee was not found.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(advanceSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) throw const HrPayrollServiceException('Advance was not found.');
+    final all = Map<String, dynamic>.from(raw);
+    final list = List<dynamic>.from(all[employeeId] as List);
+    final matches = list.asMap().entries.where((entry) => entry.value is Map && (entry.value as Map)['id'] == advanceId).toList();
+    if (matches.length != 1) throw const HrPayrollServiceException('Advance must exist exactly once in the HR register.');
+    final index = matches.single.key;
+    final advance = Map<String, dynamic>.from(matches.single.value as Map);
+    final current = advance['outstandingPaise'];
+    if (current is! int || current < 0) throw const HrPayrollServiceException('The existing advance balance is malformed.');
+    final delta = correctedOutstandingPaise - current;
+    if (delta == 0) throw const HrPayrollServiceException('The verified balance is already equal to the HR register balance.');
+    final date = _day(effectiveDate);
+    final issueDate = DateTime.tryParse(advance['issueDate']?.toString() ?? '');
+    if (issueDate == null || date.isBefore(_day(issueDate)) || date.isAfter(_day(DateTime.now()))) throw const HrPayrollServiceException('Correction date must be on or after the advance issue date and cannot be in the future.');
+    final pending = settings.get(advancePayrollKey);
+    if (pending is Map) {
+      for (final entry in pending.entries) {
+        final slip = Hive.box<Payslip>(Boxes.payslips).get(entry.key);
+        if (slip != null && slip.status == 'draft' && entry.value is List && (entry.value as List).whereType<Map>().any((item) => item['employeeId'] == employeeId && item['advanceId'] == advanceId)) {
+          throw const HrPayrollServiceException('A draft payroll run has reserved a deduction for this advance. Resolve that draft payroll before correcting the balance.');
+        }
+      }
+    }
+    final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    final advanceAccount = accounts.get(employeeAdvanceAccountId);
+    final offsetAccount = accounts.get(offsetAccountId);
+    if (advanceAccount == null || !advanceAccount.active || advanceAccount.accountType != 'asset' || advanceAccount.currencyCode != 'INR' || offsetAccount == null || !offsetAccount.active || offsetAccount.currencyCode != 'INR' || offsetAccount.id == employeeAdvanceAccountId) {
+      throw const HrPayrollServiceException('Select an active INR offset account different from Employee Advances.');
+    }
+    final dateKey = '${date.year.toString().padLeft(4, '0')}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
+    final correctionId = '$advanceId:$current:$correctedOutstandingPaise:$dateKey';
+    final transactionId = 'finance:employee-advance-correction:$correctionId';
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final postings = Hive.box<FinancePosting>(Boxes.financePostings);
+    final existing = transactions.values.where((tx) => tx.sourceType == 'employee_advance_correction' && tx.sourceId == correctionId).toList();
+    if (existing.isNotEmpty) {
+      if (existing.length != 1 || existing.single.id != transactionId || existing.single.status != 'posted') throw const HrPayrollServiceException('A conflicting correction journal already exists.');
+      final lines = postings.values.where((line) => line.transactionId == transactionId).toList();
+      final expectedDebit = delta > 0 ? employeeAdvanceAccountId : offsetAccountId;
+      final expectedCredit = delta > 0 ? offsetAccountId : employeeAdvanceAccountId;
+      if (lines.length != 2 || lines.where((line) => line.accountId == expectedDebit).fold<int>(0, (sum, line) => sum + line.debitPaise) != delta.abs() || lines.where((line) => line.accountId == expectedCredit).fold<int>(0, (sum, line) => sum + line.creditPaise) != delta.abs()) throw const HrPayrollServiceException('Existing correction journal does not match the requested register correction.');
+    } else {
+      final debitAccount = delta > 0 ? employeeAdvanceAccountId : offsetAccountId;
+      final creditAccount = delta > 0 ? offsetAccountId : employeeAdvanceAccountId;
+      await FinanceLedgerService().postTransaction(
+        transaction: FinanceTransaction(id: transactionId, transactionNumber: 'ADV-COR-$dateKey-${correctionId.hashCode.abs()}', transactionType: 'adjustment', date: date, memo: 'Employee advance balance correction: ${reason.trim()}', sourceType: 'employee_advance_correction', sourceId: correctionId),
+        postings: [
+          FinancePosting(id: '$transactionId:debit', transactionId: transactionId, accountId: debitAccount, debitPaise: delta.abs(), memo: reason.trim()),
+          FinancePosting(id: '$transactionId:credit', transactionId: transactionId, accountId: creditAccount, creditPaise: delta.abs(), memo: reason.trim()),
+        ],
+        accountsBox: accounts, transactionsBox: transactions, postingsBox: postings,
+        categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories), partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      );
+    }
+    final corrections = (advance['corrections'] as List? ?? []).whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).toList();
+    if (!corrections.any((entry) => entry['id'] == correctionId)) {
+      corrections.add({'id': correctionId, 'date': date.toIso8601String(), 'previousOutstandingPaise': current, 'correctedOutstandingPaise': correctedOutstandingPaise, 'deltaPaise': delta, 'offsetAccountId': offsetAccountId, 'reason': reason.trim(), 'journalId': transactionId});
+    }
+    advance['outstandingPaise'] = correctedOutstandingPaise;
+    advance['status'] = correctedOutstandingPaise == 0 ? 'settled' : 'active';
+    advance['corrections'] = corrections;
+    list[index] = advance;
+    all[employeeId] = list;
+    await settings.put(advanceSettingsKey, all);
+  }
   /// Compares the HR advance register with the posted Employee Advances control account.
   Map<String, int> advanceReconciliation() {
     final raw = Hive.box<dynamic>('app_settings').get(advanceSettingsKey);
