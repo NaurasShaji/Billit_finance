@@ -11,6 +11,7 @@ import 'services/auth_service.dart';
 import 'services/desktop_window_service.dart';
 import 'services/drive_sync_service.dart';
 import 'services/finance_schema_migration.dart';
+import 'services/finance_source_sync_service.dart';
 import 'services/schema_migration_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -56,6 +57,19 @@ Future<void> main() async {
       FinanceSchemaMigration.versionTwoToThree,
     ],
   ).run(settings);
+
+  // Import legacy POS and expense history into the journal. Stable source keys
+  // make this safe to repeat after an interrupted startup or restored backup.
+  await FinanceSourceSyncService().syncAll(
+    salesBox: Hive.box<Sale>(Boxes.sales),
+    expensesBox: Hive.box<Expense>(Boxes.expenses),
+    employeesBox: Hive.box<Employee>(Boxes.employees),
+    accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+    transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+    postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+    categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+    partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+  );
 
   Future<void> setDefaultSetting(String key, dynamic value) async {
     if (!settings.containsKey(key)) await settings.put(key, value);
