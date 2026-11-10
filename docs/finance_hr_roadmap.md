@@ -17,7 +17,12 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Preserve finance data when restoring legacy backups without finance collections.
 - [x] Validate finance backup references, category/account compatibility, reversals, and posted journal balance.
 - [x] Add best-effort restore rollback across business and finance boxes.
-- [ ] Regenerate/verify Hive adapters with build_runner and run all persistence tests.
+- [x] Replace Hive runtime, Flutter integration, and adapter generator dependencies with Hive CE.
+- [x] Migrate application, model, service, and test imports to Hive CE.
+- [x] Document in-place storage compatibility requirements and real-device validation steps.
+- [ ] Regenerate/verify Hive CE adapters with build_runner and run all persistence tests.
+- [ ] Confirm the refreshed pubspec.lock is committed by CI and dependency resolution is clean.
+- [ ] Verify existing production Hive v2 data opens unchanged with Hive CE on a test device.
 - [ ] Verify rollback behavior under actual device storage failures.
 
 ### POS and expense integration
@@ -76,7 +81,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Payroll journal posting with period/run references and reversal support.
 
 ## Release gates
-- [ ] Run `dart run build_runner build --delete-conflicting-outputs`.
+- [ ] Run `dart run build_runner build --delete-conflicting-outputs` using hive_ce_generator.
 - [ ] Run `dart format --set-exit-if-changed .`.
 - [ ] Run `flutter analyze` with zero errors.
 - [ ] Run `flutter test` with all tests passing.
