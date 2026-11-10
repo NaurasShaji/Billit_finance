@@ -206,7 +206,7 @@ class _FinanceReconciliationScreenState
                         leading: Icon(Icons.check_circle_outline),
                         title: Text('No reconciliation issues found'),
                         subtitle: Text(
-                          'Current POS sales and expenses match their posted journal entries.',
+                          'Current POS, expense, payroll, and reimbursement records match their posted journal entries.',
                         ),
                       )
                     else
@@ -223,7 +223,7 @@ class _FinanceReconciliationScreenState
                         ),
                     const SizedBox(height: 16),
                     Text(
-                      'This report checks the current source-record revision against its journal entry. It does not reconcile bank statements or inventory cost of goods sold.',
+                      'This report reconciles POS sales, expenses, payroll accruals and settlements, employee advances, and reimbursement claims against the journal. It does not reconcile bank statements or inventory cost of goods sold.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
