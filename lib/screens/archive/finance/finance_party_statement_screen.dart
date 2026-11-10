@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import '../../../widgets/responsive_page.dart';
 
 /// Party-wise receivable/payable statement derived from the immutable journal.
 class FinancePartyStatementScreen extends StatefulWidget {
@@ -52,7 +53,7 @@ class _FinancePartyStatementScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: Text('${widget.party.name} statement'),
         actions: [
@@ -201,7 +202,7 @@ class _FinancePartyStatementScreenState
           },
         ),
       ),
-    );
+    ));
   }
 }
 
