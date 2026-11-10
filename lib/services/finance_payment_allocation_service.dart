@@ -176,10 +176,7 @@ class FinanceAllocationDraft {\n  const FinanceAllocationDraft({required this.id
     for (final invoice in tx.where((t)=>t.transactionType==invoiceType && !reversed.contains(t.id))) {
       final gross = invoiceAmountPaise(invoiceId:invoice.id, partyId:partyId, partyType:partyType, transactions:tx, postings:postings);
       final explicit = allocations.where((a)=>a.invoiceTransactionId==invoice.id && a.partyId==partyId && !reversed.contains(a.settlementTransactionId)).fold<int>(0,(s,a)=>s+a.amountPaise);
-      if (gross>explicit) invoiceBalances[invoice]=gross-explicit;
-    }
-    if (!invoiceBalances.containsKey(tx.where((t)=>t.id==invoiceId).firstOrNull)) {
-      if (!tx.any((t)=>t.id==invoiceId && t.status=='posted' && !reversed.contains(t.id))) throw const FinanceAllocationException('Invoice must be posted and not reversed.');
+      invoiceBalances[invoice]=gross>explicit ? gross-explicit : 0;
     }
     final settlements = <FinanceTransaction,int>{};
     for (final settlement in tx.where((t)=>t.transactionType==settlementType && !reversed.contains(t.id) && t.id!=excludeSettlementId)) {
