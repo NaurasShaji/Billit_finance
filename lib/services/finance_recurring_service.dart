@@ -166,6 +166,13 @@ class FinanceRecurringService {
         'A customer is required for recurring receivable entries.',
       );
     }
+    if (transactionType == 'expense' &&
+        creditAccountId == 'system:payables' &&
+        partyId == null) {
+      throw const FinanceRecurringException(
+        'A supplier is required for recurring payable entries.',
+      );
+    }
 
     final due = _day(nextDueDate);
     final end = endDate == null ? null : _day(endDate);
