@@ -19,6 +19,18 @@ class _FinancePartiesScreenState extends State<FinancePartiesScreen> {
   String _money(int paise) =>
       NumberFormat.simpleCurrency(locale: 'en_IN').format(paise.abs() / 100);
 
+  String _balanceLabel(String partyType, int paise) {
+    if (paise == 0) return _money(0);
+    if (partyType == 'customer') {
+      return paise > 0
+          ? 'Due ${_money(paise)}'
+          : 'Customer credit ${_money(paise)}';
+    }
+    return paise > 0
+        ? 'Due ${_money(paise)}'
+        : 'Advance ${_money(paise)}';
+  }
+
   Future<void> _openForm([FinanceParty? party]) async {
     await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -133,7 +145,9 @@ class _FinancePartiesScreenState extends State<FinancePartiesScreen> {
                                 : 'Other parties',
                       ),
                       trailing: Text(
-                        _filter == 'other' ? '—' : _money(totalOutstanding),
+                        _filter == 'other'
+                            ? '—'
+                            : _balanceLabel(_filter, totalOutstanding),
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: totalOutstanding < 0
@@ -168,11 +182,14 @@ class _FinancePartiesScreenState extends State<FinancePartiesScreen> {
                           children: [
                             if (_filter != 'other')
                               Text(
-                                _money(service.balancePaise(
-                                  party: party,
-                                  transactions: transactionsBox.values,
-                                  postings: postingsBox.values,
-                                )),
+                                _balanceLabel(
+                                  party.partyType,
+                                  service.balancePaise(
+                                    party: party,
+                                    transactions: transactionsBox.values,
+                                    postings: postingsBox.values,
+                                  ),
+                                ),
                                 style: Theme.of(context).textTheme.titleSmall,
                               ),
                             PopupMenuButton<String>(
