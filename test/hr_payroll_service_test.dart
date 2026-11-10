@@ -396,6 +396,78 @@ void main() {
     expect(transactions.values.where((item) => item.sourceType == 'employee_advance_repayment'), hasLength(1));
   });
 
+  test('verified legacy advance opening balance posts against opening equity', () async {
+    await settings.put(HrPayrollService.advanceSettingsKey, {
+      'monthly-1': [
+        {
+          'id': 'legacy-advance-1',
+          'description': 'Legacy staff advance',
+          'principalPaise': 600000,
+          'outstandingPaise': 400000,
+          'installmentPaise': 100000,
+          'issueDate': DateTime(2026, 7, 1).toIso8601String(),
+          'nextDueDate': DateTime(2026, 12, 1).toIso8601String(),
+          'status': 'active',
+          'repayments': <Map<String, dynamic>>[],
+        },
+      ],
+    });
+
+    await payroll.recordLegacyAdvanceOpeningBalance(
+      employeeId: 'monthly-1',
+      advanceId: 'legacy-advance-1',
+      asOfDate: DateTime(2026, 11, 1),
+    );
+
+    final opening = transactions.values.singleWhere(
+      (item) => item.sourceType == 'employee_advance_opening_balance',
+    );
+    expect(opening.transactionType, 'opening_balance');
+    final lines = postings.values.where((line) => line.transactionId == opening.id).toList();
+    expect(lines.where((line) => line.accountId == 'system:employee-advances').single.debitPaise, 400000);
+    expect(lines.where((line) => line.accountId == 'system:opening-equity').single.creditPaise, 400000);
+    expect(payroll.advanceReconciliation()['differencePaise'], 0);
+
+    await expectLater(
+      payroll.recordLegacyAdvanceOpeningBalance(
+        employeeId: 'monthly-1',
+        advanceId: 'legacy-advance-1',
+        asOfDate: DateTime(2026, 11, 1),
+      ),
+      throwsA(isA<HrPayrollServiceException>()),
+    );
+  });
+
+  test('legacy advance opening balance rejects repayment history', () async {
+    await settings.put(HrPayrollService.advanceSettingsKey, {
+      'monthly-1': [
+        {
+          'id': 'legacy-advance-with-repayment',
+          'description': 'Legacy advance with repayment',
+          'principalPaise': 600000,
+          'outstandingPaise': 400000,
+          'installmentPaise': 100000,
+          'issueDate': DateTime(2026, 7, 1).toIso8601String(),
+          'nextDueDate': DateTime(2026, 12, 1).toIso8601String(),
+          'status': 'active',
+          'repayments': [
+            {'id': 'old-repayment', 'source': 'manual', 'amountPaise': 200000},
+          ],
+        },
+      ],
+    });
+
+    await expectLater(
+      payroll.recordLegacyAdvanceOpeningBalance(
+        employeeId: 'monthly-1',
+        advanceId: 'legacy-advance-with-repayment',
+        asOfDate: DateTime(2026, 11, 1),
+      ),
+      throwsA(isA<HrPayrollServiceException>()),
+    );
+    expect(transactions, isEmpty);
+  });
+
   test('paying a payslip cannot exceed the remaining balance', () async {
     final run = await payroll.generateRun(
       periodStart: DateTime(2026, 11, 1),
