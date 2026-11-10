@@ -61,6 +61,20 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
     return whole * 100 + fraction;
   }
 
+  bool _createsParentCycle(
+    Box<FinanceAccount> accounts,
+    String? parentId,
+    String? accountId,
+  ) {
+    final visited = <String>{};
+    var currentId = parentId;
+    while (currentId != null) {
+      if (currentId == accountId || !visited.add(currentId)) return true;
+      currentId = accounts.get(currentId)?.parentId;
+    }
+    return false;
+  }
+
   Future<void> _save(Box<FinanceAccount> accounts) async {
     if (_saving || !_formKey.currentState!.validate()) return;
     final name = _name.text.trim();
@@ -109,9 +123,15 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
       );
       return;
     }
-    if (_parentId == existing?.id) {
+    if (_createsParentCycle(accounts, _parentId, existing?.id)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An account cannot be its own parent.')),
+        const SnackBar(content: Text('This parent selection would create an account hierarchy cycle.')),
+      );
+      return;
+    }
+    if (_parentId != null && accounts.get(_parentId)?.accountType != _type) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Parent and child accounts must have the same account type.')),
       );
       return;
     }
