@@ -897,6 +897,44 @@ class HrPayrollService {
     }
     if (slip.status != 'approved' && slip.status != 'partially_paid') throw const HrPayrollServiceException('Payslip is not in a payable state.');
     if (amountPaise > slip.outstandingPaise) throw const HrPayrollServiceException('Payment cannot exceed the payslip outstanding amount.');
+    final accrualExists = Hive.box<FinanceTransaction>(Boxes.financeTransactions).values.any((tx) =>
+        tx.sourceType == 'payroll_accrual' && tx.sourceId == slip.id && tx.status == 'posted');
+    if (!accrualExists) {
+      // Compatibility path for payroll runs approved before accrual accounting was introduced.
+      final expensesBox = Hive.box<Expense>(Boxes.expenses);
+      final paymentId = 'payroll-payment:${slip.id}:from:${slip.paidPaise}';
+      final existingPayment = expensesBox.get(paymentId);
+      final actualPaymentPaise = existingPayment == null ? amountPaise : _rupeesToPaise(existingPayment.amount, 'Existing payroll payment');
+      if (actualPaymentPaise > slip.outstandingPaise) throw const HrPayrollServiceException('Existing payroll payment exceeds the remaining payslip balance.');
+      if (existingPayment == null) {
+        final employee = Hive.box<Employee>(Boxes.employees).get(slip.employeeId);
+        if (employee == null) throw const HrPayrollServiceException('Payslip employee record is missing.');
+        await expensesBox.put(paymentId, Expense(id: paymentId, date: DateTime.now(), category: 'Salary-Run', amount: amountPaise / 100, description: 'Legacy payroll run ${run.id}, payslip ${slip.id}; account=$cashAccountId', employeeId: slip.employeeId));
+      }
+      final expense = expensesBox.get(paymentId)!;
+      await FinanceSourceSyncService().syncExpense(
+        expense: expense,
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+        transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+        categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+        partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+        employeesBox: Hive.box<Employee>(Boxes.employees),
+        paymentAccountId: cashAccountId,
+      );
+      final legacyJournalId = 'finance:expense:${expense.id}:r${expense.financeRevision}';
+      final legacyCredits = Hive.box<FinancePosting>(Boxes.financePostings).values.where((line) => line.transactionId == legacyJournalId && line.creditPaise > 0).toList();
+      if (legacyCredits.length != 1 || legacyCredits.single.accountId != cashAccountId) throw const HrPayrollServiceException('Legacy payroll payment journal does not match the selected account. Reconcile it before continuing.');
+      final legacyPaid = slip.paidPaise + actualPaymentPaise;
+      final legacyUpdated = _copyPayslip(slip, paidPaise: legacyPaid, status: legacyPaid >= slip.netPaise ? 'paid' : 'partially_paid', paidAt: legacyPaid >= slip.netPaise ? DateTime.now() : null);
+      if (legacyUpdated.status == 'paid') {
+        await _postPayrollAdvanceRecoveryJournal(payslipId: slip.id, date: legacyUpdated.paidAt ?? DateTime.now(), amountPaise: _advanceSnapshotTotal(slip.id));
+        await _settlePayrollAdvanceDeductions(legacyUpdated.id);
+      }
+      await slipsBox.put(legacyUpdated.id, legacyUpdated);
+      await _refreshRunStatus(run, slipsBox);
+      return legacyUpdated;
+    }
     final paymentDate = DateTime.now();
     try {
       await _postPayrollPaymentJournal(slip: slip, amountPaise: amountPaise, paidBeforePaise: slip.paidPaise, cashAccountId: cashAccountId, date: paymentDate);
