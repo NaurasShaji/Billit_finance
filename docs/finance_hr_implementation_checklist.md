@@ -25,8 +25,8 @@ Work branch: `feature/finance-team-promotion`
 - Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, active account references, unique transaction numbers/source IDs, and posted-only account balance calculation.
 - Added immutable reversal posting: exact opposite journal lines are appended and the original posted transaction is not modified.
 - Added finance persistence/migration and ledger integrity tests. These are authored but have not been executed.
-- Extended Google Drive backup export, parser, restore, snapshots, and rollback to include all five finance boxes. Legacy backups without finance keys preserve current finance data; partial finance collection sets and invalid posted journal entries are rejected before writes.
-- **Next:** extend Google Drive backup/restore for finance data, then execute the full test suite and static analysis.
+- Extended Google Drive backup export, parser, restore, snapshots, and rollback to include all five finance boxes. Legacy backups without finance keys preserve current finance data; partial finance collection sets, broken cross-references, duplicate transaction/source identifiers, invalid posting lines, and unbalanced posted entries are rejected before writes.
+- **Next:** execute the full test suite, build_runner verification, Dart formatting, and static analysis in a Flutter-enabled environment. Then implement finance transaction workflows and legacy POS/expense journal integration.
 
 ## Phase 0 — Repository audit and safe foundation
 
