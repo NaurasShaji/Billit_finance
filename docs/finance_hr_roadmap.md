@@ -91,7 +91,8 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Statutory deduction configuration.
 - [x] Dated employee overtime records with hourly rate and hours; payroll includes overtime in gross pay and immutable payslip allowance totals. Overtime records are included in Google Drive backup/restore validation. Overtime approval workflow and statutory deduction configuration remain outstanding.
 - [x] Employee advance register, outstanding balances, monthly instalment schedule, manual repayment history, employee-profile controls, backup/restore validation, and payroll deduction snapshots. Scheduled deductions reduce the advance only after the payslip is fully settled.
-- [ ] Post advance disbursement and payroll/manual recovery to the finance journal; reconcile employee advance asset balances.
+- [x] Add the Employee Advances asset account through schema migration v9; post advance issuance (debit Employee Advances, credit selected INR asset account) and manual repayments (debit selected INR asset account, credit Employee Advances) as balanced, idempotency-keyed journal adjustments. The service accepts a cash/bank asset account ID and defaults to Cash for existing UI calls. Payroll instalment recoveries are still operational-only and are not yet journal-posted; account selection UI, reconciliation, and reversal/correction remain open.
+- [ ] Add cash/bank account selection to the employee advance and repayment dialogs; journal payroll instalment recovery and reconcile advance subledger to the Employee Advances control account.
 - [x] Immutable payslip snapshots generated for each payroll run.
 - [x] Payslip PDF/print output.
 - [x] Journal posting for payroll payments with run/payslip references through source-linked expense records. Payslips are no longer marked paid when journal synchronization fails; the saved source expense remains available for idempotent reconciliation/retry.
@@ -144,3 +145,8 @@ Employee profiles now support dated one-off bonuses with a description and amoun
 ## Employee advances and payroll recovery update
 
 The HR module now records employee advances, outstanding principal, instalment amounts, due dates, manual repayments, and repayment history. Payroll periods include due instalments as deductions, with recovery applied to the advance balance only after full payslip settlement. Deduction snapshots prevent the same instalment being reserved by another unpaid payslip. Backup/restore includes and validates advance records and deduction snapshots. This is not yet fully integrated with the finance ledger: disbursement and repayment journal entries, cash/bank account mapping, and paid-payslip reversal/correction remain open. Tests and builds have not been run.
+
+
+## Employee advance journal update
+
+Schema migration v9 adds a dedicated Employee Advances asset account. Advance issuance now posts a balanced adjustment debiting Employee Advances and crediting the selected INR asset account; manual repayments debit the selected asset account and credit Employee Advances. Posting uses stable source IDs to prevent duplicates, and the operational advance/repayment write is rolled back if journal posting fails. Current profile dialogs still use the service's Cash default rather than exposing cash/bank selection. Payroll instalment recovery still updates the HR advance balance without a corresponding journal entry, so the control-account reconciliation is incomplete. No tests or builds were run.
