@@ -170,7 +170,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Customer/supplier directory and party-level receivable/payable balances.
 - [x] Initial Team dashboard, employee directory, department management, and employee profile screens.
 - [x] Initial attendance, leave, payroll-run, salary-component, and payslip screens.
-- [x] Apply adaptive metric grids and centered max-width content frames to Finance dashboard, accounting reports, and reconciliation. Other Finance forms/lists remain scrollable and use available width.
+- [x] Apply adaptive metric grids and centered max-width content frames to Finance dashboard, accounting reports, reconciliation, accounts/journal, account forms, ageing, budgets, categories, general ledger, parties, party statements, payment allocation/settings, recurring templates, and transaction forms.
 - [x] Replace hardcoded dashboard colors with theme color-scheme roles; core Finance ledger/report/reconciliation screens use ThemeData surfaces and text styles.
 - [x] Apply shared max-width responsive page framing across Finance and HR screens; replace hardcoded light-only colors in expense entry/history and key HR screens with theme color-scheme roles; add missing payment-allocation empty states and retain explicit error/retry feedback.
 
