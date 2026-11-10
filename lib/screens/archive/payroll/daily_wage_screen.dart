@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/employee.dart';
 import '../../../models/expense.dart';
 import '../../../services/boxes.dart';
+import 'attendance_screen.dart';
 import '../../../utils/theme_colors.dart';
 
 class DailyWageScreen extends StatelessWidget {
@@ -20,6 +21,15 @@ class DailyWageScreen extends StatelessWidget {
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
         title: const Text('Daily Wage Payments'),
+        actions: [
+          IconButton(
+            tooltip: 'Mark attendance',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+            ),
+            icon: const Icon(Icons.fact_check_outlined),
+          ),
+        ],
         backgroundColor: Colors.orange.shade600,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -191,10 +201,18 @@ class DailyWageScreen extends StatelessWidget {
                           DateTime.now(),
                           allEmployees: empBox.values,
                         );
+                        final attendanceStatus =
+                            PayrollService.attendanceFor(e, DateTime.now())?.status;
+                        final attendanceEligible =
+                            !Hive.isBoxOpen(Boxes.employeeAttendance) ||
+                                attendanceStatus == 'present' ||
+                                attendanceStatus == 'half_day';
                         final controller = TextEditingController(
                             text: outstanding.toStringAsFixed(2));
-                        final isPaidToday = outstanding <= 0.005;
-                        final isPartiallyPaid = paidAmount > 0.005 && !isPaidToday;
+                        final isPaidToday =
+                            attendanceEligible && outstanding <= 0.005;
+                        final isPartiallyPaid =
+                            attendanceEligible && paidAmount > 0.005 && !isPaidToday;
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -248,7 +266,9 @@ class DailyWageScreen extends StatelessWidget {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            'Daily Wage Employee',
+                                            attendanceStatus == null
+                                                ? 'Daily Wage · Attendance not marked'
+                                                : 'Daily Wage · ${attendanceStatus.replaceAll('_', ' ')}',
                                             style: TextStyle(
                                               fontSize: 13,
                                               color: theme.colorScheme.onSurface
@@ -358,18 +378,28 @@ class DailyWageScreen extends StatelessWidget {
                                     SizedBox(
                                       height: 56,
                                       child: ElevatedButton.icon(
-                                        onPressed: isPaidToday
+                                        onPressed: !attendanceEligible || isPaidToday
                                             ? null
                                             : () => _processPayment(context, e,
                                                 controller, expBox, currency),
-                                        icon: Icon(isPaidToday
-                                            ? Icons.check
-                                            : Icons.payment_outlined),
-                                        label: Text(isPaidToday
-                                            ? 'Paid'
-                                            : isPartiallyPaid
-                                                ? 'Pay remaining'
-                                                : 'Pay Now'),
+                                        icon: Icon(
+                                          !attendanceEligible
+                                              ? Icons.fact_check_outlined
+                                              : isPaidToday
+                                                  ? Icons.check
+                                                  : Icons.payment_outlined,
+                                        ),
+                                        label: Text(
+                                          !attendanceEligible
+                                              ? attendanceStatus == null
+                                                  ? 'Mark attendance'
+                                                  : 'No wage due'
+                                              : isPaidToday
+                                                  ? 'Paid'
+                                                  : isPartiallyPaid
+                                                      ? 'Pay remaining'
+                                                      : 'Pay Now',
+                                        ),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: isPaidToday
                                               ? Theme.of(context).colorScheme.outline
