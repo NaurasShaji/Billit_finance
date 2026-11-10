@@ -414,6 +414,23 @@ class FinanceReconciliationService {
         continue;
       }
       if (status == 'submitted' || status == 'rejected') continue;
+      if (status == 'cancelled') {
+        final cancelledAccruals = posted.where((tx) =>
+            tx.sourceType == 'employee_reimbursement_accrual' && tx.sourceId == claimId).toList();
+        final cancelledPayments = posted.where((tx) =>
+            tx.sourceType == 'employee_reimbursement_payment' &&
+            tx.sourceId.startsWith('$claimId:from:')).toList();
+        if (cancelledAccruals.length != 1 ||
+            !_hasReversal(cancelledAccruals.single.id, allTransactions) ||
+            cancelledPayments.any((tx) => !_hasReversal(tx.id, allTransactions))) {
+          reimbursementIssues.add(FinanceReconciliationIssue(
+            sourceType: 'employee_reimbursement',
+            sourceId: claimId,
+            message: 'Cancelled reimbursement does not have complete accrual and settlement reversals.',
+          ));
+        }
+        continue;
+      }
       if (status != 'approved' && status != 'partially_paid' && status != 'paid') {
         reimbursementIssues.add(FinanceReconciliationIssue(
           sourceType: 'employee_reimbursement',
