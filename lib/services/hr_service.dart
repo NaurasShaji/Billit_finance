@@ -30,6 +30,31 @@ class AttendanceSummary {
   double get payableDays => presentDays + halfDays * 0.5;
 }
 
+class LeavePolicy {
+  const LeavePolicy({required this.annualEntitlementDays, required this.accrualEnabled});
+  final int annualEntitlementDays;
+  final bool accrualEnabled;
+
+  Map<String, dynamic> toMap() => {
+        'annualEntitlementDays': annualEntitlementDays,
+        'accrualEnabled': accrualEnabled,
+      };
+
+  factory LeavePolicy.fromMap(Map value) => LeavePolicy(
+        annualEntitlementDays: (value['annualEntitlementDays'] as num?)?.toInt() ?? 0,
+        accrualEnabled: value['accrualEnabled'] as bool? ?? false,
+      );
+}
+
+class LeaveBalance {
+  const LeaveBalance({required this.leaveType, required this.entitledDays, required this.usedDays})
+      : availableDays = entitledDays - usedDays;
+  final String leaveType;
+  final double entitledDays;
+  final int usedDays;
+  final double availableDays;
+}
+
 class HrService {
   static const attendanceStatuses = {
     'present',
@@ -42,6 +67,85 @@ class HrService {
 
   static DateTime day(DateTime value) =>
       DateTime(value.year, value.month, value.day);
+
+  static const leavePolicySettingsKey = 'hr_leave_policies';
+
+  Map<String, LeavePolicy> leavePolicies() {
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(leavePolicySettingsKey);
+    final result = <String, LeavePolicy>{};
+    if (raw is Map) {
+      for (final entry in raw.entries) {
+        if (leaveTypes.contains(entry.key) && entry.value is Map) {
+          result[entry.key.toString()] = LeavePolicy.fromMap(entry.value as Map);
+        }
+      }
+    }
+    for (final type in leaveTypes) {
+      result.putIfAbsent(type, () => LeavePolicy(
+            annualEntitlementDays: type == 'casual' ? 12 : type == 'sick' ? 12 : type == 'earned' ? 15 : 0,
+            accrualEnabled: type == 'casual' || type == 'sick' || type == 'earned',
+          ));
+    }
+    return result;
+  }
+
+  Future<void> saveLeavePolicies(Map<String, LeavePolicy> policies) async {
+    if (policies.keys.any((type) => !leaveTypes.contains(type))) {
+      throw const HrServiceException('Unsupported leave policy type.');
+    }
+    for (final type in leaveTypes) {
+      final policy = policies[type];
+      if (policy == null || policy.annualEntitlementDays < 0 ||
+          policy.annualEntitlementDays > 365) {
+        throw const HrServiceException('Leave entitlement must be between 0 and 365 days for every leave type.');
+      }
+      if (!policy.accrualEnabled && policy.annualEntitlementDays != 0) {
+        throw const HrServiceException('Disable accrual only when the entitlement is zero.');
+      }
+    }
+    await Hive.box<dynamic>('app_settings').put(
+      leavePolicySettingsKey,
+      {for (final entry in policies.entries) entry.key: entry.value.toMap()},
+    );
+  }
+
+  LeaveBalance leaveBalance({
+    required String employeeId,
+    required String leaveType,
+    DateTime? asOf,
+  }) {
+    if (!leaveTypes.contains(leaveType) || leaveType == 'unpaid' || leaveType == 'other') {
+      return LeaveBalance(leaveType: leaveType, entitledDays: 0, usedDays: 0);
+    }
+    final employee = Hive.box<Employee>(Boxes.employees).get(employeeId);
+    if (employee == null) throw const HrServiceException('Employee not found.');
+    final date = day(asOf ?? DateTime.now());
+    final policy = leavePolicies()[leaveType]!;
+    if (!policy.accrualEnabled || policy.annualEntitlementDays == 0) {
+      return LeaveBalance(leaveType: leaveType, entitledDays: 0, usedDays: 0);
+    }
+    final yearStart = DateTime(date.year, 1, 1);
+    final accrualStart = employee.joiningDate == null || employee.joiningDate!.isBefore(yearStart)
+        ? yearStart
+        : day(employee.joiningDate!);
+    final completedMonths = date.isBefore(accrualStart)
+        ? 0
+        : (date.year - accrualStart.year) * 12 + date.month - accrualStart.month +
+            (date.day >= accrualStart.day ? 1 : 0);
+    final entitled = (policy.annualEntitlementDays * completedMonths / 12)
+        .clamp(0.0, policy.annualEntitlementDays.toDouble());
+    final used = Hive.box<LeaveRequest>(Boxes.leaveRequests).values
+        .where((request) => request.employeeId == employeeId &&
+            request.leaveType == leaveType && request.status == 'approved' &&
+            request.startDate.year == date.year)
+        .fold<int>(0, (sum, request) {
+          final start = request.startDate.isBefore(yearStart) ? yearStart : day(request.startDate);
+          final end = request.endDate.isAfter(date) ? date : day(request.endDate);
+          return end.isBefore(start) ? sum : sum + end.difference(start).inDays + 1;
+        });
+    return LeaveBalance(leaveType: leaveType, entitledDays: entitled, usedDays: used);
+  }
 
   static String attendanceId(String employeeId, DateTime date) {
     final normalized = day(date);
