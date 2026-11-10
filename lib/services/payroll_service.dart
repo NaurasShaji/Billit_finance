@@ -5,6 +5,7 @@ import '../models/models.dart';
 import 'boxes.dart';
 import 'finance_service.dart';
 import 'finance_source_sync_service.dart';
+import 'hr_service.dart';
 
 /// Everything the Team tab shows about payroll for the current day/month.
 class PayrollSummary {
