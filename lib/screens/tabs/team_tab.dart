@@ -16,6 +16,7 @@ import '../archive/payroll/employee_profile_screen.dart';
 import '../archive/payroll/attendance_screen.dart';
 import '../archive/payroll/leave_management_screen.dart';
 import '../archive/payroll/department_management_screen.dart';
+import '../archive/payroll/payroll_runs_screen.dart';
 
 /// Top-level Team screen: who works here, who has been paid, who is due.
 class TeamTab extends StatelessWidget {
@@ -123,6 +124,14 @@ class TeamTab extends StatelessWidget {
                           ),
                           icon: const Icon(Icons.business_outlined),
                           label: const Text('Departments'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _open(
+                            context,
+                            const PayrollRunsScreen(),
+                          ),
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          label: const Text('Payroll runs'),
                         ),
                       ],
                     ),
