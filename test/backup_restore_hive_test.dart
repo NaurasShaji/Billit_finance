@@ -524,6 +524,33 @@ void main() {
   });
 
   test('restores finance collections while preserving paise precision', () async {
+    await financeBudgets.put(
+      'existing-budget',
+      FinanceBudget(
+        id: 'existing-budget',
+        name: 'Existing office budget',
+        accountId: 'expense',
+        categoryId: 'office',
+        periodStart: DateTime(2026, 1, 1),
+        periodEnd: DateTime(2026, 1, 31),
+        budgetPaise: 80000,
+      ),
+    );
+    await recurringTemplates.put(
+      'existing-recurring',
+      FinanceRecurringTemplate(
+        id: 'existing-recurring',
+        name: 'Existing office supplies',
+        transactionType: 'expense',
+        debitAccountId: 'expense',
+        creditAccountId: 'cash',
+        amountPaise: 2500,
+        interval: 'monthly',
+        nextDueDate: DateTime(2026, 2, 1),
+        categoryId: 'office',
+        partyId: 'supplier',
+      ),
+    );
     await financeAccounts.put(
       'old-account',
       FinanceAccount(
@@ -611,6 +638,11 @@ void main() {
     expect(financePostings.get('line-debit')!.debitPaise, 12551);
     expect(financeCategories.get('office')!.accountId, 'expense');
     expect(financeParties.get('supplier')!.partyType, 'supplier');
+    expect(financeBudgets.get('existing-budget')!.budgetPaise, 80000);
+    expect(
+      recurringTemplates.get('existing-recurring')!.partyId,
+      'supplier',
+    );
   });
 
   test('legacy payload preserves finance data and current settings', () async {
