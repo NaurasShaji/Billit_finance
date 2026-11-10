@@ -48,6 +48,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  Future<void> _setAttendanceTime(
+    Employee employee,
+    EmployeeAttendance record,
+    bool isCheckIn,
+  ) async {
+    final current = isCheckIn ? record.checkIn : record.checkOut;
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: current == null
+          ? TimeOfDay.now()
+          : TimeOfDay.fromDateTime(current),
+    );
+    if (selected == null || !mounted) return;
+    final value = DateTime(
+      _date.year, _date.month, _date.day, selected.hour, selected.minute,
+    );
+    try {
+      await HrService().recordAttendance(
+        employeeId: employee.id,
+        date: _date,
+        status: 'present',
+        checkIn: isCheckIn ? value : record.checkIn,
+        checkOut: isCheckIn ? record.checkOut : value,
+        notes: record.notes,
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update attendance time: $error')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('EEEE, dd MMM yyyy');
@@ -161,42 +195,75 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     EmployeeAttendance? record,
   ) {
     final status = record?.status;
-    final approvedLeave = record?.notes.startsWith('Approved leave request') ??
-        false;
+    final approvedLeave = record?.notes.startsWith('Approved leave request') ?? false;
+    final timeFormat = DateFormat('hh:mm a');
     return Card(
-      child: ListTile(
-        title: Text(employee.name),
-        subtitle: Text(
-          employee.employeeCode.isEmpty
-              ? (employee.designation.isEmpty
-                  ? (employee.type == 'daily' ? 'Daily wage' : 'Monthly salary')
-                  : employee.designation)
-              : employee.employeeCode,
-        ),
-        trailing: SizedBox(
-          width: 150,
-          child: DropdownButtonFormField<String?>(
-            value: status,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Attendance',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(employee.name, style: Theme.of(context).textTheme.titleSmall),
+                      Text(employee.employeeCode.isEmpty
+                          ? (employee.designation.isEmpty
+                              ? (employee.type == 'daily' ? 'Daily wage' : 'Monthly salary')
+                              : employee.designation)
+                          : employee.employeeCode),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 150,
+                  child: DropdownButtonFormField<String?>(
+                    value: status,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Attendance',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                    items: const [
+                      DropdownMenuItem<String?>(value: null, child: Text('Not marked')),
+                      DropdownMenuItem(value: 'present', child: Text('Present')),
+                      DropdownMenuItem(value: 'half_day', child: Text('Half day')),
+                      DropdownMenuItem(value: 'absent', child: Text('Absent')),
+                      DropdownMenuItem(value: 'holiday', child: Text('Holiday')),
+                      DropdownMenuItem(value: 'leave', child: Text('Leave')),
+                    ],
+                    onChanged: approvedLeave ? null : (value) => _setStatus(employee, value),
+                  ),
+                ),
+              ],
             ),
-            items: const [
-              DropdownMenuItem<String?>(value: null, child: Text('Not marked')),
-              DropdownMenuItem(value: 'present', child: Text('Present')),
-              DropdownMenuItem(value: 'half_day', child: Text('Half day')),
-              DropdownMenuItem(value: 'absent', child: Text('Absent')),
-              DropdownMenuItem(value: 'holiday', child: Text('Holiday')),
-              DropdownMenuItem(value: 'leave', child: Text('Leave')),
+            if (status == 'present' && record != null) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: approvedLeave ? null : () => _setAttendanceTime(employee, record, true),
+                    icon: const Icon(Icons.login, size: 16),
+                    label: Text(record.checkIn == null ? 'Check in' : 'In ${timeFormat.format(record.checkIn!)}'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: approvedLeave || record.checkIn == null
+                        ? null
+                        : () => _setAttendanceTime(employee, record, false),
+                    icon: const Icon(Icons.logout, size: 16),
+                    label: Text(record.checkOut == null ? 'Check out' : 'Out ${timeFormat.format(record.checkOut!)}'),
+                  ),
+                ],
+              ),
             ],
-            onChanged: approvedLeave
-                ? null
-                : (value) => _setStatus(employee, value),
-          ),
+          ],
         ),
       ),
     );
-  }
-}
+  }}
