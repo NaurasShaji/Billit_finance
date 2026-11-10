@@ -136,6 +136,35 @@ class HrPayrollService {
     if (index < 0) throw const HrPayrollServiceException('Reimbursement claim was not found.');
     final claim = Map<String, dynamic>.from(claims[index] as Map);
     if (claim['status'] != 'submitted') throw const HrPayrollServiceException('Only submitted reimbursement claims can be reviewed.');
+    if (decision == 'approved') {
+      final amount = claim['amountPaise'];
+      if (amount is! int || amount <= 0) throw const HrPayrollServiceException('Reimbursement claim amount is invalid.');
+      final categoryId = claim['categoryId'] is String ? claim['categoryId'] as String : '';
+      final category = categoryId.isEmpty ? null : Hive.box<FinanceCategory>(Boxes.financeCategories).get(categoryId);
+      if (categoryId.isNotEmpty && (category == null || !category.active || category.kind != 'expense')) throw const HrPayrollServiceException('The reimbursement expense category is unavailable.');
+      final expenseAccountId = category?.accountId ?? 'system:operating-expense';
+      _requirePayrollAccount(expenseAccountId, 'expense');
+      _requirePayrollAccount('system:employee-reimbursements-payable', 'liability');
+      final transactionId = 'finance:employee-reimbursement-accrual:$claimId';
+      final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+      final postings = Hive.box<FinancePosting>(Boxes.financePostings);
+      final existing = transactions.values.where((tx) => tx.sourceType == 'employee_reimbursement_accrual' && tx.sourceId == claimId).toList();
+      if (existing.isEmpty) {
+        await FinanceLedgerService().postTransaction(
+          transaction: FinanceTransaction(id: transactionId, transactionNumber: 'REIMB-ACC-$claimId', transactionType: 'expense', date: DateTime.tryParse(claim['expenseDate']?.toString() ?? '') ?? DateTime.now(), memo: 'Employee reimbursement accrual: ${claim['note']}', sourceType: 'employee_reimbursement_accrual', sourceId: claimId),
+          postings: [
+            FinancePosting(id: '$transactionId:expense', transactionId: transactionId, accountId: expenseAccountId, debitPaise: amount, categoryId: categoryId.isEmpty ? null : categoryId, memo: 'Employee reimbursement expense'),
+            FinancePosting(id: '$transactionId:payable', transactionId: transactionId, accountId: 'system:employee-reimbursements-payable', creditPaise: amount, memo: 'Approved employee reimbursement payable'),
+          ],
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: transactions, postingsBox: postings,
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories), partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+        );
+      } else {
+        if (existing.length != 1 || existing.single.id != transactionId || existing.single.status != 'posted' || transactions.values.any((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == transactionId && tx.status == 'posted')) throw const HrPayrollServiceException('Conflicting or reversed reimbursement accrual journal exists.');
+        final lines = postings.values.where((line) => line.transactionId == transactionId).toList();
+        if (lines.length != 2 || lines.where((line) => line.accountId == expenseAccountId).fold<int>(0, (sum, line) => sum + line.debitPaise) != amount || lines.where((line) => line.accountId == 'system:employee-reimbursements-payable').fold<int>(0, (sum, line) => sum + line.creditPaise) != amount) throw const HrPayrollServiceException('Existing reimbursement accrual journal does not match the claim.');
+      }
+    }
     claim['status'] = decision;
     claim['reviewedAt'] = DateTime.now().toIso8601String();
     claim['reviewNote'] = reason.trim();
@@ -146,6 +175,7 @@ class HrPayrollService {
   Future<Map<String, dynamic>> payReimbursement({required String claimId, required int amountPaise, required String paymentAccountId}) async {
     if (amountPaise <= 0) throw const HrPayrollServiceException('Payment amount must be positive.');
     _requireAdvanceCashAccount(paymentAccountId);
+    _requirePayrollAccount('system:employee-reimbursements-payable', 'liability');
     final settings = Hive.box<dynamic>('app_settings');
     final raw = settings.get(employeeReimbursementsKey);
     if (raw is! List) throw const HrPayrollServiceException('Reimbursement claim was not found.');
@@ -157,30 +187,25 @@ class HrPayrollService {
     final total = claim['amountPaise'];
     final paid = claim['paidPaise'];
     if (total is! int || paid is! int || amountPaise > total - paid) throw const HrPayrollServiceException('Payment exceeds the reimbursement amount outstanding.');
-    final categoryId = claim['categoryId'] is String ? claim['categoryId'] as String : '';
-    final category = categoryId.isEmpty ? null : Hive.box<FinanceCategory>(Boxes.financeCategories).get(categoryId);
-    if (categoryId.isNotEmpty && (category == null || !category.active || category.kind != 'expense')) throw const HrPayrollServiceException('The reimbursement expense category is unavailable.');
-    final expenseAccountId = category?.accountId ?? 'system:operating-expense';
-    _requirePayrollAccount(expenseAccountId, 'expense');
     final sourceId = '$claimId:from:$paid';
-    final transactionId = 'finance:employee-reimbursement:$sourceId';
+    final transactionId = 'finance:employee-reimbursement-payment:$sourceId';
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
     final postings = Hive.box<FinancePosting>(Boxes.financePostings);
     final existing = transactions.values.where((tx) => tx.sourceType == 'employee_reimbursement_payment' && tx.sourceId == sourceId).toList();
     if (existing.isEmpty) {
       await FinanceLedgerService().postTransaction(
-        transaction: FinanceTransaction(id: transactionId, transactionNumber: 'REIMB-$claimId-$paid', transactionType: 'expense', date: DateTime.now(), memo: 'Employee reimbursement: ${claim['note']}', sourceType: 'employee_reimbursement_payment', sourceId: sourceId),
+        transaction: FinanceTransaction(id: transactionId, transactionNumber: 'REIMB-PAY-$claimId-$paid', transactionType: 'adjustment', date: DateTime.now(), memo: 'Employee reimbursement settlement: ${claim['note']}', sourceType: 'employee_reimbursement_payment', sourceId: sourceId),
         postings: [
-          FinancePosting(id: '$transactionId:expense', transactionId: transactionId, accountId: expenseAccountId, debitPaise: amountPaise, categoryId: categoryId.isEmpty ? null : categoryId, memo: 'Employee reimbursement'),
-          FinancePosting(id: '$transactionId:payment', transactionId: transactionId, accountId: paymentAccountId, creditPaise: amountPaise, memo: 'Reimbursement settlement'),
+          FinancePosting(id: '$transactionId:payable', transactionId: transactionId, accountId: 'system:employee-reimbursements-payable', debitPaise: amountPaise, memo: 'Settle approved reimbursement'),
+          FinancePosting(id: '$transactionId:payment', transactionId: transactionId, accountId: paymentAccountId, creditPaise: amountPaise, memo: 'Reimbursement payment'),
         ],
         accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: transactions, postingsBox: postings,
         categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories), partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
       );
     } else {
-      if (existing.length != 1 || existing.single.id != transactionId || existing.single.status != 'posted') throw const HrPayrollServiceException('Conflicting reimbursement payment journal exists.');
+      if (existing.length != 1 || existing.single.id != transactionId || existing.single.status != 'posted' || transactions.values.any((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == transactionId && tx.status == 'posted')) throw const HrPayrollServiceException('Conflicting or reversed reimbursement payment journal exists.');
       final lines = postings.values.where((line) => line.transactionId == transactionId).toList();
-      if (lines.length != 2 || lines.where((line) => line.accountId == expenseAccountId).fold<int>(0, (sum, line) => sum + line.debitPaise) != amountPaise || lines.where((line) => line.accountId == paymentAccountId).fold<int>(0, (sum, line) => sum + line.creditPaise) != amountPaise) throw const HrPayrollServiceException('Existing reimbursement journal does not match this payment request.');
+      if (lines.length != 2 || lines.where((line) => line.accountId == 'system:employee-reimbursements-payable').fold<int>(0, (sum, line) => sum + line.debitPaise) != amountPaise || lines.where((line) => line.accountId == paymentAccountId).fold<int>(0, (sum, line) => sum + line.creditPaise) != amountPaise) throw const HrPayrollServiceException('Existing reimbursement settlement journal does not match this payment request.');
     }
     final payments = (claim['payments'] as List? ?? []).whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).toList();
     if (!payments.any((entry) => entry['sourceId'] == sourceId)) payments.add({'sourceId': sourceId, 'amountPaise': amountPaise, 'paymentAccountId': paymentAccountId, 'date': DateTime.now().toIso8601String(), 'journalId': transactionId});
