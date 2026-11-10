@@ -63,11 +63,12 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Employee-linked payroll expense records retained.
 - [x] Employee profiles with employee code, contact details, joining date, status, department, designation, address, and emergency contact.
 - [x] Department management and employee department/designation assignment.
-- [ ] Employee documents and emergency contacts.
+- [x] Emergency contact field.
+- [ ] Employee document storage and access controls.
 
 ### Attendance and leave
 - [x] Daily attendance records with present, absent, half-day, leave, and holiday states.
-- [ ] Attendance calendar and monthly summaries.
+- [x] Attendance date selection/calendar view and monthly attendance summaries.
 - [x] Leave types, requests, overlap validation, approval/rejection, and attendance generation for approved leave.
 - [ ] Leave balance accrual and policy configuration.
 - [ ] Attendance-driven wage and salary calculations.
