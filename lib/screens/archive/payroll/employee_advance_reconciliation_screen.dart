@@ -240,7 +240,22 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                       }
                       final debitId = delta > 0 ? _advanceAccountId : offsetId;
                       final creditId = delta > 0 ? offsetId : _advanceAccountId;
-                      if (!_matchesJournal(
+                      if (correction['status'] == 'reversed') {
+                        final reversals = transactionBox.values.where((tx) =>
+                            tx.transactionType == 'reversal' &&
+                            tx.reversedTransactionId == journalId &&
+                            tx.status == 'posted').toList();
+                        if (reversals.length != 1 ||
+                            !_matchesJournal(
+                              transaction: reversals.single,
+                              lines: _linesFor(postingBox, reversals.single.id),
+                              debitAccountId: creditId,
+                              creditAccountId: debitId,
+                              amountPaise: delta.abs(),
+                            )) {
+                          invalidCorrections++;
+                        }
+                      } else if (!_matchesJournal(
                         transaction: linked.single,
                         lines: _linesFor(postingBox, journalId),
                         debitAccountId: debitId,
