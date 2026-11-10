@@ -95,11 +95,14 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
           final salaryDaily = all
               .where((e) => e.category == 'Salary-Daily')
               .fold<double>(0, (s, e) => s + e.amount);
+          final salaryRun = all
+              .where((e) => e.category == 'Salary-Run')
+              .fold<double>(0, (s, e) => s + e.amount);
           final otherExpenses = all
               .where((e) => !(e.category == 'Salary-Monthly' ||
-                  e.category == 'Salary-Daily'))
+                  e.category == 'Salary-Daily' || e.category == 'Salary-Run'))
               .fold<double>(0, (s, e) => s + e.amount);
-          final totalSalary = salaryMonthly + salaryDaily;
+          final totalSalary = salaryMonthly + salaryDaily + salaryRun;
           final netExpenses = totalSalary + otherExpenses;
 
           List<Expense> filtered = all;
@@ -107,12 +110,13 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
             filtered = all
                 .where((e) =>
                     e.category == 'Salary-Monthly' ||
-                    e.category == 'Salary-Daily')
+                    e.category == 'Salary-Daily' ||
+                    e.category == 'Salary-Run')
                 .toList();
           } else if (_filter == 'other') {
             filtered = all
                 .where((e) => !(e.category == 'Salary-Monthly' ||
-                    e.category == 'Salary-Daily'))
+                    e.category == 'Salary-Daily' || e.category == 'Salary-Run'))
                 .toList();
           }
 
@@ -157,6 +161,7 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
                             _row('Monthly Salaries',
                                 currency.format(salaryMonthly)),
                             _row('Daily Wages', currency.format(salaryDaily)),
+                            _row('Payroll run payments', currency.format(salaryRun)),
                             _row('Other Expenses',
                                 currency.format(otherExpenses)),
                             const Divider(height: 20),
