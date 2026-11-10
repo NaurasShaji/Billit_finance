@@ -306,7 +306,7 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final span = _span;
-    return Scaffold(
+    return FinanceContentFrame(child: Scaffold(
       appBar: AppBar(title: const Text('Accounting reports')),
       body: ValueListenableBuilder<Box<FinanceAccount>>(
         valueListenable:
@@ -567,7 +567,7 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _section(
