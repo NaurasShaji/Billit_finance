@@ -39,6 +39,9 @@ Future<void> main() async {
   Hive.registerAdapter(FinancePostingAdapter()); // typeId 12
   Hive.registerAdapter(FinanceCategoryAdapter()); // typeId 13
   Hive.registerAdapter(FinancePartyAdapter()); // typeId 14
+  Hive.registerAdapter(HrDepartmentAdapter()); // typeId 15
+  Hive.registerAdapter(EmployeeAttendanceAdapter()); // typeId 16
+  Hive.registerAdapter(LeaveRequestAdapter()); // typeId 17
 
   await Hive.openBox<User>(Boxes.users);
   await Hive.openBox<Product>(Boxes.products);
@@ -48,13 +51,13 @@ Future<void> main() async {
   await Hive.openBox('session');
   final settings = await Hive.openBox<dynamic>('app_settings');
 
-  // Existing installations are upgraded sequentially: v2 adds the ledger, and
-  // v3 adds accounts required for POS, GST, and payroll source synchronization.
+  // Sequential migrations add finance (v2/v3) and HR persistence (v4).
   await SchemaMigrationService(
-    currentVersion: 3,
+    currentVersion: 4,
     migrations: [
       FinanceSchemaMigration.versionOneToTwo,
       FinanceSchemaMigration.versionTwoToThree,
+      FinanceSchemaMigration.versionThreeToFour,
     ],
   ).run(settings);
 
