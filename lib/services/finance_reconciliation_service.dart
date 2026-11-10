@@ -203,6 +203,69 @@ class FinanceReconciliationService {
       }
     }
 
+    for (final sale in saleRecords) {
+      final sourceId = _sourceId(sale.id, sale.financeRevision);
+      int expectedCost;
+      try {
+        expectedCost = _paise(sale.totalCost);
+      } on FormatException catch (error) {
+        issues.add(FinanceReconciliationIssue(
+          sourceType: 'pos_sale_cogs',
+          sourceId: sourceId,
+          message: error.message.toString(),
+        ));
+        continue;
+      }
+      final matches = posted
+          .where((transaction) =>
+              transaction.sourceType == 'pos_sale_cogs' &&
+              transaction.sourceId == sourceId)
+          .toList();
+      if (expectedCost == 0) {
+        if (matches.any((transaction) =>
+            !_hasReversal(transaction.id, allTransactions))) {
+          issues.add(FinanceReconciliationIssue(
+            sourceType: 'pos_sale_cogs',
+            sourceId: sourceId,
+            message: 'A COGS journal exists although the source sale has zero recorded cost.',
+          ));
+        }
+        continue;
+      }
+      if (matches.isEmpty) {
+        issues.add(FinanceReconciliationIssue(
+          sourceType: 'pos_sale_cogs',
+          sourceId: sourceId,
+          message: 'No posted cost-of-goods journal exists for this sale revision.',
+        ));
+        continue;
+      }
+      if (matches.length > 1) {
+        issues.add(FinanceReconciliationIssue(
+          sourceType: 'pos_sale_cogs',
+          sourceId: sourceId,
+          message: 'More than one posted COGS journal uses this source key.',
+        ));
+      }
+      final transaction = matches.first;
+      if (_hasReversal(transaction.id, allTransactions)) {
+        issues.add(FinanceReconciliationIssue(
+          sourceType: 'pos_sale_cogs',
+          sourceId: sourceId,
+          message: 'The current sale COGS journal has been reversed.',
+        ));
+        continue;
+      }
+      final actual = _debitTotal(transaction.id, postings);
+      if (actual != expectedCost) {
+        issues.add(FinanceReconciliationIssue(
+          sourceType: 'pos_sale_cogs',
+          sourceId: sourceId,
+          message: 'Source cost is $expectedCost paise; COGS journal debit total is $actual paise.',
+        ));
+      }
+    }
+
     for (final expense in expenseRecords) {
       final sourceId = _sourceId(expense.id, expense.financeRevision);
       int expected;
@@ -266,6 +329,15 @@ class FinanceReconciliationService {
           sourceType: 'pos_sale',
           sourceId: transaction.sourceId,
           message: 'Journal entry has no matching current source sale and has not been reversed.',
+        ));
+      }
+      if (transaction.sourceType == 'pos_sale_cogs' &&
+          !currentSaleKeys.contains(transaction.sourceId) &&
+          !_hasReversal(transaction.id, allTransactions)) {
+        issues.add(FinanceReconciliationIssue(
+          sourceType: 'pos_sale_cogs',
+          sourceId: transaction.sourceId,
+          message: 'COGS journal has no matching current source sale and has not been reversed.',
         ));
       }
       if (transaction.sourceType == 'legacy_expense' &&
