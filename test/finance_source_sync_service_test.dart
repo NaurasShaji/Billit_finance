@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:billit/models/models.dart';
 import 'package:billit/services/boxes.dart';
+import 'package:billit/services/finance_ledger_service.dart';
 import 'package:billit/services/finance_schema_migration.dart';
 import 'package:billit/services/finance_source_sync_service.dart';
 import 'package:billit/services/schema_migration_service.dart';
@@ -272,58 +273,58 @@ void main() {
     );
   });
 
-  test('configured POS payment mapping posts receipts to the selected asset account', () async {
-    await sync.savePaymentAccountMapping(
-      mapping: const {
-        'cash': 'system:bank',
-        'card': 'system:cash',
-        'upi': 'system:bank',
-      },
-      accountsBox: accounts,
-      settingsBox: settings,
+  test('expense journal uses the selected active INR asset payment account', () async {
+    final expense = Expense(
+      id: 'expense-bank-paid',
+      date: DateTime(2026, 10, 7),
+      category: 'Rent',
+      amount: 250,
+      description: 'Rent paid from bank',
     );
-
-    final sale = Sale()
-      ..id = 'sale-mapped-cash'
-      ..date = DateTime(2026, 10, 6)
-      ..items = []
-      ..totalAmount = 75
-      ..payment = PaymentMethod.cash;
-
-    await sync.syncSale(
-      sale: sale,
+    await sync.syncExpense(
+      expense: expense,
       accountsBox: accounts,
       transactionsBox: transactions,
       postingsBox: postings,
       categoriesBox: categories,
       partiesBox: parties,
-      settingsBox: settings,
+      employeesBox: employees,
+      paymentAccountId: 'system:bank',
     );
 
-    final receipt = postings.values.singleWhere(
-      (line) => line.transactionId == 'finance:sale:sale-mapped-cash:r0' &&
-          line.debitPaise > 0,
+    final journal = transactions.values.singleWhere(
+      (item) => item.sourceId == 'expense-bank-paid:0',
     );
-    expect(receipt.accountId, 'system:bank');
-    expect(receipt.debitPaise, 7500);
+    final credit = postings.values.singleWhere(
+      (line) => line.transactionId == journal.id && line.creditPaise > 0,
+    );
+    expect(credit.accountId, 'system:bank');
+    expect(credit.creditPaise, 25000);
   });
 
-  test('payment mapping rejects inactive or non-asset destination accounts', () async {
-    final expenseAccount = accounts.get('system:operating-expense')!;
+  test('expense journal rejects a non-asset payment account', () async {
+    final expense = Expense(
+      id: 'expense-invalid-payment-account',
+      date: DateTime(2026, 10, 7),
+      category: 'Rent',
+      amount: 250,
+      description: 'Invalid destination',
+    );
     await expectLater(
-      sync.savePaymentAccountMapping(
-        mapping: const {
-          'cash': 'system:operating-expense',
-          'card': 'system:bank',
-          'upi': 'system:bank',
-        },
+      sync.syncExpense(
+        expense: expense,
         accountsBox: accounts,
-        settingsBox: settings,
+        transactionsBox: transactions,
+        postingsBox: postings,
+        categoriesBox: categories,
+        partiesBox: parties,
+        employeesBox: employees,
+        paymentAccountId: 'system:operating-expense',
       ),
       throwsA(isA<FinanceLedgerException>()),
     );
-    expect(settings.get(FinanceSourceSyncService.paymentAccountSettingsKey), isNull);
-    expect(expenseAccount.accountType, 'expense');
+    expect(transactions.values, isEmpty);
+    expect(postings.values, isEmpty);
   });
 
   test('sale edits reverse the previous snapshot and post the new revision',
