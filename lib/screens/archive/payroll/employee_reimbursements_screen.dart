@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_payroll_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class EmployeeReimbursementsScreen extends StatelessWidget {
   const EmployeeReimbursementsScreen({super.key});
@@ -132,7 +133,7 @@ class EmployeeReimbursementsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = Hive.box<dynamic>('app_settings');
     final employees = Hive.box<Employee>(Boxes.employees);
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(title: const Text('Employee reimbursements'), actions: [IconButton(onPressed: () => _createClaim(context), icon: const Icon(Icons.add), tooltip: 'New claim')]),
       body: ValueListenableBuilder<Box<dynamic>>(
         valueListenable: settings.listenable(keys: [HrPayrollService.employeeReimbursementsKey]),
@@ -164,7 +165,7 @@ class EmployeeReimbursementsScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(onPressed: () => _createClaim(context), icon: const Icon(Icons.add), label: const Text('New claim')),
-    );
+    ));
   }
 
   Widget _detail(String label, String value) => Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(children: [Expanded(child: Text(label)), const SizedBox(width: 12), Flexible(child: Text(value, textAlign: TextAlign.end))]));
