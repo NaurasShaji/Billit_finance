@@ -138,6 +138,9 @@ class HrPayrollService {
     if (index < 0) throw const HrPayrollServiceException('Reimbursement claim was not found.');
     final claim = Map<String, dynamic>.from(claims[index] as Map);
     if (claim['status'] != 'submitted') throw const HrPayrollServiceException('Only submitted reimbursement claims can be reviewed.');
+    if (decision == 'rejected' && Hive.box<FinanceTransaction>(Boxes.financeTransactions).values.any((tx) => tx.sourceType == 'employee_reimbursement_accrual' && tx.sourceId == claimId && tx.status == 'posted')) {
+      throw const HrPayrollServiceException('An accrual journal already exists for this claim. Approve it, then use the cancellation/reversal workflow.');
+    }
     if (decision == 'approved') {
       final amount = claim['amountPaise'];
       if (amount is! int || amount <= 0) throw const HrPayrollServiceException('Reimbursement claim amount is invalid.');
