@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import '../../../services/hr_payroll_service.dart';
 
 class PayslipDetailsScreen extends StatelessWidget {
   const PayslipDetailsScreen({super.key, required this.payslipId});
@@ -75,6 +76,233 @@ class PayslipDetailsScreen extends StatelessWidget {
     await Printing.layoutPdf(onLayout: (_) async => document.save());
   }
 
+  Future<void> _adjustPayslip(BuildContext context, Payslip slip, PayrollRun run) async {
+    final amountController = TextEditingController();
+    final reasonController = TextEditingController();
+    String type = 'earning_increase';
+    DateTime date = DateTime.now();
+    int? parsePaise(String value) {
+      final match = RegExp(r'^\\d+(?:\\.\\d{1,2})?
+    final style = pw.TextStyle(
+      fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+    );
+    return pw.TableRow(
+      children: [
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(8),
+          child: pw.Text(label, style: style),
+        ),
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(8),
+          child: pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text(value, style: style),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final slipsBox = Hive.box<Payslip>(Boxes.payslips);
+    return ValueListenableBuilder<Box<Payslip>>(
+      valueListenable: slipsBox.listenable(keys: [payslipId]),
+      builder: (context, box, _) {
+        final slip = box.get(payslipId);
+        if (slip == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Payslip')),
+            body: const Center(child: Text('Payslip not found.')),
+          );
+        }
+        final employee = Hive.box<Employee>(Boxes.employees).get(slip.employeeId);
+        final run = Hive.box<PayrollRun>(Boxes.payrollRuns).get(slip.payrollRunId);
+        if (employee == null || run == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Payslip')),
+            body: const Center(
+              child: Text('Employee or payroll period is missing.'),
+            ),
+          );
+        }
+        final dateFormat = DateFormat('dd MMM yyyy');
+        final adjustmentRaw = Hive.box<dynamic>('app_settings').get(HrPayrollService.payrollAdjustmentsKey);
+        final adjustments = adjustmentRaw is Map && adjustmentRaw[slip.id] is List
+            ? (adjustmentRaw[slip.id] as List).whereType<Map>().toList()
+            : <Map>[];
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Payslip'),
+            actions: [
+              IconButton(
+                tooltip: 'Print or save PDF',
+                onPressed: () => _printPayslip(slip, employee, run),
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+              ),
+            ],
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Text(
+                employee.name,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              Text(
+                '${run.periodStart.month.toString().padLeft(2, '0')}/'
+                '${run.periodStart.year} · ${slip.status.toUpperCase()}',
+              ),
+              if (employee.employeeCode.isNotEmpty)
+                Text('Employee code: ${employee.employeeCode}'),
+              if (employee.designation.isNotEmpty)
+                Text('Designation: ${employee.designation}'),
+              Text(
+                '${dateFormat.format(run.periodStart)} – '
+                '${dateFormat.format(run.periodEnd)}',
+              ),
+              const SizedBox(height: 20),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _line(context, 'Basic pay', slip.basePaise),
+                      _line(context, 'Allowances', slip.allowancesPaise),
+                      _line(context, 'Gross pay', slip.grossPaise, bold: true),
+                      _line(context, 'Deductions', -slip.deductionsPaise),
+                      const Divider(height: 24),
+                      _line(context, 'Net pay', slip.netPaise, bold: true),
+                      _line(context, 'Paid', slip.paidPaise),
+                      _line(
+                        context,
+                        'Outstanding',
+                        slip.outstandingPaise,
+                        bold: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (adjustments.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Adjustment history', style: Theme.of(context).textTheme.titleMedium),
+                for (final adjustment in adjustments)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('${adjustment['type'] ?? 'Adjustment'} · ${_money(adjustment['amountPaise'] is int ? adjustment['amountPaise'] as int : 0)}'),
+                    subtitle: Text('${adjustment['date'] ?? ''} · ${adjustment['reason'] ?? ''}'),
+                    trailing: Text((adjustment['status'] ?? 'pending').toString()),
+                  ),
+              ],
+              if (slip.payType == 'daily')
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text('Payable days: ${slip.payableDays}'),
+                ),
+              const SizedBox(height: 12),
+              if (slip.status == 'approved' || slip.status == 'partially_paid')
+                OutlinedButton.icon(
+                  onPressed: () => _adjustPayslip(context, slip, run),
+                  icon: const Icon(Icons.tune_outlined),
+                  label: const Text('Adjust approved payslip'),
+                ),
+              FilledButton.icon(
+                onPressed: () => _printPayslip(slip, employee, run),
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                label: const Text('Print / save PDF'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _line(
+    BuildContext context,
+    String label,
+    int paise, {
+    bool bold = false,
+  }) {
+    final style = Theme.of(context).textTheme.bodyLarge?.copyWith(
+          fontWeight: bold ? FontWeight.w800 : FontWeight.normal,
+        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          Text(_money(paise), style: style),
+        ],
+      ),
+    );
+  }
+}
+).firstMatch(value.trim());
+      if (match == null) return null;
+      final parts = value.trim().split('.');
+      final whole = int.tryParse(parts[0]);
+      if (whole == null) return null;
+      return whole * 100 + (parts.length == 1 ? 0 : int.parse(parts[1].padRight(2, '0')));
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Approved payroll adjustment'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              DropdownButtonFormField<String>(
+                value: type,
+                decoration: const InputDecoration(labelText: 'Adjustment type'),
+                items: const [
+                  DropdownMenuItem(value: 'earning_increase', child: Text('Increase earnings')),
+                  DropdownMenuItem(value: 'earning_decrease', child: Text('Reduce earnings')),
+                  DropdownMenuItem(value: 'deduction_increase', child: Text('Increase deductions')),
+                  DropdownMenuItem(value: 'deduction_decrease', child: Text('Reduce deductions')),
+                ],
+                onChanged: (value) => setDialogState(() => type = value ?? type),
+              ),
+              const SizedBox(height: 10),
+              TextField(controller: amountController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Adjustment amount (INR)', border: OutlineInputBorder())),
+              const SizedBox(height: 10),
+              TextField(controller: reasonController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder())),
+              TextButton.icon(
+                onPressed: () async {
+                  final picked = await showDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(run.periodStart.year, run.periodStart.month, run.periodStart.day), lastDate: DateTime.now());
+                  if (picked != null) setDialogState(() => date = picked);
+                },
+                icon: const Icon(Icons.calendar_today_outlined),
+                label: Text(DateFormat.yMMMd().format(date)),
+              ),
+              const Text('An immutable journal adjustment will be posted. The payslip and payroll-run totals will be updated with an audit record.'),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if ((parsePaise(amountController.text) ?? 0) <= 0 || reasonController.text.trim().isEmpty) return;
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Post adjustment'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      try {
+        await HrPayrollService().adjustApprovedPayslip(payslipId: slip.id, adjustmentType: type, amountPaise: parsePaise(amountController.text)!, effectiveDate: date, reason: reasonController.text);
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payroll adjustment posted.')));
+      } catch (error) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not adjust payslip: $error')));
+      }
+    }
+    amountController.dispose();
+    reasonController.dispose();
+  }
   pw.TableRow _row(String label, String value, {bool bold = false}) {
     final style = pw.TextStyle(
       fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
