@@ -121,6 +121,7 @@ class _FinanceTransactionFormScreenState
             transactionId: id,
             accountId: debitAccountId,
             debitPaise: amountPaise,
+            categoryId: _type == 'expense' ? _categoryId : null,
             memo: _memoController.text.trim(),
           ),
           FinancePosting(
