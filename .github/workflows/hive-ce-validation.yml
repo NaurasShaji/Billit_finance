@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: hive-ce-validation-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   validate:
