@@ -23,13 +23,23 @@ class EmployeeAdapter extends TypeAdapter<Employee> {
       wage: fields[3] as double,
       attendance: fields[4] as int,
       salaryPaid: fields[5] as bool,
+      employeeCode: fields[6] as String? ?? '',
+      phone: fields[7] as String? ?? '',
+      email: fields[8] as String? ?? '',
+      departmentId: fields[9] as String?,
+      designation: fields[10] as String? ?? '',
+      joiningDate: fields[11] as DateTime?,
+      employmentStatus: fields[12] as String? ?? 'active',
+      emergencyContact: fields[13] as String? ?? '',
+      address: fields[14] as String? ?? '',
+      notes: fields[15] as String? ?? '',
     );
   }
 
   @override
   void write(BinaryWriter writer, Employee obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +51,27 @@ class EmployeeAdapter extends TypeAdapter<Employee> {
       ..writeByte(4)
       ..write(obj.attendance)
       ..writeByte(5)
-      ..write(obj.salaryPaid);
+      ..write(obj.salaryPaid)
+      ..writeByte(6)
+      ..write(obj.employeeCode)
+      ..writeByte(7)
+      ..write(obj.phone)
+      ..writeByte(8)
+      ..write(obj.email)
+      ..writeByte(9)
+      ..write(obj.departmentId)
+      ..writeByte(10)
+      ..write(obj.designation)
+      ..writeByte(11)
+      ..write(obj.joiningDate)
+      ..writeByte(12)
+      ..write(obj.employmentStatus)
+      ..writeByte(13)
+      ..write(obj.emergencyContact)
+      ..writeByte(14)
+      ..write(obj.address)
+      ..writeByte(15)
+      ..write(obj.notes);
   }
 
   @override
