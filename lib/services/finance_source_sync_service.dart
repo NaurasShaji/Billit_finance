@@ -110,10 +110,10 @@ class FinanceSourceSyncService {
     );
   }
 
-  FinanceCategory _ensureExpenseCategory({
+  Future<FinanceCategory> _ensureExpenseCategory({
     required Expense expense,
     required Box<FinanceCategory> categoriesBox,
-  }) {
+  }) async {
     final categoryName = expense.category.trim().isEmpty
         ? 'Uncategorised'
         : expense.category.trim();
