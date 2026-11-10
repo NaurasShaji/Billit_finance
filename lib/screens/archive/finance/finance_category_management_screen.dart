@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import '../../../widgets/responsive_page.dart';
 
 class FinanceCategoryManagementScreen extends StatelessWidget {
   const FinanceCategoryManagementScreen({super.key});
@@ -22,7 +23,7 @@ class FinanceCategoryManagementScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accountsBox = Hive.box<FinanceAccount>(Boxes.financeAccounts);
-    return Scaffold(
+    return ScaffolResponsivePage(child: Scaffold((
       appBar: AppBar(title: const Text('Finance categories')),
       body: ValueListenableBuilder<Box<FinanceCategory>>(
         valueListenable:
@@ -67,7 +68,7 @@ class FinanceCategoryManagementScreen extends StatelessWidget {
           );
         },
       ),
-    );
+    ));
   }
 }
 
@@ -218,7 +219,7 @@ class _FinanceCategoryFormScreenState
     final canChangeMapping =
         existing == null || (!hasPostings && !hasSourceExpenses);
 
-    return Scaffold(
+    return ScaffolResponsivePage(child: Scaffold((
       appBar: AppBar(
         title: Text(existing == null ? 'New category' : 'Edit category'),
       ),
@@ -308,6 +309,6 @@ class _FinanceCategoryFormScreenState
           );
         },
       ),
-    );
+    ));
   }
 }
