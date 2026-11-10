@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class LeaveManagementScreen extends StatefulWidget {
   const LeaveManagementScreen({super.key});
@@ -237,7 +238,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final employees = Hive.box<Employee>(Boxes.employees);
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Leave management'),
         actions: [
@@ -364,6 +365,6 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Leave request'),
       ),
-    );
+    ));
   }
 }
