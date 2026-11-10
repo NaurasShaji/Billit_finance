@@ -265,11 +265,15 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     final installment = TextEditingController();
     final description = TextEditingController(text: 'Employee advance');
     DateTime issueDate = DateTime.now(), dueDate = DateTime.now();
+    String cashAccountId = 'system:cash';
+    final cashAccounts = Hive.box<FinanceAccount>(Boxes.financeAccounts).values
+        .where((account) => account.active && account.accountType == 'asset' && account.currencyCode == 'INR').toList();
     final key = GlobalKey<FormState>();
     final saved = await showDialog<bool>(context: context, builder: (dc) =>
       StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
         title: const Text('Issue employee advance'),
         content: Form(key: key, child: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          DropdownButtonFormField<String>(value: cashAccounts.any((a) => a.id == cashAccountId) ? cashAccountId : cashAccounts.first.id, decoration: const InputDecoration(labelText: 'Paid from account'), items: [for (final account in cashAccounts) DropdownMenuItem(value: account.id, child: Text(account.name))], onChanged: (value) => setDialogState(() => cashAccountId = value ?? cashAccountId)),
           TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description'),
             validator: (v) => (v ?? '').trim().isEmpty ? 'Enter a description' : null),
           TextFormField(controller: principal, keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -289,7 +293,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
         await HrPayrollService().addEmployeeAdvance(employeeId: widget.employee.id,
           principalPaise: (double.parse(principal.text) * 100).round(),
           installmentPaise: (double.parse(installment.text) * 100).round(),
-          issueDate: issueDate, firstDueDate: dueDate, description: description.text);
+          issueDate: issueDate, firstDueDate: dueDate, description: description.text, cashAccountId: cashAccountId);
         if (mounted) setState(() {});
       } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not issue advance: $e'))); }
     }
@@ -298,10 +302,14 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
 
   Future<void> _recordAdvanceRepayment(Map<String,dynamic> advance) async {
     final amount = TextEditingController(), note = TextEditingController();
+    String cashAccountId = 'system:cash';
+    final cashAccounts = Hive.box<FinanceAccount>(Boxes.financeAccounts).values
+        .where((account) => account.active && account.accountType == 'asset' && account.currencyCode == 'INR').toList();
     final key = GlobalKey<FormState>();
-    final saved = await showDialog<bool>(context: context, builder: (dc) => AlertDialog(
+    final saved = await showDialog<bool>(context: context, builder: (dc) => StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
       title: const Text('Record advance repayment'),
       content: Form(key: key, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        DropdownButtonFormField<String>(value: cashAccounts.any((a) => a.id == cashAccountId) ? cashAccountId : cashAccounts.first.id, decoration: const InputDecoration(labelText: 'Received into account'), items: [for (final account in cashAccounts) DropdownMenuItem(value: account.id, child: Text(account.name))], onChanged: (value) => setDialogState(() => cashAccountId = value ?? cashAccountId)),
         Text('Outstanding: ₹${((advance['outstandingPaise'] as int) / 100).toStringAsFixed(2)}'),
         TextFormField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(labelText: 'Amount received', prefixText: '₹ '),
@@ -310,12 +318,12 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
       ])),
       actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: const Text('Cancel')),
         FilledButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(dc, true); }, child: const Text('Record'))],
-    ));
+    )));
     if (saved == true) {
       try {
         await HrPayrollService().recordAdvanceRepayment(employeeId: widget.employee.id,
           advanceId: advance['id'] as String, amountPaise: (double.parse(amount.text) * 100).round(),
-          date: DateTime.now(), note: note.text);
+          date: DateTime.now(), note: note.text, cashAccountId: cashAccountId);
         if (mounted) setState(() {});
       } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not record repayment: $e'))); }
     }
