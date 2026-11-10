@@ -13,7 +13,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Enforce balanced debit/credit journals and immutable posted transaction snapshots.
 - [x] Prevent duplicate source posting and duplicate transaction numbers.
 - [x] Reverse posted transactions without mutating the original.
-- [x] Include all finance boxes, including budgets, in Google Drive backup and restore.
+- [x] Include all finance boxes, including budgets and recurring templates, in Google Drive backup and restore.
 - [x] Preserve finance data when restoring legacy backups without finance collections.
 - [x] Validate finance backup references, category/account compatibility, reversals, and posted journal balance.
 - [x] Add best-effort restore rollback across business and finance boxes.
