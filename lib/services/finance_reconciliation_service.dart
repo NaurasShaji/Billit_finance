@@ -292,13 +292,29 @@ class FinanceReconciliationService {
       payrollAccrualCount++;
       final lines = postings.where((line) =>
           line.transactionId == accrual.id).toList();
-      final salaryDebit = lines.where((line) =>
+      final adjustmentJournals = posted.where((tx) =>
+          tx.sourceType == 'payroll_adjustment' &&
+          tx.sourceId.startsWith('${slip.id}:adjustment:')).toList();
+      final accountingTransactions = [accrual, ...adjustmentJournals];
+      final accountingIds = accountingTransactions.map((tx) => tx.id).toSet();
+      final accountingLines = postings.where((line) =>
+          accountingIds.contains(line.transactionId)).toList();
+      final salaryDebit = accountingLines.where((line) =>
           line.accountId == 'system:salary-expense')
           .fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
-      final payableCredit = lines.where((line) =>
+      final payableCredit = accountingLines.where((line) =>
           line.accountId == 'system:payroll-payable')
           .fold<int>(0, (sum, line) => sum + line.creditPaise - line.debitPaise);
       payrollJournalGross += salaryDebit;
+      for (final adjustment in adjustmentJournals) {
+        if (_hasReversal(adjustment.id, allTransactions)) {
+          payrollIssues.add(FinanceReconciliationIssue(
+            sourceType: 'payroll_adjustment',
+            sourceId: adjustment.sourceId,
+            message: 'Payroll adjustment journal has been reversed but the payslip snapshot remains adjusted.',
+          ));
+        }
+      }
       if (salaryDebit != expectedGross || payableCredit != slip.netPaise) {
         payrollIssues.add(FinanceReconciliationIssue(
           sourceType: 'payroll_accrual',
