@@ -226,8 +226,11 @@ class PayrollService {
           partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
           employeesBox: employeesBox,
         );
-      } catch (_) {
-        // The legacy payroll expense remains saved and will be retried on startup.
+      } catch (error) {
+        await FinanceSourceSyncService.recordIssue(
+          Hive.box<dynamic>('app_settings'),
+          'Payroll expense ${payment.id}: $error',
+        );
       }
     }
     return payment;
