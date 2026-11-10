@@ -85,6 +85,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             'hr_employee_documents',
             'hr_employment_history',
             'hr_leave_policies',
+            'hr_employee_terms',
           ])
             if (Hive.box<dynamic>('app_settings').containsKey(key))
               key: Hive.box<dynamic>('app_settings').get(key),
@@ -165,9 +166,43 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       final rawDocuments = rawAppSettings is Map
           ? rawAppSettings['hr_employee_documents']
           : null;
+      final rawEmployeeTerms = rawAppSettings is Map
+          ? rawAppSettings['hr_employee_terms']
+          : null;
+      if (rawEmployeeTerms != null) {
+        if (rawEmployeeTerms is! Map) {
+          throw const FormatException('Employee work terms backup is malformed.');
+        }
+        final employeeIds = (data['employees'] as List? ?? [])
+            .whereType<Map>()
+            .map((item) => item['id'])
+            .whereType<String>()
+            .toSet();
+        for (final entry in rawEmployeeTerms.entries) {
+          final terms = entry.value;
+          if (entry.key is! String ||
+              !employeeIds.contains(entry.key) ||
+              terms is! Map ||
+              !{'permanent', 'contract', 'temporary', 'intern', 'part_time', 'casual'}
+                  .contains(terms['employmentType']) ||
+              !{'daily', 'weekly', 'fortnightly', 'monthly'}
+                  .contains(terms['payFrequency'])) {
+            throw const FormatException('Employee work terms contain invalid values or an unknown employee.');
+          }
+        }
+      }
       final rawHistory = rawAppSettings is Map
           ? rawAppSettings['hr_employment_history']
           : null;
+      if (rawEmployeeTerms == null) {
+        final existingTerms = Hive.box<dynamic>('app_settings')
+            .get('hr_employee_terms');
+        if (existingTerms is Map && existingTerms.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates employee work terms. Export a current backup before restoring it, or remove existing employee work terms explicitly.',
+          );
+        }
+      }
       if (rawHistory == null) {
         final existingHistory = Hive.box<dynamic>('app_settings')
             .get('hr_employment_history');
@@ -258,6 +293,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           'hr_employee_documents',
           'hr_employment_history',
           'hr_leave_policies',
+          'hr_employee_terms',
         ]) {
           if (rawAppSettings.containsKey(key)) {
             await settings.put(key, rawAppSettings[key]);
