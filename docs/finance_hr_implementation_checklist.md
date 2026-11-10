@@ -141,7 +141,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Salary components with effective dates and earning/deduction types.
 - [x] Allowances and deductions in payroll runs.
 - [x] Dated overtime entries with hours and hourly rates, included in payroll gross and payslip totals; one-off dated bonuses with descriptions and amounts, included only in the payroll period containing their date. Both are backed up and restore-validated. Overtime approval workflow and reimbursements remain outstanding.
-- [ ] Advances and loan repayments.
+- [x] Employee advance register with principal/outstanding balances, instalment amount, first due date, manual repayments, repayment history, and profile UI; payroll-period instalments are snapshotted as deductions and recovered against the advance only when the payslip is fully settled. Backup/restore includes employee advances and pending payroll deduction snapshots with reference and balance validation. Tests/builds remain unrun.
+- [ ] Post advance disbursements and recoveries to the finance journal; add linked cash/bank account selection and reconciliation.
 - [x] Payroll runs with draft, approval, partial-payment, and paid states.
 - [x] Payslip generation and payroll history.
 - [x] Payslip PDF/print output.
@@ -191,3 +192,8 @@ Work branch: `feature/finance-team-promotion`
 Employee profiles now allow dated overtime entries with hours and an hourly rate. Payroll generation includes overtime falling within the run period in gross pay and the payslip's allowance total. Entries are stored in the backed-up app-settings collection; restore validates employee references, dates, hours, rate, and amount. A regression test covers the overtime-to-payslip calculation but has not been run. Overtime is currently treated as payroll-eligible when entered; a separate approval/rejection workflow and statutory deduction rules are still outstanding. Existing salary components can represent one-off bonuses by adding an earning component named Bonus, but there is not yet a dedicated bonus workflow.
 
 - One-off bonus entry and overtime capture are available from employee profiles. Both feed payroll generation and payslip allowance totals; both are included in the Google Drive HR settings backup payload with restore validation. Tests authored but not run.
+
+
+## Employee advances and payroll recovery update
+
+Employee profiles now support advance creation with a principal, instalment amount, issue date, and first due date. The service stores integer-paise balances and repayment entries for manual repayments. Payroll generation adds a due instalment to the payslip deduction total and persists a per-payslip deduction snapshot. The advance balance is reduced only after the payslip is fully paid (or approved with a zero net amount); partial salary payments do not prematurely recover the advance. Pending deductions are reserved against duplicate payroll runs. Google Drive backup includes advance records and deduction snapshots, with employee, advance, amount, date, and repayment-balance validation. Remaining work: advance disbursement and repayment are not yet posted to the finance journal, and there is no reversal/correction workflow for a paid payslip. Tests were not run.
