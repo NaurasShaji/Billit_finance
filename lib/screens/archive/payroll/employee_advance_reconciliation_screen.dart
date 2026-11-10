@@ -40,6 +40,24 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
         credit.single.debitPaise == 0;
   }
 
+  bool _matchesPayrollRecoveryJournal({
+    required FinanceTransaction transaction,
+    required List<FinancePosting> lines,
+    required int minimumAmountPaise,
+  }) {
+    if (transaction.status != 'posted' || lines.length != 2) return false;
+    final debit = lines.where((line) =>
+        line.accountId == 'system:salary-expense' && line.debitPaise > 0).toList();
+    final credit = lines.where((line) =>
+        line.accountId == _advanceAccountId && line.creditPaise > 0).toList();
+    if (debit.length != 1 || credit.length != 1) return false;
+    final amount = debit.single.debitPaise;
+    return amount >= minimumAmountPaise &&
+        debit.single.creditPaise == 0 &&
+        credit.single.creditPaise == amount &&
+        credit.single.debitPaise == 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = Hive.box<dynamic>('app_settings');
@@ -185,12 +203,10 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                         continue;
                       }
                       final linkedLines = _linesFor(postingBox, linked.single.id);
-                      if (!_matchesJournal(
+                      if (!_matchesPayrollRecoveryJournal(
                         transaction: linked.single,
                         lines: linkedLines,
-                        debitAccountId: 'system:salary-expense',
-                        creditAccountId: _advanceAccountId,
-                        amountPaise: payrollRecoveryAmounts[payslipId]!,
+                        minimumAmountPaise: payrollRecoveryAmounts[payslipId]!,
                       )) {
                         invalidPayrollJournals++;
                       }
