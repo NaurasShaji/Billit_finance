@@ -144,4 +144,15 @@ class FinanceSchemaMigration {
           await Hive.openBox<FinanceBudget>(Boxes.financeBudgets);
         },
       );
+
+  /// Adds recurring transaction templates; generated entries remain in the journal.
+  static SchemaMigration get versionSixToSeven => SchemaMigration(
+        fromVersion: 6,
+        toVersion: 7,
+        apply: (_) async {
+          await Hive.openBox<FinanceRecurringTemplate>(
+            Boxes.financeRecurringTemplates,
+          );
+        },
+      );
 }
