@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import '../services/drive_backup_service.dart';
@@ -78,6 +80,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             .values
             .map((e) => e.toJson())
             .toList(),
+        'appSettings': {
+          'hr_employee_documents': Hive.box<dynamic>('app_settings')
+              .get('hr_employee_documents', defaultValue: {}),
+        },
       };
 
       await DriveBackupService.instance
@@ -149,6 +155,46 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     try {
       final data = await DriveBackupService.instance.downloadJson(file.id);
 
+      // Validate employee document payloads before clearing any live data.
+      final rawAppSettings = data['appSettings'];
+      final rawDocuments = rawAppSettings is Map
+          ? rawAppSettings['hr_employee_documents']
+          : null;
+      if (rawDocuments != null) {
+        if (rawDocuments is! Map) {
+          throw const FormatException('Employee document backup is malformed.');
+        }
+        final employeeIds = (data['employees'] as List? ?? [])
+            .whereType<Map>()
+            .map((item) => item['id'])
+            .whereType<String>()
+            .toSet();
+        for (final entry in rawDocuments.entries) {
+          if (entry.key is! String ||
+              !employeeIds.contains(entry.key) ||
+              entry.value is! List) {
+            throw const FormatException('Employee document references an unknown employee.');
+          }
+          for (final item in entry.value as List) {
+            if (item is! Map ||
+                item['id'] is! String ||
+                item['name'] is! String ||
+                item['base64'] is! String) {
+              throw const FormatException('Employee document record is malformed.');
+            }
+            final name = item['name'] as String;
+            final extension = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+            if (!{'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}.contains(extension)) {
+              throw const FormatException('Employee document file type is not allowed.');
+            }
+            final bytes = base64Decode(item['base64'] as String);
+            if (bytes.isEmpty || bytes.length > 2 * 1024 * 1024) {
+              throw const FormatException('Employee document exceeds the 2 MB limit or is empty.');
+            }
+          }
+        }
+      }
+
       // Clear existing data
       await Hive.box<Product>(Boxes.products).clear();
       await Hive.box<Sale>(Boxes.sales).clear();
@@ -179,6 +225,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           (data['employees'] as List)
               .map((e) => Employee.fromJson(e as Map<String, dynamic>)),
         );
+      }
+      if (rawDocuments != null) {
+        await Hive.box<dynamic>('app_settings')
+            .put('hr_employee_documents', rawDocuments);
       }
 
       if (!mounted) return;
