@@ -237,7 +237,7 @@ void main() {
   });
 
   test('draft transaction postings do not affect account balances', () async {
-    final entry = transaction()..status = 'draft';
+    final entry = transaction();
     await transactions.put(entry.id, entry);
     await postings.putAll({
       'draft-debit': FinancePosting(
