@@ -29,6 +29,7 @@ void main() {
     SalaryComponentAdapter(),
     PayrollRunAdapter(),
     PayslipAdapter(),
+    FinanceBudgetAdapter(),
   ];
 
   Future<void> initializeHive() async {
@@ -55,7 +56,7 @@ void main() {
   test('all persisted Type IDs remain unique and stable from 1 through 20',
       () {
     final ids = adapters.map((adapter) => adapter.typeId).toList()..sort();
-    expect(ids, List<int>.generate(20, (index) => index + 1));
+    expect(ids, List<int>.generate(21, (index) => index + 1));
   });
 
   test('legacy and finance/HR typed boxes survive close and reopen', () async {
@@ -71,6 +72,8 @@ void main() {
         await Hive.openBox<HrDepartment>(Boxes.hrDepartments);
     final attendance =
         await Hive.openBox<EmployeeAttendance>(Boxes.employeeAttendance);
+    final budgets =
+        await Hive.openBox<FinanceBudget>(Boxes.financeBudgets);
 
     final sale = Sale()
       ..id = 'legacy-sale-1'
@@ -114,6 +117,14 @@ void main() {
       date: DateTime(2026, 11, 3),
       status: 'present',
     );
+    final budget = FinanceBudget(
+      id: 'budget-1',
+      name: 'Rent',
+      accountId: account.id,
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+      budgetPaise: 100000,
+    );
 
     await sales.put(sale.id, sale);
     await expenses.put(expense.id, expense);
@@ -123,6 +134,7 @@ void main() {
     await postings.put(posting.id, posting);
     await departments.put(department.id, department);
     await attendance.put(attendanceRecord.id, attendanceRecord);
+    await budgets.put(budget.id, budget);
     await Hive.close();
 
     await initializeHive();
@@ -139,6 +151,8 @@ void main() {
         await Hive.openBox<HrDepartment>(Boxes.hrDepartments);
     final reopenedAttendance =
         await Hive.openBox<EmployeeAttendance>(Boxes.employeeAttendance);
+    final reopenedBudgets =
+        await Hive.openBox<FinanceBudget>(Boxes.financeBudgets);
 
     expect(reopenedSales.get('legacy-sale-1')!.totalAmount, 118);
     expect(reopenedExpenses.get('legacy-expense-1')!.amount, 125.50);
@@ -148,5 +162,6 @@ void main() {
     expect(reopenedPostings.get('posting-1')!.debitPaise, 12550);
     expect(reopenedDepartments.get('dept-1')!.name, 'Sales');
     expect(reopenedAttendance.get('attendance-1')!.status, 'present');
+    expect(reopenedBudgets.get('budget-1')!.budgetPaise, 100000);
   });
 }
