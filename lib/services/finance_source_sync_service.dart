@@ -252,7 +252,6 @@ class FinanceSourceSyncService {
     required Box<FinanceCategory> categoriesBox,
     required Box<FinanceParty> partiesBox,
     Box<Employee>? employeesBox,
-    String? paymentAccountId,
   }) async {
     final sourceType = 'legacy_expense';
     final sourceId = _sourceId(expense.id, expense.financeRevision);
@@ -312,7 +311,7 @@ class FinanceSourceSyncService {
         FinancePosting(
           id: '$transactionId:credit',
           transactionId: transactionId,
-          accountId: paymentAccountId ?? 'system:cash',
+          accountId: 'system:cash',
           creditPaise: amountPaise,
           memo: expense.description,
         ),
