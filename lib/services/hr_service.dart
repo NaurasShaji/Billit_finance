@@ -80,6 +80,57 @@ class HrService {
 
   static const leavePolicySettingsKey = 'hr_leave_policies';
 
+  static const employmentHistorySettingsKey = 'hr_employment_history';
+
+  List<Map<String, dynamic>> employmentHistory(String employeeId) {
+    final raw = Hive.box<dynamic>('app_settings').get(employmentHistorySettingsKey);
+    if (raw is! Map) return const [];
+    final entries = raw[employeeId];
+    if (entries is! List) return const [];
+    return entries
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
+        .toList()
+      ..sort((a, b) => DateTime.parse(b['effectiveDate'] as String)
+          .compareTo(DateTime.parse(a['effectiveDate'] as String)));
+  }
+
+  Future<void> addEmploymentHistory({
+    required String employeeId,
+    required String eventType,
+    required String title,
+    required DateTime effectiveDate,
+    String notes = '',
+  }) async {
+    if (!{'joining', 'designation', 'department', 'status', 'pay_change', 'other'}
+        .contains(eventType)) {
+      throw const HrServiceException('Unsupported employment history event.');
+    }
+    if (title.trim().isEmpty) {
+      throw const HrServiceException('Enter a title for the employment history event.');
+    }
+    final employee = Hive.box<Employee>(Boxes.employees).get(employeeId);
+    if (employee == null) throw const HrServiceException('Employee not found.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(employmentHistorySettingsKey);
+    final history = <String, dynamic>{
+      if (raw is Map) ...Map<String, dynamic>.from(raw),
+    };
+    final entries = (history[employeeId] is List)
+        ? List<dynamic>.from(history[employeeId] as List)
+        : <dynamic>[];
+    entries.add({
+      'id': const Uuid().v4(),
+      'eventType': eventType,
+      'title': title.trim(),
+      'effectiveDate': day(effectiveDate).toIso8601String(),
+      'notes': notes.trim(),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    history[employeeId] = entries;
+    await settings.put(employmentHistorySettingsKey, history);
+  }
+
   Map<String, LeavePolicy> leavePolicies() {
     final settings = Hive.box<dynamic>('app_settings');
     final raw = settings.get(leavePolicySettingsKey);
