@@ -176,7 +176,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         trailing: SizedBox(
           width: 150,
           child: DropdownButtonFormField<String?>(
-            initialValue: status,
+            value: status,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Attendance',
