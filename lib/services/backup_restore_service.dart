@@ -4,6 +4,7 @@ import '../models/employee.dart';
 import '../models/expense.dart';
 import '../models/finance_account.dart';
 import '../models/finance_budget.dart';
+import '../models/finance_recurring_template.dart';
 import '../models/finance_category.dart';
 import '../models/finance_party.dart';
 import '../models/finance_posting.dart';
@@ -34,6 +35,8 @@ class BackupRestorePayload {
   final List<FinanceParty>? financeParties;
   /// Null means the backup predates budget serialization.
   final List<FinanceBudget>? financeBudgets;
+  /// Null means the backup predates recurring-template serialization.
+  final List<FinanceRecurringTemplate>? financeRecurringTemplates;
   /// Null means a legacy backup that predates HR serialization.
   final List<HrDepartment>? hrDepartments;
   final List<EmployeeAttendance>? employeeAttendance;
@@ -55,6 +58,7 @@ class BackupRestorePayload {
     required this.financeCategories,
     required this.financeParties,
     this.financeBudgets,
+    this.financeRecurringTemplates,
     required this.hrDepartments,
     required this.employeeAttendance,
     required this.leaveRequests,
@@ -83,6 +87,7 @@ class BackupRestoreService {
     Box<FinanceCategory>? financeCategoriesBox,
     Box<FinanceParty>? financePartiesBox,
     Box<FinanceBudget>? financeBudgetsBox,
+    Box<FinanceRecurringTemplate>? financeRecurringTemplatesBox,
     Box<HrDepartment>? hrDepartmentsBox,
     Box<EmployeeAttendance>? employeeAttendanceBox,
     Box<LeaveRequest>? leaveRequestsBox,
@@ -106,6 +111,7 @@ class BackupRestoreService {
       financeCategoriesBox: financeCategoriesBox,
       financePartiesBox: financePartiesBox,
       financeBudgetsBox: financeBudgetsBox,
+      financeRecurringTemplatesBox: financeRecurringTemplatesBox,
       hrDepartmentsBox: hrDepartmentsBox,
       employeeAttendanceBox: employeeAttendanceBox,
       leaveRequestsBox: leaveRequestsBox,
@@ -133,6 +139,7 @@ class BackupRestoreService {
     Box<FinanceCategory>? financeCategoriesBox,
     Box<FinanceParty>? financePartiesBox,
     Box<FinanceBudget>? financeBudgetsBox,
+    Box<FinanceRecurringTemplate>? financeRecurringTemplatesBox,
     Box<HrDepartment>? hrDepartmentsBox,
     Box<EmployeeAttendance>? employeeAttendanceBox,
     Box<LeaveRequest>? leaveRequestsBox,
@@ -143,6 +150,34 @@ class BackupRestoreService {
   }) async {
     final hasFinancePayload = payload.financeAccounts != null;
     final hasBudgetPayload = payload.financeBudgets != null;
+    final hasRecurringPayload = payload.financeRecurringTemplates != null;
+    if (hasRecurringPayload && financeRecurringTemplatesBox == null) {
+      throw const FormatException(
+        'Recurring finance backup data was supplied but recurring-template storage is unavailable.',
+      );
+    }
+    if (hasFinancePayload &&
+        !hasRecurringPayload &&
+        financeRecurringTemplatesBox != null) {
+      final restoredAccountIds =
+          payload.financeAccounts!.map((item) => item.id).toSet();
+      final restoredCategoryIds =
+          payload.financeCategories!.map((item) => item.id).toSet();
+      final restoredPartyIds =
+          payload.financeParties!.map((item) => item.id).toSet();
+      for (final template in financeRecurringTemplatesBox.values) {
+        if (!restoredAccountIds.contains(template.debitAccountId) ||
+            !restoredAccountIds.contains(template.creditAccountId) ||
+            (template.categoryId != null &&
+                !restoredCategoryIds.contains(template.categoryId)) ||
+            (template.partyId != null &&
+                !restoredPartyIds.contains(template.partyId))) {
+          throw FormatException(
+            'Restoring this older finance backup would orphan recurring template ${template.id}.',
+          );
+        }
+      }
+    }
     if (hasBudgetPayload && financeBudgetsBox == null) {
       throw const FormatException(
         'Finance budget backup data was supplied but budget storage is unavailable.',
@@ -229,6 +264,9 @@ class BackupRestoreService {
         financePartiesBox == null ? null : Map<dynamic, FinanceParty>.from(financePartiesBox.toMap());
     final financeBudgetsSnapshot =
         financeBudgetsBox == null ? null : Map<dynamic, FinanceBudget>.from(financeBudgetsBox.toMap());
+    final financeRecurringTemplatesSnapshot = financeRecurringTemplatesBox == null
+        ? null
+        : Map<dynamic, FinanceRecurringTemplate>.from(financeRecurringTemplatesBox.toMap());
 
     final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
     final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
@@ -321,6 +359,13 @@ class BackupRestoreService {
         });
         await afterWrite?.call('financeBudgets.putAll');
       }
+      if (hasRecurringPayload) {
+        await financeRecurringTemplatesBox!.clear();
+        await financeRecurringTemplatesBox.putAll({
+          for (final item in payload.financeRecurringTemplates!) item.id: item,
+        });
+        await afterWrite?.call('financeRecurringTemplates.putAll');
+      }
       if (payload.appSettings != null) {
         await appSettingsBox.putAll(payload.appSettings!);
         await afterWrite?.call('appSettings.putAll');
@@ -385,6 +430,10 @@ class BackupRestoreService {
           await financeBudgetsBox!.clear();
           await financeBudgetsBox.putAll(financeBudgetsSnapshot);
         }
+        if (financeRecurringTemplatesSnapshot != null) {
+          await financeRecurringTemplatesBox!.clear();
+          await financeRecurringTemplatesBox.putAll(financeRecurringTemplatesSnapshot);
+        }
         await appSettingsBox.clear();
         await appSettingsBox.putAll(settingsSnapshot);
       } catch (rollbackError) {
@@ -437,6 +486,19 @@ class BackupRestoreService {
     final financeBudgets = data.containsKey('financeBudgets')
         ? _parseRecords(data, 'financeBudgets', _parseFinanceBudget)
         : null;
+    if (data.containsKey('financeRecurringTemplates') && !hasAnyFinanceKey) {
+      throw const FormatException(
+        'Recurring templates cannot be restored without finance collections.',
+      );
+    }
+    final financeRecurringTemplates =
+        data.containsKey('financeRecurringTemplates')
+            ? _parseRecords(
+                data,
+                'financeRecurringTemplates',
+                _parseFinanceRecurringTemplate,
+              )
+            : null;
 
     const hrKeys = [
       'hrDepartments',
@@ -514,6 +576,14 @@ class BackupRestoreService {
         financeCategories!,
       );
     }
+    if (financeRecurringTemplates != null) {
+      _validateFinanceRecurringTemplates(
+        financeRecurringTemplates,
+        financeAccounts!,
+        financeCategories!,
+        financeParties!,
+      );
+    }
 
     return BackupRestorePayload(
       users: _parseRecords(data, 'users', _parseUser),
@@ -527,6 +597,7 @@ class BackupRestoreService {
       financeCategories: financeCategories,
       financeParties: financeParties,
       financeBudgets: financeBudgets,
+      financeRecurringTemplates: financeRecurringTemplates,
       hrDepartments: hrDepartments,
       employeeAttendance: employeeAttendance,
       leaveRequests: leaveRequests,
