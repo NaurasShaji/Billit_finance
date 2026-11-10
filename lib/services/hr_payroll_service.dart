@@ -1210,7 +1210,6 @@ class HrPayrollService {
       final currentMatchesBefore = slip.allowancesPaise == record['beforeAllowancesPaise'] && slip.deductionsPaise == record['beforeDeductionsPaise'];
       final currentMatchesAfter = slip.allowancesPaise == record['afterAllowancesPaise'] && slip.deductionsPaise == record['afterDeductionsPaise'];
       if (!currentMatchesBefore && !currentMatchesAfter) throw const HrPayrollServiceException('Payslip changed after this adjustment was initiated. Reconcile before retrying.');
-      if (record['status'] == 'posted' && currentMatchesAfter) return slip;
     }
     final transactionId = 'finance:payroll-adjustment:$adjustmentId';
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
@@ -1227,7 +1226,10 @@ class HrPayrollService {
         categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories), partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
       );
     } else {
-      if (existingJournal.length != 1 || existingJournal.single.id != transactionId || existingJournal.single.status != 'posted') throw const HrPayrollServiceException('Conflicting payroll adjustment journal exists.');
+      if (existingJournal.length != 1 || existingJournal.single.id != transactionId || existingJournal.single.status != 'posted' ||
+          transactions.values.any((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == transactionId && tx.status == 'posted')) {
+        throw const HrPayrollServiceException('Conflicting or reversed payroll adjustment journal exists.');
+      }
       final lines = postings.values.where((line) => line.transactionId == transactionId).toList();
       if (lines.length != 2 || lines.where((line) => line.accountId == debitAccount).fold<int>(0, (sum, line) => sum + line.debitPaise) != amountPaise || lines.where((line) => line.accountId == creditAccount).fold<int>(0, (sum, line) => sum + line.creditPaise) != amountPaise) throw const HrPayrollServiceException('Existing payroll adjustment journal does not match this adjustment.');
     }
