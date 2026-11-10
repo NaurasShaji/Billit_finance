@@ -64,7 +64,9 @@ class FinanceReportingService {
     required Iterable<FinanceTransaction> transactions,
     required Iterable<FinancePosting> postings,
     required DateSpan span,
+    Set<String>? cashAccountIds,
   }) {
+    final cashAccounts = cashAccountIds ?? const {'system:cash', 'system:bank'};
     final accountsById = {for (final account in accounts) account.id: account};
     final allTransactions = transactions.toList();
     final allTransactionsById = {
@@ -103,9 +105,7 @@ class FinanceReportingService {
           transaction.transactionType == 'opening_balance' ||
           originalTransaction?.transactionType == 'transfer' ||
           originalTransaction?.transactionType == 'opening_balance';
-      if ((line.accountId == 'system:cash' ||
-              line.accountId == 'system:bank') &&
-          !isInternalMovement) {
+      if (cashAccounts.contains(line.accountId) && !isInternalMovement) {
         cashIn += line.debitPaise;
         cashOut += line.creditPaise;
       }
