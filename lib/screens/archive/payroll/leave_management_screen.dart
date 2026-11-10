@@ -186,6 +186,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
                         const SizedBox(height: 8),
                         TextField(
                           controller: controllers[type],
+                          enabled: type != 'unpaid',
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
                             labelText: 'Annual entitlement (days)',
@@ -195,6 +196,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
                         const SizedBox(height: 8),
                         TextField(
                           controller: carryControllers[type],
+                          enabled: type != 'unpaid',
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
                             labelText: 'Maximum carry-forward (days)',
