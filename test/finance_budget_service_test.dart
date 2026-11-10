@@ -11,7 +11,6 @@ import 'package:hive_ce/hive_ce.dart';
 void main() {
   late Directory directory;
   late Box<dynamic> settings;
-  late Box<FinanceAccount> accounts;
   late Box<FinanceCategory> categories;
   late Box<FinanceBudget> budgets;
   late FinanceBudgetService service;
@@ -58,7 +57,6 @@ void main() {
         FinanceSchemaMigration.versionFiveToSix,
       ],
     ).run(settings);
-    accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
     categories = Hive.box<FinanceCategory>(Boxes.financeCategories);
     budgets = Hive.box<FinanceBudget>(Boxes.financeBudgets);
     service = FinanceBudgetService();
