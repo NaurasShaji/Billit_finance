@@ -148,6 +148,9 @@ class FinanceLedgerService {
         ..postedAt = DateTime.now();
       await transactionsBox.put(transaction.id, transaction);
     } catch (_) {
+      transaction
+        ..status = 'draft'
+        ..postedAt = null;
       for (final id in insertedIds.reversed) {
         try {
           await postingsBox.delete(id);
