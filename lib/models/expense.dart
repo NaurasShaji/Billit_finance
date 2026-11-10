@@ -18,6 +18,10 @@ class Expense extends HiveObject {
   @HiveField(5)
   String? employeeId;
 
+  // Reserved for immutable finance journal revisions.
+  @HiveField(6)
+  int financeRevision;
+
   Expense({
     required this.id,
     required this.date,
