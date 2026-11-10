@@ -160,6 +160,24 @@ void main() {
         sourceId: '${template.id}:$dateKey',
       ),
     );
+    await postings.put(
+      '$transactionId:debit',
+      FinancePosting(
+        id: '$transactionId:debit',
+        transactionId: transactionId,
+        accountId: 'system:operating-expense',
+        debitPaise: 2500,
+      ),
+    );
+    await postings.put(
+      '$transactionId:credit',
+      FinancePosting(
+        id: '$transactionId:credit',
+        transactionId: transactionId,
+        accountId: 'system:bank',
+        creditPaise: 2500,
+      ),
+    );
 
     final result = await service.processDue(now: DateTime(2026, 11, 10));
     expect(result.postedCount, 0);
