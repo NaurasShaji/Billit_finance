@@ -1039,6 +1039,8 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
         Hive.box<FinanceBudget>(Boxes.financeBudgets);
     final financeRecurringTemplatesBox =
         Hive.box<FinanceRecurringTemplate>(Boxes.financeRecurringTemplates);
+    final financePaymentAllocationsBox =
+        Hive.box<Map>(Boxes.financePaymentAllocations);
     final appSettingsBox = Hive.box<dynamic>('app_settings');
 
     return {
@@ -1298,6 +1300,9 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'createdAt': budget.createdAt.toIso8601String(),
               })
           .toList(),
+      'financePaymentAllocations': financePaymentAllocationsBox.values
+          .map((allocation) => Map<String, dynamic>.from(allocation))
+          .toList(),
       'financeRecurringTemplates': financeRecurringTemplatesBox.values
           .map((template) => {
                 'id': template.id,
@@ -1338,6 +1343,9 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
       financeBudgetsBox: Hive.box<FinanceBudget>(Boxes.financeBudgets),
       financeRecurringTemplatesBox: Hive.box<FinanceRecurringTemplate>(
         Boxes.financeRecurringTemplates,
+      ),
+      financePaymentAllocationsBox: Hive.box<Map>(
+        Boxes.financePaymentAllocations,
       ),
       hrDepartmentsBox: Hive.box<HrDepartment>(Boxes.hrDepartments),
       employeeAttendanceBox:
