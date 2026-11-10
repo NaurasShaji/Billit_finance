@@ -146,6 +146,14 @@ class FinanceSchemaMigration {
       );
 
   /// Adds recurring transaction templates; generated entries remain in the journal.
+  static SchemaMigration get versionSevenToEight => SchemaMigration(
+        fromVersion: 7,
+        toVersion: 8,
+        apply: (_) async {
+          await Hive.openBox<Map>(Boxes.financePaymentAllocations);
+        },
+      );
+
   static SchemaMigration get versionSixToSeven => SchemaMigration(
         fromVersion: 6,
         toVersion: 7,
