@@ -255,6 +255,46 @@ class HrPayrollService {
     _advanceDeductionSnapshot(employeeId, start, end)
       .fold<int>(0, (sum, item) => sum + (item['amountPaise'] as int));
 
+  Future<void> _postPayrollAdvanceRecoveryJournal({
+    required String payslipId,
+    required DateTime date,
+    required int amountPaise,
+  }) async {
+    if (amountPaise <= 0) return;
+    final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    final advanceAccount = accounts.get(employeeAdvanceAccountId);
+    final salaryExpenseAccount = accounts.get('system:salary-expense');
+    if (advanceAccount == null || !advanceAccount.active || advanceAccount.accountType != 'asset' ||
+        salaryExpenseAccount == null || !salaryExpenseAccount.active || salaryExpenseAccount.accountType != 'expense') {
+      throw const HrPayrollServiceException('Employee Advances or Salaries and Wages account is unavailable or has an invalid type.');
+    }
+    final transactionId = 'finance:payroll-advance-recovery:$payslipId';
+    await FinanceLedgerService().postTransaction(
+      transaction: FinanceTransaction(
+        id: transactionId,
+        transactionNumber: 'PAYADV-$payslipId',
+        transactionType: 'adjustment',
+        date: date,
+        memo: 'Employee advance recovery through payroll $payslipId',
+        sourceType: 'payroll_advance_recovery',
+        sourceId: payslipId,
+      ),
+      postings: [
+        FinancePosting(id: '$transactionId:salary-expense', transactionId: transactionId,
+          accountId: 'system:salary-expense', debitPaise: amountPaise,
+          memo: 'Gross salary offset by employee advance recovery'),
+        FinancePosting(id: '$transactionId:employee-advances', transactionId: transactionId,
+          accountId: employeeAdvanceAccountId, creditPaise: amountPaise,
+          memo: 'Employee advance recovered through payroll'),
+      ],
+      accountsBox: accounts,
+      transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+      postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+      categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+      partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+    );
+  }
+
   Future<void> _settlePayrollAdvanceDeductions(String payslipId) async {
     final settings = Hive.box<dynamic>('app_settings');
     final raw = settings.get(advancePayrollKey);
@@ -262,6 +302,19 @@ class HrPayrollService {
     final advancesRaw = settings.get(advanceSettingsKey);
     if (advancesRaw is! Map) return;
     final all = Map<String,dynamic>.from(advancesRaw);
+    final slip = Hive.box<Payslip>(Boxes.payslips).get(payslipId);
+    if (slip == null) throw const HrPayrollServiceException('Payslip was not found for advance recovery.');
+    final deductions = (raw[payslipId] as List).whereType<Map>().toList();
+    final recoveryTotal = deductions.fold<int>(0, (sum, item) {
+      final amount = item['amountPaise'];
+      if (amount is! int || amount <= 0) throw const HrPayrollServiceException('Payroll advance recovery snapshot contains an invalid amount.');
+      return sum + amount;
+    });
+    await _postPayrollAdvanceRecoveryJournal(
+      payslipId: payslipId,
+      date: slip.paidAt ?? DateTime.now(),
+      amountPaise: recoveryTotal,
+    );
     final grouped = <String,List<Map<String,dynamic>>>{};
     for (final item in (raw[payslipId] as List).whereType<Map>()) {
       grouped.putIfAbsent(item['employeeId'] as String, () => []).add(Map<String,dynamic>.from(item));
