@@ -234,6 +234,7 @@ class FinanceRecurringService {
           final sourceId = '${template.id}:$dateKey';
           final existing = transactionsBox.values.any(
             (transaction) =>
+                transaction.status == 'posted' &&
                 transaction.sourceType == 'recurring_template' &&
                 transaction.sourceId == sourceId,
           );
