@@ -1,7 +1,7 @@
 import 'package:excel_community/excel_community.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/models.dart';
