@@ -37,13 +37,19 @@ class LeavePolicy {
   const LeavePolicy({
     required this.annualEntitlementDays,
     required this.accrualEnabled,
+    this.carryForwardDays = 0,
+    this.excludeWeekends = false,
   });
   final int annualEntitlementDays;
   final bool accrualEnabled;
+  final int carryForwardDays;
+  final bool excludeWeekends;
 
   Map<String, dynamic> toMap() => {
         'annualEntitlementDays': annualEntitlementDays,
         'accrualEnabled': accrualEnabled,
+        'carryForwardDays': carryForwardDays,
+        'excludeWeekends': excludeWeekends,
       };
 
   factory LeavePolicy.fromMap(Map value) => LeavePolicy(
@@ -52,6 +58,12 @@ class LeavePolicy {
             : 0,
         accrualEnabled: value['accrualEnabled'] is bool
             ? value['accrualEnabled'] as bool
+            : false,
+        carryForwardDays: value['carryForwardDays'] is num
+            ? (value['carryForwardDays'] as num).toInt().clamp(0, 365)
+            : 0,
+        excludeWeekends: value['excludeWeekends'] is bool
+            ? value['excludeWeekends'] as bool
             : false,
       );
 }
@@ -445,13 +457,16 @@ class HrService {
       final policy = policies[type];
       if (policy == null ||
           policy.annualEntitlementDays < 0 ||
-          policy.annualEntitlementDays > 365) {
+          policy.annualEntitlementDays > 365 ||
+          policy.carryForwardDays < 0 ||
+          policy.carryForwardDays > 365) {
         throw const HrServiceException(
-          'Leave entitlement must be between 0 and 365 days for every leave type.',
+          'Annual entitlement and carry-forward cap must be between 0 and 365 days.',
         );
       }
-      if (type == 'unpaid' && policy.annualEntitlementDays != 0) {
-        throw const HrServiceException('Unpaid leave cannot accrue paid leave days.');
+      if (type == 'unpaid' &&
+          (policy.annualEntitlementDays != 0 || policy.carryForwardDays != 0)) {
+        throw const HrServiceException('Unpaid leave cannot accrue or carry paid leave days.');
       }
       if (!policy.accrualEnabled && policy.annualEntitlementDays != 0) {
         throw const HrServiceException('Disable accrual only when the entitlement is zero.');
@@ -461,6 +476,64 @@ class HrService {
       leavePolicySettingsKey,
       {for (final entry in policies.entries) entry.key: entry.value.toMap()},
     );
+  }
+
+  bool _isWeekend(DateTime date) =>
+      date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+
+  int _approvedLeaveDays({
+    required String employeeId,
+    required String leaveType,
+    required DateTime start,
+    required DateTime end,
+    required bool excludeWeekends,
+  }) {
+    if (end.isBefore(start)) return 0;
+    return Hive.box<LeaveRequest>(Boxes.leaveRequests).values
+        .where((request) =>
+            request.employeeId == employeeId &&
+            request.leaveType == leaveType &&
+            request.status == 'approved' &&
+            !day(request.endDate).isBefore(start) &&
+            !day(request.startDate).isAfter(end))
+        .fold<int>(0, (sum, request) {
+          final from = request.startDate.isBefore(start)
+              ? start
+              : day(request.startDate);
+          final to = request.endDate.isAfter(end) ? end : day(request.endDate);
+          var count = 0;
+          for (var date = from;
+              !date.isAfter(to);
+              date = date.add(const Duration(days: 1))) {
+            if (!excludeWeekends || !_isWeekend(date)) count++;
+          }
+          return sum + count;
+        });
+  }
+
+  double _earnedEntitlement({
+    required Employee employee,
+    required LeavePolicy policy,
+    required int year,
+    required DateTime asOf,
+  }) {
+    if (!policy.accrualEnabled || policy.annualEntitlementDays == 0) return 0;
+    final yearStart = DateTime(year, 1, 1);
+    final yearEnd = DateTime(year, 12, 31);
+    final joined = employee.joiningDate == null
+        ? yearStart
+        : day(employee.joiningDate!);
+    if (joined.isAfter(yearEnd) || asOf.isBefore(yearStart)) return 0;
+    final accrualStart = joined.isAfter(yearStart) ? joined : yearStart;
+    final cutoff = asOf.isBefore(yearEnd) ? asOf : yearEnd;
+    final monthDifference = (cutoff.year - accrualStart.year) * 12 +
+        cutoff.month - accrualStart.month;
+    final completedMonths = cutoff.isBefore(accrualStart)
+        ? 0
+        : (monthDifference - (cutoff.day < accrualStart.day ? 1 : 0))
+            .clamp(0, 12);
+    return (policy.annualEntitlementDays * completedMonths / 12)
+        .clamp(0.0, policy.annualEntitlementDays.toDouble());
   }
 
   LeaveBalance leaveBalance({
@@ -478,35 +551,42 @@ class HrService {
     if (!policy.accrualEnabled || policy.annualEntitlementDays == 0) {
       return LeaveBalance(leaveType: leaveType, entitledDays: 0, usedDays: 0);
     }
+    final currentYearEntitlement = _earnedEntitlement(
+      employee: employee,
+      policy: policy,
+      year: date.year,
+      asOf: date,
+    );
+    var carryForward = 0.0;
+    if (policy.carryForwardDays > 0 && date.year > 1) {
+      final previousYear = date.year - 1;
+      final previousEntitlement = _earnedEntitlement(
+        employee: employee,
+        policy: policy,
+        year: previousYear,
+        asOf: DateTime(previousYear, 12, 31),
+      );
+      final previousUsed = _approvedLeaveDays(
+        employeeId: employeeId,
+        leaveType: leaveType,
+        start: DateTime(previousYear, 1, 1),
+        end: DateTime(previousYear, 12, 31),
+        excludeWeekends: policy.excludeWeekends,
+      );
+      carryForward = (previousEntitlement - previousUsed)
+          .clamp(0.0, policy.carryForwardDays.toDouble());
+    }
     final yearStart = DateTime(date.year, 1, 1);
-    final accrualStart = employee.joiningDate == null ||
-            employee.joiningDate!.isBefore(yearStart)
-        ? yearStart
-        : day(employee.joiningDate!);
-    final monthDifference = (date.year - accrualStart.year) * 12 +
-        date.month - accrualStart.month;
-    final completedMonths = date.isBefore(accrualStart)
-        ? 0
-        : (monthDifference - (date.day < accrualStart.day ? 1 : 0)).clamp(0, 12);
-    final entitled = (policy.annualEntitlementDays * completedMonths / 12)
-        .clamp(0.0, policy.annualEntitlementDays.toDouble());
-    final used = Hive.box<LeaveRequest>(Boxes.leaveRequests).values
-        .where((request) => request.employeeId == employeeId &&
-            request.leaveType == leaveType && request.status == 'approved' &&
-            !day(request.endDate).isBefore(yearStart) &&
-            !day(request.startDate).isAfter(date))
-        .fold<int>(0, (sum, request) {
-          final start = request.startDate.isBefore(yearStart)
-              ? yearStart
-              : day(request.startDate);
-          final end = request.endDate.isAfter(date)
-              ? date
-              : day(request.endDate);
-          return end.isBefore(start) ? sum : sum + end.difference(start).inDays + 1;
-        });
+    final used = _approvedLeaveDays(
+      employeeId: employeeId,
+      leaveType: leaveType,
+      start: yearStart,
+      end: date,
+      excludeWeekends: policy.excludeWeekends,
+    );
     return LeaveBalance(
       leaveType: leaveType,
-      entitledDays: entitled,
+      entitledDays: currentYearEntitlement + carryForward,
       usedDays: used,
     );
   }
@@ -708,9 +788,11 @@ class HrService {
 
     final previousAttendance = <String, EmployeeAttendance?>{};
     if (decision == 'approved') {
+      final policy = leavePolicies()[request.leaveType];
       for (var date = day(request.startDate);
           !date.isAfter(day(request.endDate));
           date = date.add(const Duration(days: 1))) {
+        if (policy?.excludeWeekends == true && _isWeekend(date)) continue;
         final id = attendanceId(request.employeeId, date);
         final existing = attendance.get(id);
         if (existing != null && existing.status != 'leave') {
@@ -721,9 +803,11 @@ class HrService {
       }
 
       try {
+        final policy = leavePolicies()[request.leaveType];
         for (var date = day(request.startDate);
             !date.isAfter(day(request.endDate));
             date = date.add(const Duration(days: 1))) {
+          if (policy?.excludeWeekends == true && _isWeekend(date)) continue;
           final id = attendanceId(request.employeeId, date);
           final existing = attendance.get(id);
           previousAttendance[id] = existing;
