@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_party_service.dart';
+import 'finance_ageing_screen.dart';
 
 class FinancePartiesScreen extends StatefulWidget {
   const FinancePartiesScreen({super.key});
@@ -81,6 +82,15 @@ class _FinancePartiesScreenState extends State<FinancePartiesScreen> {
       appBar: AppBar(
         title: const Text('Customers & suppliers'),
         actions: [
+          IconButton(
+            tooltip: 'Receivables / payables ageing',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const FinanceAgeingScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.analytics_outlined),
+          ),
           IconButton(
             tooltip: 'Add party',
             onPressed: () => _openForm(),
