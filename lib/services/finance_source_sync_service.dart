@@ -252,6 +252,7 @@ class FinanceSourceSyncService {
     required Box<FinanceCategory> categoriesBox,
     required Box<FinanceParty> partiesBox,
     Box<Employee>? employeesBox,
+    String paymentAccountId = 'system:cash',
   }) async {
     final sourceType = 'legacy_expense';
     final sourceId = _sourceId(expense.id, expense.financeRevision);
@@ -283,6 +284,15 @@ class FinanceSourceSyncService {
       partiesBox: partiesBox,
       employeesBox: employeesBox,
     );
+    final paymentAccount = accountsBox.get(paymentAccountId);
+    if (paymentAccount == null ||
+        !paymentAccount.active ||
+        paymentAccount.accountType != 'asset' ||
+        paymentAccount.currencyCode != 'INR') {
+      throw FinanceLedgerException(
+        'Expense payment account must be an active INR asset account.',
+      );
+    }
     final transactionId =
         'finance:expense:${expense.id}:r${expense.financeRevision}';
     final transaction = FinanceTransaction(
@@ -311,7 +321,7 @@ class FinanceSourceSyncService {
         FinancePosting(
           id: '$transactionId:credit',
           transactionId: transactionId,
-          accountId: 'system:cash',
+          accountId: paymentAccountId,
           creditPaise: amountPaise,
           memo: expense.description,
         ),
