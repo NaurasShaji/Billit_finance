@@ -260,6 +260,68 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     }
   }
 
+  Future<void> _addEmployeeAdvance() async {
+    final principal = TextEditingController();
+    final installment = TextEditingController();
+    final description = TextEditingController(text: 'Employee advance');
+    DateTime issueDate = DateTime.now(), dueDate = DateTime.now();
+    final key = GlobalKey<FormState>();
+    final saved = await showDialog<bool>(context: context, builder: (dc) =>
+      StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Issue employee advance'),
+        content: Form(key: key, child: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description'),
+            validator: (v) => (v ?? '').trim().isEmpty ? 'Enter a description' : null),
+          TextFormField(controller: principal, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Advance amount', prefixText: '₹ '),
+            validator: (v) { final n = double.tryParse((v ?? '').trim()); return n == null || !n.isFinite || n <= 0 ? 'Enter a positive amount' : null; }),
+          TextFormField(controller: installment, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Monthly instalment', prefixText: '₹ '),
+            validator: (v) { final n = double.tryParse((v ?? '').trim()), p = double.tryParse(principal.text.trim()); return n == null || !n.isFinite || n <= 0 || p == null || n > p ? 'Enter an instalment up to the advance amount' : null; }),
+          OutlinedButton(onPressed: () async { final d = await showDatePicker(context: context, initialDate: issueDate, firstDate: DateTime(1980), lastDate: DateTime.now()); if (d != null) setDialogState(() { issueDate = d; if (dueDate.isBefore(d)) dueDate = d; }); }, child: Text('Issue date: ${DateFormat('dd MMM yyyy').format(issueDate)}')),
+          OutlinedButton(onPressed: () async { final d = await showDatePicker(context: context, initialDate: dueDate, firstDate: issueDate, lastDate: DateTime.now().add(const Duration(days: 3650))); if (d != null) setDialogState(() => dueDate = d); }, child: Text('First repayment: ${DateFormat('dd MMM yyyy').format(dueDate)}')),
+        ]))),
+        actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(dc, true); }, child: const Text('Save advance'))],
+      )));
+    if (saved == true) {
+      try {
+        await HrPayrollService().addEmployeeAdvance(employeeId: widget.employee.id,
+          principalPaise: (double.parse(principal.text) * 100).round(),
+          installmentPaise: (double.parse(installment.text) * 100).round(),
+          issueDate: issueDate, firstDueDate: dueDate, description: description.text);
+        if (mounted) setState(() {});
+      } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not issue advance: $e'))); }
+    }
+    principal.dispose(); installment.dispose(); description.dispose();
+  }
+
+  Future<void> _recordAdvanceRepayment(Map<String,dynamic> advance) async {
+    final amount = TextEditingController(), note = TextEditingController();
+    final key = GlobalKey<FormState>();
+    final saved = await showDialog<bool>(context: context, builder: (dc) => AlertDialog(
+      title: const Text('Record advance repayment'),
+      content: Form(key: key, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('Outstanding: ₹${((advance['outstandingPaise'] as int) / 100).toStringAsFixed(2)}'),
+        TextFormField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Amount received', prefixText: '₹ '),
+          validator: (v) { final n = double.tryParse((v ?? '').trim()); return n == null || !n.isFinite || n <= 0 || (n * 100).round() > (advance['outstandingPaise'] as int) ? 'Enter an amount within the outstanding balance' : null; }),
+        TextField(controller: note, decoration: const InputDecoration(labelText: 'Note (optional)')),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(dc, true); }, child: const Text('Record'))],
+    ));
+    if (saved == true) {
+      try {
+        await HrPayrollService().recordAdvanceRepayment(employeeId: widget.employee.id,
+          advanceId: advance['id'] as String, amountPaise: (double.parse(amount.text) * 100).round(),
+          date: DateTime.now(), note: note.text);
+        if (mounted) setState(() {});
+      } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not record repayment: $e'))); }
+    }
+    amount.dispose(); note.dispose();
+  }
+
   Future<void> _addBonusEntry() async {
     final description = TextEditingController(text: 'Bonus');
     final amount = TextEditingController();
@@ -682,6 +744,25 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                     ),
                   ],
                 ),
+                Row(children: [
+                  Expanded(child: Text('Advances & loans', style: Theme.of(context).textTheme.titleMedium)),
+                  IconButton(onPressed: _addEmployeeAdvance, tooltip: 'Issue advance', icon: const Icon(Icons.add_circle_outline)),
+                ]),
+                ...HrPayrollService().advances(widget.employee.id).map((advance) {
+                  final outstanding = (advance['outstandingPaise'] as int) / 100;
+                  final principal = (advance['principalPaise'] as int) / 100;
+                  final due = DateFormat('dd MMM yyyy').format(DateTime.parse(advance['nextDueDate'] as String));
+                  final repayments = (advance['repayments'] as List? ?? []).length;
+                  return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(advance['description'] as String? ?? 'Employee advance', style: Theme.of(context).textTheme.titleSmall),
+                    Text('Issued ₹${principal.toStringAsFixed(2)} · Outstanding ₹${outstanding.toStringAsFixed(2)}'),
+                    Text('Instalment ₹${((advance['installmentPaise'] as int) / 100).toStringAsFixed(2)} · Next due $due'),
+                    Text('$repayments repayment record(s) · ${advance['status']}'),
+                    if (advance['status'] == 'active') Align(alignment: Alignment.centerRight, child: TextButton.icon(
+                      onPressed: () => _recordAdvanceRepayment(advance), icon: const Icon(Icons.payments_outlined), label: const Text('Record repayment'))),
+                  ])));
+                }),
+                const SizedBox(height: 18),
                 ...HrService().employmentHistory(widget.employee.id).map((entry) {
                   final effective = DateTime.parse(entry['effectiveDate'] as String);
                   return ListTile(
