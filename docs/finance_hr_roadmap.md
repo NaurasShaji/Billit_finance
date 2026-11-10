@@ -117,3 +117,8 @@ This roadmap tracks implementation state. A checked implementation item is not a
 ## Current execution status (2026-11-10)
 
 The Hive CE migration is **in progress, not complete**. pubspec.yaml now declares hive_ce, hive_ce_flutter, and hive_ce_generator, and imports in the core models, startup, backup/restore service, finance services/screens, and several application screens/tests have been switched. The existing pubspec.lock is still stale and has not been regenerated. Adapter generation, full repository import/API audit, dependency resolution, formatting, analysis, tests, Android build, and existing-data device compatibility have not been verified. Do not treat the Hive CE migration as release-ready until every gate above passes.
+
+
+## Employee document storage update
+
+Employee profiles now support administrator-managed document attachments. The implementation stores PDF, PNG, JPG, DOC, and DOCX files as base64 records in the existing `app_settings` box, with a strict 2 MB per-file limit. Administrators can upload, export, and delete files; worker accounts cannot list or access document bytes. Google Drive backup export includes the employee document collection, and restore validates employee references, file extensions, base64 payloads, and size limits before clearing live records. A legacy backup without document data is rejected when existing employee documents would otherwise be orphaned. The backup contains sensitive HR documents and should be stored only in a controlled Drive account. Regression tests were authored but not run.
