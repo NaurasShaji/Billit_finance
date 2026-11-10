@@ -1308,7 +1308,61 @@ class HrPayrollService {
   }
 
   static const salaryHistoryKey = 'hr_salary_history';
+  static const salaryGradesKey = 'hr_salary_grades';
+  static const employeeSalaryGradesKey = 'hr_employee_salary_grades';
 
+  List<Map<String, dynamic>> salaryGrades() {
+    final raw = Hive.box<dynamic>('app_settings').get(salaryGradesKey);
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).where((entry) =>
+        entry['id'] is String && entry['name'] is String && entry['minPaise'] is int && entry['maxPaise'] is int && entry['active'] != false).toList()
+      ..sort((a, b) => (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase()));
+  }
+
+  Map<String, dynamic>? salaryGradeFor(String employeeId, DateTime date) {
+    final raw = Hive.box<dynamic>('app_settings').get(employeeSalaryGradesKey);
+    if (raw is! Map || raw[employeeId] is! List) return null;
+    final assignments = (raw[employeeId] as List).whereType<Map>().where((entry) =>
+        entry['gradeId'] is String && entry['effectiveDate'] is String &&
+        !_day(DateTime.parse(entry['effectiveDate'] as String)).isAfter(_day(date))).toList()
+      ..sort((a, b) => DateTime.parse(a['effectiveDate'] as String).compareTo(DateTime.parse(b['effectiveDate'] as String)));
+    if (assignments.isEmpty) return null;
+    final gradeId = assignments.last['gradeId'] as String;
+    final grades = salaryGrades();
+    final matches = grades.where((grade) => grade['id'] == gradeId).toList();
+    return matches.length == 1 ? matches.single : null;
+  }
+
+  Future<Map<String, dynamic>> createSalaryGrade({required String name, required int minPaise, required int maxPaise}) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty || minPaise <= 0 || maxPaise < minPaise) throw const HrPayrollServiceException('Enter a grade name and a valid minimum/maximum salary range.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final grades = salaryGrades();
+    if (grades.any((grade) => (grade['name'] as String).toLowerCase() == cleanName.toLowerCase())) throw const HrPayrollServiceException('A salary grade with this name already exists.');
+    final grade = {'id': const Uuid().v4(), 'name': cleanName, 'minPaise': minPaise, 'maxPaise': maxPaise, 'active': true, 'createdAt': DateTime.now().toIso8601String()};
+    await settings.put(salaryGradesKey, [...grades, grade]);
+    return grade;
+  }
+
+  Future<void> assignSalaryGrade({required String employeeId, required String gradeId, required DateTime effectiveDate}) async {
+    final employee = Hive.box<Employee>(Boxes.employees).get(employeeId);
+    if (employee == null) throw const HrPayrollServiceException('Employee was not found.');
+    final grades = salaryGrades().where((grade) => grade['id'] == gradeId).toList();
+    if (grades.length != 1) throw const HrPayrollServiceException('Select an active salary grade.');
+    final date = _day(effectiveDate);
+    final base = basePayPaiseFor(employee, date);
+    final min = grades.single['minPaise'] as int;
+    final max = grades.single['maxPaise'] as int;
+    if (base < min || base > max) throw const HrPayrollServiceException('The employee base pay is outside the selected salary grade range. Change base pay or choose another grade.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(employeeSalaryGradesKey);
+    final all = <String, dynamic>{if (raw is Map) ...Map<String, dynamic>.from(raw)};
+    final history = all[employeeId] is List ? List<dynamic>.from(all[employeeId] as List) : <dynamic>[];
+    if (history.any((entry) => entry is Map && entry['effectiveDate'] is String && _day(DateTime.parse(entry['effectiveDate'] as String)) == date)) throw const HrPayrollServiceException('A salary grade assignment already exists for this effective date.');
+    history.add({'id': const Uuid().v4(), 'gradeId': gradeId, 'effectiveDate': date.toIso8601String(), 'createdAt': DateTime.now().toIso8601String()});
+    all[employeeId] = history;
+    await settings.put(employeeSalaryGradesKey, all);
+  }
   List<Map<String, dynamic>> salaryHistory(String employeeId) {
     final raw = Hive.box<dynamic>('app_settings').get(salaryHistoryKey);
     if (raw is! Map || raw[employeeId] is! List) return const [];
