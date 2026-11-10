@@ -515,7 +515,7 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
                   child: ListTile(
                     title: Text(transaction.transactionNumber),
                     subtitle: Text(
-                      '${transaction.memo.isEmpty ? transaction.transactionType : transaction.memo}\\n'
+                      '${transaction.memo.isEmpty ? transaction.transactionType : transaction.memo}\n'
                       '${currency.format(transaction.date)}'
                       '${hasReversal ? ' • Reversed' : ''}',
                     ),
