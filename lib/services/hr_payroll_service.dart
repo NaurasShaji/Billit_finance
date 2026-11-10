@@ -365,18 +365,20 @@ class HrPayrollService {
         'This advance has repayment history or malformed repayment data. Its opening balance requires manual reconstruction.',
       );
     }
-    final repayments = <Map>[];
-    final repaymentIds = repayments
-        .where((item) => item['source'] == 'manual' && item['id'] is String)
-        .map((item) => item['id'] as String)
-        .toSet();
-    final payslipIds = repayments
-        .where((item) => item['source'] == 'payroll' && item['payslipId'] is String)
-        .map((item) => item['payslipId'] as String)
-        .toSet();
+    final payrollSnapshots = settings.get(advancePayrollKey);
+    final payslipIds = <String>{};
+    if (payrollSnapshots is Map) {
+      for (final entry in payrollSnapshots.entries) {
+        if (entry.value is List &&
+            (entry.value as List).whereType<Map>().any((snapshot) =>
+                snapshot['employeeId'] == employeeId &&
+                snapshot['advanceId'] == advanceId)) {
+          payslipIds.add(entry.key.toString());
+        }
+      }
+    }
     final hasLinkedHistory = transactions.values.any((tx) =>
         (tx.sourceType == 'employee_advance_issue' && tx.sourceId == advanceId) ||
-        (tx.sourceType == 'employee_advance_repayment' && repaymentIds.contains(tx.sourceId)) ||
         (tx.sourceType == 'payroll_advance_recovery' && payslipIds.contains(tx.sourceId)) ||
         (tx.sourceType == 'employee_advance_opening_balance' && tx.sourceId == advanceId));
     if (hasLinkedHistory) {
