@@ -42,7 +42,7 @@ class FinanceBudgetsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffolResponsivePage(child: Scaffold((
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Budgets'),
         actions: [
