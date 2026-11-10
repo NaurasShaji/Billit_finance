@@ -106,7 +106,7 @@ class HrPayrollService {
     if (raw is! List) return const [];
     return raw.whereType<Map>().map((entry) => Map<String, dynamic>.from(entry))
         .where((entry) => entry['id'] is String && (employeeId == null || entry['employeeId'] == employeeId))
-        .toList()..sort((a, b) => (b['createdAt'] as String? ?? '').compareTo(a['createdAt'] as String? ?? ''));
+        .toList()..sort((a, b) => (b['createdAt']?.toString() ?? '').compareTo(a['createdAt']?.toString() ?? ''));
   }
 
   Future<Map<String, dynamic>> submitReimbursement({required String employeeId, required int amountPaise, required DateTime expenseDate, String categoryId = '', String note = ''}) async {
@@ -119,7 +119,9 @@ class HrPayrollService {
       if (category == null || !category.active || category.kind != 'expense') throw const HrPayrollServiceException('Select an active expense category.');
     }
     final settings = Hive.box<dynamic>('app_settings');
-    final claims = reimbursements();
+    final existingClaims = settings.get(employeeReimbursementsKey);
+    if (existingClaims != null && existingClaims is! List) throw const HrPayrollServiceException('Reimbursement register is malformed.');
+    final claims = existingClaims is List ? List<dynamic>.from(existingClaims) : <dynamic>[];
     final claim = {'id': const Uuid().v4(), 'employeeId': employeeId, 'amountPaise': amountPaise, 'paidPaise': 0, 'expenseDate': _day(expenseDate).toIso8601String(), 'categoryId': categoryId, 'note': note.trim(), 'status': 'submitted', 'createdAt': DateTime.now().toIso8601String(), 'payments': <Map<String, dynamic>>[]};
     await settings.put(employeeReimbursementsKey, [...claims, claim]);
     return claim;
