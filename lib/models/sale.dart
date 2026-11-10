@@ -1,4 +1,4 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import './product.dart'; // Import Product model
 import '../services/boxes.dart'; // Import Boxes
 part 'sale.g.dart';
