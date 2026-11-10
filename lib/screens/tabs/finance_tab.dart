@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/finance_content_frame.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -88,7 +90,7 @@ class _FinanceTabState extends State<FinanceTab> {
                 defaultValue: const <String>[],
               ) as List).cast<String>();
 
-              return ListView(
+              return FinanceContentFrame(child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
                 children: [
                   _header(theme, scheme),
@@ -196,7 +198,7 @@ class _FinanceTabState extends State<FinanceTab> {
                     ],
                   ),
                 ],
-              );
+              ));
             },
               ),
             ),
