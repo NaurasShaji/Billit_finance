@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
-import '../../../models/expense.dart';
+import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 
 class PayrollReportScreen extends StatefulWidget {
@@ -49,7 +49,10 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
       ),
       body: ValueListenableBuilder(
         valueListenable: Hive.box<Expense>(Boxes.expenses).listenable(),
-        builder: (context, Box<Expense> expBox, _) {
+        builder: (context, Box<Expense> expBox, _) =>
+            ValueListenableBuilder<Box<Payslip>>(
+          valueListenable: Hive.box<Payslip>(Boxes.payslips).listenable(),
+          builder: (context, payslipsBox, __) {
           final now = DateTime.now();
           DateTime rangeStart;
           DateTime rangeEnd;
@@ -72,6 +75,18 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
                   !e.date.isBefore(rangeStart) && e.date.isBefore(rangeEnd))
               .toList()
             ..sort((a, b) => b.date.compareTo(a.date));
+          final payrollRuns = Hive.box<PayrollRun>(Boxes.payrollRuns).values
+              .where((run) => !run.periodEnd.isBefore(rangeStart) && run.periodEnd.isBefore(rangeEnd))
+              .toList();
+          final runIds = payrollRuns.map((run) => run.id).toSet();
+          final accruedSlips = payslipsBox.values
+              .where((slip) => runIds.contains(slip.payrollRunId))
+              .toList();
+          final accruedGross = accruedSlips.fold<int>(0, (sum, slip) => sum + slip.basePaise + slip.allowancesPaise);
+          final accruedDeductions = accruedSlips.fold<int>(0, (sum, slip) => sum + slip.deductionsPaise);
+          final accruedNet = accruedSlips.fold<int>(0, (sum, slip) => sum + slip.netPaise);
+          final accruedPaid = accruedSlips.fold<int>(0, (sum, slip) => sum + slip.paidPaise);
+          final accruedOutstanding = accruedSlips.fold<int>(0, (sum, slip) => sum + slip.outstandingPaise);
           final salaryMonthly = all
               .where((e) => e.category == 'Salary-Monthly')
               .fold<double>(0, (s, e) => s + e.amount);
@@ -111,10 +126,28 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            const Text('Accrued payroll', style: TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                            _row('Gross accrued', currency.format(accruedGross / 100)),
+                            _row('Deductions', currency.format(accruedDeductions / 100)),
+                            _row('Net payable', currency.format(accruedNet / 100)),
+                            _row('Paid', currency.format(accruedPaid / 100)),
+                            _row('Outstanding', currency.format(accruedOutstanding / 100), isBold: true),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             const Row(children: [
                               Icon(Icons.payments),
                               SizedBox(width: 8),
-                              Text('Totals',
+                              Text('Legacy and direct expense records',
                                   style:
                                       TextStyle(fontWeight: FontWeight.w600)),
                             ]),
@@ -181,7 +214,8 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
               ),
             ],
           );
-        },
+          },
+        ),
       ),
     );
   }
