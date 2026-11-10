@@ -354,10 +354,23 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                                 contentPadding: EdgeInsets.zero,
                                 title: Text('${_money(_amount(correction['previousOutstandingPaise']))} → ${_money(_amount(correction['correctedOutstandingPaise']))}'),
                                 subtitle: Text('${correction['date'] ?? ''} · ${correction['reason'] ?? ''}'),
-                                trailing: correction['journalId'] is String &&
-                                        transactionBox.values.any((tx) => tx.id == correction['journalId'] && tx.status == 'posted')
-                                    ? const Icon(Icons.check_circle_outline)
-                                    : const Icon(Icons.warning_amber_rounded),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text((correction['status'] ?? 'posted').toString()),
+                                    if (correction['status'] != 'reversed' && correction['id'] is String)
+                                      IconButton(
+                                        tooltip: 'Reverse correction',
+                                        onPressed: () => _reverseAdvanceCorrection(
+                                          context,
+                                          employeeId: entry.key.toString(),
+                                          advanceId: advanceId,
+                                          correctionId: correction['id'] as String,
+                                        ),
+                                        icon: const Icon(Icons.undo_outlined),
+                                      ),
+                                  ],
+                                ),
                               ),
                           ],
                           if (repayments.isNotEmpty) ...[
@@ -454,6 +467,23 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
   }
 
 
+  Future<void> _reverseAdvanceCorrection(BuildContext context, {required String employeeId, required String advanceId, required String correctionId}) async {
+    final reason = TextEditingController();
+    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Reverse advance correction'),
+      content: TextField(controller: reason, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Reversal reason (required)')),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () { if (reason.text.trim().isNotEmpty) Navigator.pop(dialogContext, true); }, child: const Text('Reverse correction'))],
+    ));
+    if (confirmed == true) {
+      try {
+        await HrPayrollService().reverseEmployeeAdvanceCorrection(employeeId: employeeId, advanceId: advanceId, correctionId: correctionId, reason: reason.text);
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Advance correction reversed.')));
+      } catch (error) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not reverse correction: $error')));
+      }
+    }
+    reason.dispose();
+  }
   Future<void> _correctAdvanceBalance(
     BuildContext context, {
     required String employeeId,
