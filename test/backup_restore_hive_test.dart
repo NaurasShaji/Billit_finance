@@ -423,12 +423,21 @@ void main() {
     expect(financeParties.get('supplier')!.partyType, 'supplier');
   });
 
-  test('legacy payload without app settings leaves current settings intact',
-      () async {
+  test('legacy payload preserves finance data and current settings', () async {
     await settings.put('business_name', 'Legacy business');
+    await financeAccounts.put(
+      'legacy-finance-account',
+      FinanceAccount(
+        id: 'legacy-finance-account',
+        name: 'Existing finance account',
+        accountType: 'asset',
+      ),
+    );
 
     await restore({'users': [], 'products': [], 'sales': []});
 
     expect(settings.get('business_name'), 'Legacy business');
+    expect(financeAccounts.get('legacy-finance-account')!.name,
+        'Existing finance account');
   });
 }
