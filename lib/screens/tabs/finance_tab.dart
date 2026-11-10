@@ -10,6 +10,7 @@ import '../../widgets/app_components.dart';
 import '../archive/expenses/add_expense_screen.dart';
 import '../archive/expenses/expenses_list_screen.dart';
 import '../archive/gst_exports_screen.dart';
+import '../archive/finance/finance_ledger_screen.dart';
 
 /// Top-level Finance screen: what came in, what went out, what is left.
 class FinanceTab extends StatefulWidget {
@@ -98,6 +99,11 @@ class _FinanceTabState extends State<FinanceTab> {
                         icon: const Icon(Icons.file_download_outlined),
                         label: const Text('Reports & exports'),
                       ),
+                      OutlinedButton.icon(
+                        onPressed: () => _open(const FinanceLedgerScreen()),
+                        icon: const Icon(Icons.account_balance_outlined),
+                        label: const Text('Accounts & journal'),
+                      ),
                     ],
                   ),
                 ],
@@ -126,7 +132,7 @@ class _FinanceTabState extends State<FinanceTab> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Expenses, salaries and profit',
+                'POS sales, expenses and accounting ledger',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: scheme.onSurface.withValues(alpha: 0.62),
                 ),
@@ -158,13 +164,13 @@ class _FinanceTabState extends State<FinanceTab> {
   Widget _metrics(FinanceSummary s, NumberFormat currency) {
     final cards = [
       _MetricTile(
-        title: 'Sales',
+        title: 'POS sales total',
         value: currency.format(s.revenue),
         icon: Icons.point_of_sale_rounded,
         color: Colors.blue,
       ),
       _MetricTile(
-        title: 'Profit before expenses',
+        title: 'POS gross profit',
         value: currency.format(s.grossProfit),
         icon: Icons.trending_up_rounded,
         color: Colors.green,
@@ -274,7 +280,7 @@ class _NetProfitCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Net profit',
+                'POS net profit estimate',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: tone.shade700.adaptive(context),
@@ -296,8 +302,7 @@ class _NetProfitCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '${currency.format(summary.grossProfit)} profit on sales '
-            '− ${currency.format(summary.totalExpenses)} expenses',
+            'POS gross profit − recorded expenses. This is not the accounting P&L.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: scheme.onSurface.withValues(alpha: 0.7),
             ),
