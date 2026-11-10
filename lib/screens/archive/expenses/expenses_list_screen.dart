@@ -540,7 +540,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
             fontSize: isBold ? 16 : 15,
             fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
             color: isBold
-                ? color.shade700
+                ? color
                 : Theme.of(context).colorScheme.onSurface,
           ),
         ),
