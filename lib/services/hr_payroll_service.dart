@@ -1148,6 +1148,9 @@ class HrPayrollService {
     final slip = slipsBox.get(payslipId);
     if (slip == null) throw const HrPayrollServiceException('Payslip was not found.');
     if (slip.status != 'approved' && slip.status != 'partially_paid') throw const HrPayrollServiceException('Only unpaid or partially paid approved payslips can be adjusted.');
+    final hasAccrual = Hive.box<FinanceTransaction>(Boxes.financeTransactions).values.any((tx) =>
+        tx.sourceType == 'payroll_accrual' && tx.sourceId == slip.id && tx.status == 'posted');
+    if (!hasAccrual) throw const HrPayrollServiceException('Legacy cash-basis payroll cannot use accrual adjustments. Correct its original expense/payment records instead.');
     final run = runsBox.get(slip.payrollRunId);
     if (run == null || (run.status != 'approved' && run.status != 'paid')) throw const HrPayrollServiceException('Payroll run must be approved before making an adjustment.');
     final date = _day(effectiveDate);
@@ -1157,6 +1160,8 @@ class HrPayrollService {
     final newAllowances = slip.allowancesPaise + earningDelta;
     final newDeductions = slip.deductionsPaise + deductionDelta;
     final newNet = slip.basePaise + newAllowances - newDeductions;
+    final advanceDeductions = _advanceSnapshotTotal(slip.id);
+    if (newDeductions < advanceDeductions) throw const HrPayrollServiceException('This adjustment cannot remove an employee advance deduction already accrued to the Employee Advances account.');
     if (newAllowances < 0 || newDeductions < 0 || newNet < slip.paidPaise) throw const HrPayrollServiceException('Adjustment would create a negative component or reduce net pay below the amount already paid.');
     final netDelta = earningDelta - deductionDelta;
     final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
