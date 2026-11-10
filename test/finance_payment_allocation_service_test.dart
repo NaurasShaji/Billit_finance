@@ -117,6 +117,40 @@ void main() {
     expect(allocations.length, 1);
   });
 
+  test('reversing a settlement makes its allocations ineffective but preserves history', () async {
+    await postInvoice();
+    await postReceipt();
+    final service = FinancePaymentAllocationService();
+    await service.allocate(
+      id: 'allocation-reversal',
+      settlementTransactionId: 'receipt-1',
+      invoiceTransactionId: 'invoice-1',
+      partyId: 'customer-1',
+      amountPaise: 4000,
+      partyType: 'customer',
+      transactions: transactions.values,
+      postings: postings.values,
+    );
+    await FinanceLedgerService().reverseTransaction(
+      originalTransactionId: 'receipt-1',
+      reversalId: 'receipt-reversal',
+      reversalNumber: 'REC-REV-1',
+      reversalDate: DateTime(2026, 1, 3),
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: postings,
+      partiesBox: parties,
+    );
+
+    expect(allocations.length, 1);
+    expect(service.allocatedFromSettlement(
+      'receipt-1', transactions: transactions.values,
+    ), 0);
+    expect(service.allocatedToInvoice(
+      'invoice-1', transactions: transactions.values,
+    ), 0);
+  });
+
   test('rejects invoice and settlement over-allocation', () async {
     await postInvoice();
     await postReceipt();
