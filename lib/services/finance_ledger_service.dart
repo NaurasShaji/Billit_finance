@@ -198,6 +198,15 @@ class FinanceLedgerService {
           );
         }
       }
+      final requiresCustomer =
+          line.accountId == 'system:receivables';
+      final requiresSupplier =
+          line.accountId == 'system:payables';
+      if ((requiresCustomer || requiresSupplier) && line.partyId == null) {
+        throw FinanceLedgerException(
+          'Posting to ${line.accountId} requires a customer or supplier party.',
+        );
+      }
       if (line.partyId != null) {
         if (partiesBox == null) {
           throw const FinanceLedgerException(
@@ -209,6 +218,16 @@ class FinanceLedgerService {
             (!party.active && transaction.transactionType != 'reversal')) {
           throw FinanceLedgerException(
             'Posting references an unknown or inactive party: ${line.partyId}',
+          );
+        }
+        if (requiresCustomer && party.partyType != 'customer') {
+          throw FinanceLedgerException(
+            'Accounts receivable postings require a customer party.',
+          );
+        }
+        if (requiresSupplier && party.partyType != 'supplier') {
+          throw FinanceLedgerException(
+            'Accounts payable postings require a supplier party.',
           );
         }
       }
