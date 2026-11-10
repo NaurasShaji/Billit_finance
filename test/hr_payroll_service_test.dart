@@ -58,12 +58,16 @@ void main() {
 
     settings = await Hive.openBox<dynamic>('app_settings');
     await SchemaMigrationService(
-      currentVersion: 5,
+      currentVersion: 9,
       migrations: [
         FinanceSchemaMigration.versionOneToTwo,
         FinanceSchemaMigration.versionTwoToThree,
         FinanceSchemaMigration.versionThreeToFour,
         FinanceSchemaMigration.versionFourToFive,
+        FinanceSchemaMigration.versionFiveToSix,
+        FinanceSchemaMigration.versionSixToSeven,
+        FinanceSchemaMigration.versionSevenToEight,
+        FinanceSchemaMigration.versionEightToNine,
       ],
     ).run(settings);
 
@@ -334,6 +338,62 @@ void main() {
     );
     expect(retry.status, 'paid');
     expect(runs.get(run.id)!.status, 'paid');
+  });
+
+
+  test('payroll advance recovery journals gross-up and reduces advance asset', () async {
+    await payroll.addEmployeeAdvance(
+      employeeId: 'monthly-1',
+      principalPaise: 1000000,
+      installmentPaise: 250000,
+      issueDate: DateTime(2026, 10, 1),
+      firstDueDate: DateTime(2026, 11, 1),
+      cashAccountId: 'system:cash',
+    );
+    final run = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+    );
+    final slip = payslips.values.singleWhere((item) => item.employeeId == 'monthly-1');
+    expect(slip.deductionsPaise, 250000);
+    expect(slip.netPaise, 2750000);
+
+    await payroll.approveRun(run.id);
+    await payroll.payPayslip(payslipId: slip.id, amountPaise: slip.netPaise);
+
+    final recovery = transactions.values.singleWhere(
+      (item) => item.sourceType == 'payroll_advance_recovery' && item.sourceId == slip.id,
+    );
+    expect(recovery.status, 'posted');
+    final recoveryLines = postings.values.where((line) => line.transactionId == recovery.id).toList();
+    expect(recoveryLines.where((line) => line.accountId == 'system:salary-expense').single.debitPaise, 250000);
+    expect(recoveryLines.where((line) => line.accountId == 'system:employee-advances').single.creditPaise, 250000);
+    expect(payroll.advances('monthly-1').single['outstandingPaise'], 750000);
+    expect(payroll.advanceReconciliation()['differencePaise'], 0);
+  });
+
+  test('manual advance issuance and repayment are journalled and reconcile', () async {
+    await payroll.addEmployeeAdvance(
+      employeeId: 'monthly-1',
+      principalPaise: 500000,
+      installmentPaise: 100000,
+      issueDate: DateTime(2026, 11, 1),
+      firstDueDate: DateTime(2026, 12, 1),
+      cashAccountId: 'system:bank',
+    );
+    final advance = payroll.advances('monthly-1').single;
+    await payroll.recordAdvanceRepayment(
+      employeeId: 'monthly-1',
+      advanceId: advance['id'] as String,
+      amountPaise: 100000,
+      date: DateTime(2026, 11, 15),
+      cashAccountId: 'system:cash',
+    );
+    expect(payroll.advanceReconciliation()['subledgerPaise'], 400000);
+    expect(payroll.advanceReconciliation()['journalPaise'], 400000);
+    expect(payroll.advanceReconciliation()['differencePaise'], 0);
+    expect(transactions.values.where((item) => item.sourceType == 'employee_advance_issue'), hasLength(1));
+    expect(transactions.values.where((item) => item.sourceType == 'employee_advance_repayment'), hasLength(1));
   });
 
   test('paying a payslip cannot exceed the remaining balance', () async {
