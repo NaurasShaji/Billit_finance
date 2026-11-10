@@ -138,6 +138,9 @@ class Sale extends HiveObject {
   bool interstateSale = false;
   @HiveField(19)
   bool gstInclusive = false;
+  // Incremented whenever an existing invoice is edited; finance journals are revisioned.
+  @HiveField(20)
+  int financeRevision = 0;
 
   Map<String, dynamic> toJson() => {
         'id': id,
