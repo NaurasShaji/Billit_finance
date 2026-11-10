@@ -1107,6 +1107,7 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'customerGstin': s.customerGstin,
                 'interstateSale': s.interstateSale,
                 'gstInclusive': s.gstInclusive,
+                'financeRevision': s.financeRevision,
               })
           .toList(),
       'expenses': expensesBox.values
@@ -1117,6 +1118,7 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'amount': e.amount,
                 'description': e.description,
                 if (e.employeeId != null) 'employeeId': e.employeeId,
+                'financeRevision': e.financeRevision,
               })
           .toList(),
       'employees': employeesBox.values
