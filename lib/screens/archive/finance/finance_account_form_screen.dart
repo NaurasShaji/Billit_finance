@@ -133,7 +133,7 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
         (hasPostings || hasActiveChildren)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Account type cannot change after journal postings exist.'),
+          content: Text('Account type cannot change while postings or active child accounts exist.'),
         ),
       );
       return;
