@@ -99,7 +99,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Implement balanced journal adjustment entry UI workflow.
 - [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
 - [x] Add configurable income/expense categories with linked ledger accounts and category-aware manual journal entries.
-- [x] Add configurable payment methods and account mapping for non-POS workflows (cash, bank, and wallet accounts can be selected directly; a separate payment-method abstraction is deferred unless a shop workflow needs it).
+- [ ] Add configurable payment methods and account mapping for POS and imported payment workflows. Manual finance entries already allow direct cash/bank account selection; POS sync still maps cash to Cash and card/UPI to Bank by default.
 - [x] Add posted-journal search (transaction number, memo, type, reference, and source ID), transaction-type and inclusive date-range filters, and sorting by date, amount, or transaction number. Flutter tests and UI verification remain pending.
 - [x] Add recurring transaction templates with daily/weekly/monthly/quarterly/yearly schedules, idempotent due processing, and month-end cadence handling (tests authored; execution pending).
 - [x] Add ledger integrity and balance tests (authored; execution pending).
@@ -154,9 +154,9 @@ Work branch: `feature/finance-team-promotion`
 
 ## Phase 7 — Finance/HR integration
 
-- [x] Payroll liabilities and linked finance payments (payslip payment is linked to a journal expense/cash-or-bank posting with stable source identity).
+- [ ] Payroll liabilities and linked finance payments. Current payslip payments post a salary expense and cash/bank credit; a payable liability followed by settlement is not yet implemented.
 - [x] Employee-linked advances and reimbursements (employee advances are implemented; employee reimbursements remain deferred as low priority).
-- [x] Cross-module reconciliation and reports (Finance source sync and employee advance reconciliation are available; full HR-wide report consolidation remains deferred).
+- [ ] Complete cross-module reconciliation and reporting. POS/expense-to-journal and employee-advance reconciliation exist; payroll-liability and reimbursement reconciliation remain open.
 
 ## Phase 8 — UI/UX redesign
 
@@ -250,7 +250,7 @@ New overtime entries are saved as pending and excluded from payroll until approv
 Priority for the remaining Finance work is correctness and release safety, not additional modules:
 
 1. Verify the current Hive CE branch with dependency resolution, adapter regeneration, formatting, analysis, tests, and Android release build. The latest recorded validation runs failed; no Finance checklist item is considered release-verified until a green run exists.
-2. Close accounting correctness gaps: payment destination mapping, payroll liability/payment linkage, employee advance corrections, and reversal-safe allocation/history.
+2. Close accounting correctness gaps: configurable POS payment destination mapping, payroll liability/payment linkage, employee advance corrections, and reversal-safe allocation/history.
 3. Keep low-value enterprise scope deferred: salary bands, complex HR reimbursements, advanced approval chains, and multi-user/cloud accounting.
 4. Preserve existing POS, GST, inventory, invoice, printing, and Google Drive backup behaviour. Do not merge this branch to main until branch integration and legacy Hive data migration are tested.
 
