@@ -200,6 +200,25 @@ class FinanceSchemaMigration {
         },
       );
 
+  /// Adds the inventory asset control account used by automatic POS COGS posting.
+  static SchemaMigration get versionElevenToTwelve => SchemaMigration(
+        fromVersion: 11,
+        toVersion: 12,
+        apply: (_) async {
+          final accounts = await Hive.openBox<FinanceAccount>(Boxes.financeAccounts);
+          if (!accounts.containsKey('system:inventory')) {
+            await accounts.put(
+              'system:inventory',
+              FinanceAccount(
+                id: 'system:inventory',
+                name: 'Inventory Asset',
+                accountType: 'asset',
+              ),
+            );
+          }
+        },
+      );
+
   /// Adds primitive-map storage for immutable invoice payment allocations.
   static SchemaMigration get versionSevenToEight => SchemaMigration(
         fromVersion: 7,
