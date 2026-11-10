@@ -18,21 +18,21 @@ Work branch: `feature/finance-team-promotion`
 - Moved Hive apply/rollback into `BackupRestoreService` and added real Hive-box integration tests for successful replacement, app-settings merge, malformed payload rejection without data loss, and legacy settings preservation.
 - Restore now applies only the fully parsed payload, with snapshots retained for best-effort rollback if Hive writes fail.
 - Existing export format, backup filename, Google Drive sign-in/transport, session box, and app-settings merge behavior remain unchanged.
-- Added deterministic write-failure injection to the restore service and a Hive integration test that throws after all replacement writes, then verifies that all original business-data boxes, all six finance boxes, and app settings are restored.
+- Added deterministic write-failure injection to the restore service and a Hive integration test that throws after all replacement writes, then verifies that all original business-data boxes, all seven finance boxes, and app settings are restored.
 - **Validation pending:** the parser/Hive tests (including the new rollback test), Flutter test suite, static analysis, and builds have not been run.
 - Added finance ledger models and Hive adapters using type IDs 10–14: accounts, transaction headers, posting lines, categories, and parties.
-- Added schema migrations 1→2 and 2→3 to create the six finance boxes and seed eleven deterministic accounts, including GST payable and salary expense.
+- Added schema migrations 1→2 and 2→3 to create the seven finance boxes and seed eleven deterministic accounts, including GST payable and salary expense.
 - Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, account/category/party reference validation, unique transaction numbers/source IDs, and posted-only account balances.
 - Added immutable reversal posting: exact opposite journal lines are appended and the original posted transaction is not modified.
 - Added finance persistence/migration and ledger integrity tests. These are authored but have not been executed.
-- Extended Google Drive backup export, parser, restore, snapshots, and rollback to include all six finance boxes. Legacy backups without finance keys preserve current finance data; partial finance collection sets, broken cross-references, duplicate transaction/source identifiers, invalid posting lines, and unbalanced posted entries are rejected before writes.
+- Extended Google Drive backup export, parser, restore, snapshots, and rollback to include all seven finance boxes. Legacy backups without finance keys preserve current finance data; partial finance collection sets, broken cross-references, duplicate transaction/source identifiers, invalid posting lines, and unbalanced posted entries are rejected before writes.
 - Added schema v4 HR persistence for departments, employee attendance, and leave requests. Employee records now include code, contact details, department, designation, joining date, employment status, address, and notes. Attendance can be marked per employee/day; leave requests support overlap checks and approval/rejection, and approved leave creates locked attendance records. HR collections and extended employee profiles are included in backup/restore with validation and rollback tests. Added `FinanceSourceSyncService` for legacy POS sales, GST split, general expenses, and payroll expenses. Stable source IDs and `financeRevision` fields prevent duplicate imports and represent invoice edits as reversal plus replacement entries. Invoice/expense deletion creates reversals. Startup reconciliation reports failures and the Finance tab exposes retry. Manual income/expense/transfer entry and initial accounts, journal, P&L, and cash-flow screens are present. `build_runner`, formatting, analysis, tests, and Android build remain unverified.
 
 ## Phase 0 — Repository audit and safe foundation
 
 - Began the Hive CE migration: replaced `hive`, `hive_flutter`, and `hive_generator` dependencies with `hive_ce` (`^2.23.2`), `hive_ce_flutter` (`2.3.4` pinned for Flutter 3.29.3), and `hive_ce_generator` (`^1.12.1`). Updated application, finance, HR, model, and test imports found during the branch audit. Replaced legacy DropdownButtonFormField `initialValue` arguments with Flutter 3.29-compatible `value` arguments.
 - Added a branch-scoped GitHub Actions workflow to resolve dependencies, regenerate adapters, reject legacy Hive references, format Dart sources, commit the lockfile/generated outputs, analyze, test, and build the Android release. Added a separate Android packaging workflow without duplicate lockfile commits.
-- **Validation pending:** the checked-in lockfile still lists the old Hive packages until the Hive CE validation workflow runs `flutter pub get`; build_runner, formatting, analysis, tests, and Android build have not been observed passing. Added `hive_ce_persistence_smoke_test.dart` for Type ID uniqueness and close/reopen persistence across legacy, finance, and HR boxes. A copied real-world Hive v2 data directory still needs a device-level upgrade test. Hive CE compatibility with a copied real-world Hive v2 data directory remains a release gate.
+- **Validation pending:** the checked-in lockfile still lists the old Hive packages until the Hive CE validation workflow runs `flutter pub get`; build_runner, formatting, analysis, tests, and Android build have not been observed passing. Added `hive_ce_persistence_smoke_test.dart` for Type ID uniqueness 1–22 and close/reopen persistence across legacy, finance, HR, budget, and recurring-template boxes. A copied real-world Hive v2 data directory still needs a device-level upgrade test. Hive CE compatibility with a copied real-world Hive v2 data directory remains a release gate.
 
 - [x] Inspect current Finance and Team screens/services on this branch.
 - [x] Inspect employee and expense persistence models.
@@ -78,14 +78,16 @@ Work branch: `feature/finance-team-promotion`
 - [x] Add configurable income/expense categories with linked ledger accounts and category-aware manual journal entries.
 - [ ] Add configurable payment methods and account mapping for non-POS workflows.
 - [ ] Add transaction search, filtering, sorting, and date ranges.
-- [ ] Add recurring transactions.
+- [x] Add recurring transaction templates with daily/weekly/monthly/quarterly/yearly schedules, idempotent due processing, and month-end cadence handling (tests authored; execution pending).
 - [x] Add ledger integrity and balance tests (authored; execution pending).
 
 ## Phase 3 — Advanced Finance
 
-- [ ] Customer and supplier records.
-- [ ] Receivables and payables with due dates.
-- [ ] Partial payment allocation and outstanding balances.
+- [x] Customer and supplier records with contact and tax identifiers.
+- [x] Receivables and payables linked to customer/supplier party records.
+- [ ] Due dates and ageing reports.
+- [x] Partial customer receipts and supplier payments with party-level outstanding balances.
+- [ ] Invoice-level payment allocation.
 - [x] Budget creation, period tracking, and actual-versus-budget reporting from posted expense journal lines (tests authored; execution pending).
 - [x] Journal-based cash-flow and profit-and-loss summaries.
 - [x] Clearly distinguish POS gross-profit estimate from journal-based accounting profit.
@@ -131,7 +133,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Finance ledger, account management, journal, P&L/cash-flow overview, and source reconciliation screens.
 - [x] Budget tracking screen and budget form.
 - [x] Recurring income/expense templates, schedule processing, and template archive screen.
-- [ ] Receivables and payables screens.
+- [x] Customer/supplier directory and party-level receivable/payable balances.
 - [x] Initial Team dashboard, employee directory, department management, and employee profile screens.
 - [x] Initial attendance, leave, payroll-run, salary-component, and payslip screens.
 - [ ] Responsive phone/tablet/desktop layouts.
