@@ -44,7 +44,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   build_runner: ^2.4.10
-  hive_ce_generator: 1.11.3
+  hive_ce_generator: ^1.12.1
   flutter_launcher_icons: ^0.13.1
 
 # Flutter Launcher Icons configuration
