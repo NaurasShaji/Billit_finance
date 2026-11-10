@@ -10,6 +10,7 @@ import '../../../services/finance_service.dart';
 import 'finance_transaction_form_screen.dart';
 import 'finance_account_form_screen.dart';
 import 'finance_general_ledger_screen.dart';
+import 'finance_bank_reconciliation_screen.dart';
 import '../../../widgets/responsive_page.dart';
 import '../../../widgets/finance_content_frame.dart';
 
@@ -129,6 +130,15 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
                 ),
               ),
               icon: const Icon(Icons.menu_book_outlined),
+            ),
+            IconButton(
+              tooltip: 'Bank reconciliation',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const FinanceBankReconciliationScreen(),
+                ),
+              ),
+              icon: const Icon(Icons.account_balance_outlined),
             ),
             IconButton(
               onPressed: _newTransaction,
