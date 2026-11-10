@@ -12,6 +12,14 @@ class FinanceLedgerException implements Exception {
 
 /// Posting and balance operations for the append-only finance journal.
 class FinanceLedgerService {
+  static const _accountTypes = {
+    'asset',
+    'liability',
+    'equity',
+    'income',
+    'expense',
+  };
+
   static const _transactionTypes = {
     'income',
     'expense',
@@ -25,7 +33,7 @@ class FinanceLedgerService {
   static void validateJournal({
     required FinanceTransaction transaction,
     required List<FinancePosting> postings,
-    required Set<String> accountIds,
+    required Map<String, FinanceAccount> accounts,
   }) {
     if (transaction.id.trim().isEmpty ||
         transaction.transactionNumber.trim().isEmpty) {
@@ -64,9 +72,20 @@ class FinanceLedgerService {
           'Every posting must reference the transaction being posted.',
         );
       }
-      if (!accountIds.contains(line.accountId)) {
+      final account = accounts[line.accountId];
+      if (account == null) {
         throw FinanceLedgerException(
           'Posting references an unknown account: ${line.accountId}',
+        );
+      }
+      if (!account.active) {
+        throw FinanceLedgerException(
+          'Posting references an inactive account: ${line.accountId}',
+        );
+      }
+      if (!_accountTypes.contains(account.accountType)) {
+        throw FinanceLedgerException(
+          'Account ${line.accountId} has an unsupported account type.',
         );
       }
       if (line.debitPaise < 0 || line.creditPaise < 0) {
@@ -123,10 +142,21 @@ class FinanceLedgerService {
       }
     }
 
+    if (transactionsBox.values.any(
+      (existing) =>
+          existing.transactionNumber == transaction.transactionNumber,
+    )) {
+      throw const FinanceLedgerException(
+        'Transaction number already exists.',
+      );
+    }
+
     validateJournal(
       transaction: transaction,
       postings: postings,
-      accountIds: accountsBox.values.map((account) => account.id).toSet(),
+      accounts: {
+        for (final account in accountsBox.values) account.id: account,
+      },
     );
 
     for (final line in postings) {
