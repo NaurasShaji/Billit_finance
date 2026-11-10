@@ -557,7 +557,12 @@ class _FinanceTransactionFormScreenState
                         final invoiceType = partyType == 'customer' ? 'income' : 'expense';
                         final reversed = txBox.values.where((t)=>t.status=='posted' && t.transactionType=='reversal').map((t)=>t.reversedTransactionId).whereType<String>().toSet();
                         final service = FinancePaymentAllocationService();
-                        final invoices = txBox.values.where((t)=>t.status=='posted' && t.transactionType==invoiceType && !reversed.contains(t.id) && !t.date.isAfter(DateTime.now()) && postingBox.values.any((p)=>p.transactionId==t.id && p.accountId==accountId && p.partyId==_partyId)).toList()..sort((a,b)=>a.date.compareTo(b.date));
+                        final invoices = txBox.values.where((t) =>
+                          t.status == 'posted' && t.transactionType == invoiceType &&
+                          !reversed.contains(t.id) && !t.date.isAfter(DateTime.now()) &&
+                          postingBox.values.any((p) => p.transactionId == t.id && p.accountId == accountId && p.partyId == _partyId) &&
+                          service.invoiceOutstandingPaise(invoiceId:t.id, partyId:_partyId!, partyType:partyType, transactions:txBox.values, postings:postingBox.values) > 0,
+                        ).toList()..sort((a,b) => a.date.compareTo(b.date));
                         return Column(crossAxisAlignment:CrossAxisAlignment.stretch, children:[
                           for (var i=0; i<_allocationInvoiceIds.length; i++)
                             Padding(padding:const EdgeInsets.only(top:10), child: Row(crossAxisAlignment:CrossAxisAlignment.start, children:[
