@@ -37,6 +37,7 @@ class HrPayrollService {
   static const advanceSettingsKey = 'hr_employee_advances';
   static const advancePayrollKey = 'hr_advance_payroll_deductions';
   static const payrollAdjustmentsKey = 'hr_payroll_adjustments';
+  static const employeeReimbursementsKey = 'hr_employee_reimbursements';
 
   static const employeeAdvanceAccountId = 'system:employee-advances';
 
@@ -100,6 +101,98 @@ class HrPayrollService {
       ..sort((a,b) => (a['issueDate'] as String).compareTo(b['issueDate'] as String));
   }
 
+  List<Map<String, dynamic>> reimbursements({String? employeeId}) {
+    final raw = Hive.box<dynamic>('app_settings').get(employeeReimbursementsKey);
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((entry) => Map<String, dynamic>.from(entry))
+        .where((entry) => entry['id'] is String && (employeeId == null || entry['employeeId'] == employeeId))
+        .toList()..sort((a, b) => (b['createdAt'] as String? ?? '').compareTo(a['createdAt'] as String? ?? ''));
+  }
+
+  Future<Map<String, dynamic>> submitReimbursement({required String employeeId, required int amountPaise, required DateTime expenseDate, String categoryId = '', String note = ''}) async {
+    final employee = Hive.box<Employee>(Boxes.employees).get(employeeId);
+    if (employee == null || employee.employmentStatus != 'active') throw const HrPayrollServiceException('Select an active employee.');
+    if (amountPaise <= 0 || note.trim().isEmpty) throw const HrPayrollServiceException('Enter a positive claim amount and a description.');
+    if (expenseDate.isAfter(DateTime.now())) throw const HrPayrollServiceException('Reimbursement date cannot be in the future.');
+    if (categoryId.isNotEmpty) {
+      final category = Hive.box<FinanceCategory>(Boxes.financeCategories).get(categoryId);
+      if (category == null || !category.active || category.kind != 'expense') throw const HrPayrollServiceException('Select an active expense category.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final claims = reimbursements();
+    final claim = {'id': const Uuid().v4(), 'employeeId': employeeId, 'amountPaise': amountPaise, 'paidPaise': 0, 'expenseDate': _day(expenseDate).toIso8601String(), 'categoryId': categoryId, 'note': note.trim(), 'status': 'submitted', 'createdAt': DateTime.now().toIso8601String(), 'payments': <Map<String, dynamic>>[]};
+    await settings.put(employeeReimbursementsKey, [...claims, claim]);
+    return claim;
+  }
+
+  Future<void> reviewReimbursement({required String claimId, required String decision, String reason = ''}) async {
+    if (decision != 'approved' && decision != 'rejected') throw const HrPayrollServiceException('Decision must be approved or rejected.');
+    if (decision == 'rejected' && reason.trim().isEmpty) throw const HrPayrollServiceException('A rejection reason is required.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(employeeReimbursementsKey);
+    if (raw is! List) throw const HrPayrollServiceException('Reimbursement claim was not found.');
+    final claims = List<dynamic>.from(raw);
+    final index = claims.indexWhere((entry) => entry is Map && entry['id'] == claimId);
+    if (index < 0) throw const HrPayrollServiceException('Reimbursement claim was not found.');
+    final claim = Map<String, dynamic>.from(claims[index] as Map);
+    if (claim['status'] != 'submitted') throw const HrPayrollServiceException('Only submitted reimbursement claims can be reviewed.');
+    claim['status'] = decision;
+    claim['reviewedAt'] = DateTime.now().toIso8601String();
+    claim['reviewNote'] = reason.trim();
+    claims[index] = claim;
+    await settings.put(employeeReimbursementsKey, claims);
+  }
+
+  Future<Map<String, dynamic>> payReimbursement({required String claimId, required int amountPaise, required String paymentAccountId}) async {
+    if (amountPaise <= 0) throw const HrPayrollServiceException('Payment amount must be positive.');
+    _requireAdvanceCashAccount(paymentAccountId);
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(employeeReimbursementsKey);
+    if (raw is! List) throw const HrPayrollServiceException('Reimbursement claim was not found.');
+    final claims = List<dynamic>.from(raw);
+    final index = claims.indexWhere((entry) => entry is Map && entry['id'] == claimId);
+    if (index < 0) throw const HrPayrollServiceException('Reimbursement claim was not found.');
+    final claim = Map<String, dynamic>.from(claims[index] as Map);
+    if (claim['status'] != 'approved' && claim['status'] != 'partially_paid') throw const HrPayrollServiceException('Approve the reimbursement claim before payment.');
+    final total = claim['amountPaise'];
+    final paid = claim['paidPaise'];
+    if (total is! int || paid is! int || amountPaise > total - paid) throw const HrPayrollServiceException('Payment exceeds the reimbursement amount outstanding.');
+    final categoryId = claim['categoryId'] is String ? claim['categoryId'] as String : '';
+    final category = categoryId.isEmpty ? null : Hive.box<FinanceCategory>(Boxes.financeCategories).get(categoryId);
+    if (categoryId.isNotEmpty && (category == null || !category.active || category.kind != 'expense')) throw const HrPayrollServiceException('The reimbursement expense category is unavailable.');
+    final expenseAccountId = category?.accountId ?? 'system:operating-expense';
+    _requirePayrollAccount(expenseAccountId, 'expense');
+    final sourceId = '$claimId:from:$paid';
+    final transactionId = 'finance:employee-reimbursement:$sourceId';
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final postings = Hive.box<FinancePosting>(Boxes.financePostings);
+    final existing = transactions.values.where((tx) => tx.sourceType == 'employee_reimbursement_payment' && tx.sourceId == sourceId).toList();
+    if (existing.isEmpty) {
+      await FinanceLedgerService().postTransaction(
+        transaction: FinanceTransaction(id: transactionId, transactionNumber: 'REIMB-$claimId-$paid', transactionType: 'expense', date: DateTime.now(), memo: 'Employee reimbursement: ${claim['note']}', sourceType: 'employee_reimbursement_payment', sourceId: sourceId),
+        postings: [
+          FinancePosting(id: '$transactionId:expense', transactionId: transactionId, accountId: expenseAccountId, debitPaise: amountPaise, categoryId: categoryId.isEmpty ? null : categoryId, memo: 'Employee reimbursement'),
+          FinancePosting(id: '$transactionId:payment', transactionId: transactionId, accountId: paymentAccountId, creditPaise: amountPaise, memo: 'Reimbursement settlement'),
+        ],
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: transactions, postingsBox: postings,
+        categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories), partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      );
+    } else {
+      if (existing.length != 1 || existing.single.id != transactionId || existing.single.status != 'posted') throw const HrPayrollServiceException('Conflicting reimbursement payment journal exists.');
+      final lines = postings.values.where((line) => line.transactionId == transactionId).toList();
+      if (lines.length != 2 || lines.where((line) => line.accountId == expenseAccountId).fold<int>(0, (sum, line) => sum + line.debitPaise) != amountPaise || lines.where((line) => line.accountId == paymentAccountId).fold<int>(0, (sum, line) => sum + line.creditPaise) != amountPaise) throw const HrPayrollServiceException('Existing reimbursement journal does not match this payment request.');
+    }
+    final payments = (claim['payments'] as List? ?? []).whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).toList();
+    if (!payments.any((entry) => entry['sourceId'] == sourceId)) payments.add({'sourceId': sourceId, 'amountPaise': amountPaise, 'paymentAccountId': paymentAccountId, 'date': DateTime.now().toIso8601String(), 'journalId': transactionId});
+    final newPaid = paid + amountPaise;
+    claim['paidPaise'] = newPaid;
+    claim['payments'] = payments;
+    claim['status'] = newPaid == total ? 'paid' : 'partially_paid';
+    claim['paidAt'] = newPaid == total ? DateTime.now().toIso8601String() : null;
+    claims[index] = claim;
+    await settings.put(employeeReimbursementsKey, claims);
+    return claim;
+  }
   Future<void> addEmployeeAdvance({
     required String employeeId, required int principalPaise,
     required int installmentPaise, required DateTime issueDate,
