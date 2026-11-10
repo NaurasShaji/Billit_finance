@@ -118,6 +118,51 @@ class FinanceLedgerService {
       totalCredits += line.creditPaise;
     }
 
+    final debitLines = postings.where((line) => line.debitPaise > 0);
+    final creditLines = postings.where((line) => line.creditPaise > 0);
+    bool allAccountsMatch(
+      Iterable<FinancePosting> lines,
+      bool Function(FinanceAccount) predicate,
+    ) =>
+        lines.every((line) => predicate(accounts[line.accountId]!));
+
+    final validAccountMapping = switch (transaction.transactionType) {
+      'income' =>
+        allAccountsMatch(debitLines, (account) => account.accountType == 'asset') &&
+            allAccountsMatch(
+              creditLines,
+              (account) =>
+                  account.accountType == 'income' ||
+                  account.accountType == 'liability',
+            ),
+      'expense' =>
+        allAccountsMatch(
+          debitLines,
+          (account) => account.accountType == 'expense',
+        ) &&
+            allAccountsMatch(
+              creditLines,
+              (account) =>
+                  account.accountType == 'asset' ||
+                  account.accountType == 'liability',
+            ),
+      'transfer' =>
+        allAccountsMatch(debitLines, (account) => account.accountType == 'asset') &&
+            allAccountsMatch(creditLines, (account) => account.accountType == 'asset'),
+      'customer_receipt' =>
+        allAccountsMatch(debitLines, (account) => account.accountType == 'asset') &&
+            creditLines.every((line) => line.accountId == 'system:receivables'),
+      'supplier_payment' =>
+        debitLines.every((line) => line.accountId == 'system:payables') &&
+            allAccountsMatch(creditLines, (account) => account.accountType == 'asset'),
+      _ => true,
+    };
+    if (!validAccountMapping) {
+      throw FinanceLedgerException(
+        'Posting accounts do not match transaction type ${transaction.transactionType}.',
+      );
+    }
+
     if (totalDebits <= 0 || totalDebits != totalCredits) {
       throw FinanceLedgerException(
         'Journal entry is unbalanced: debits=$totalDebits paise, '
