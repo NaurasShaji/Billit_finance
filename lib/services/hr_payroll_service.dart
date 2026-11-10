@@ -299,16 +299,29 @@ class HrPayrollService {
     );
     await slipsBox.put(updatedSlip.id, updatedSlip);
 
+    await _refreshRunStatus(run, slipsBox);
+    return updatedSlip;
+  }
+
+  Future<void> _refreshRunStatus(
+    PayrollRun run,
+    Box<Payslip> slipsBox,
+  ) async {
     final allSlips = slipsBox.values
         .where((item) => item.payrollRunId == run.id)
         .toList();
-    if (allSlips.every((item) => item.status == 'paid')) {
-      await runsBox.put(
+    if (allSlips.isNotEmpty &&
+        allSlips.every((item) => item.status == 'paid') &&
+        run.status != 'paid') {
+      await Hive.box<PayrollRun>(Boxes.payrollRuns).put(
         run.id,
-        _copyRun(run, status: 'paid', paidAt: DateTime.now()),
+        _copyRun(
+          run,
+          status: 'paid',
+          paidAt: run.paidAt ?? DateTime.now(),
+        ),
       );
     }
-    return updatedSlip;
   }
 
   Future<SalaryComponent> addSalaryComponent({
