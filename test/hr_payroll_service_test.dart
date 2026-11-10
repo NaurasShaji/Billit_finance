@@ -351,6 +351,14 @@ void main() {
       ).accountId,
       'system:bank',
     );
+    await expectLater(
+      payroll.payPayslip(
+        payslipId: monthlySlip.id,
+        amountPaise: 1,
+        cashAccountId: 'system:operating-expense',
+      ),
+      throwsA(isA<HrPayrollServiceException>()),
+    );
 
     final secondPayment = await payroll.payPayslip(
       payslipId: monthlySlip.id,
