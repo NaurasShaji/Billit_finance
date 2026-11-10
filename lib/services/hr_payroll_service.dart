@@ -93,6 +93,16 @@ class HrPayrollService {
     if (index < 0) throw const HrPayrollServiceException('Advance was not found.');
     final advance = Map<String,dynamic>.from(list[index] as Map);
     final outstanding = advance['outstandingPaise'] as int;
+    final pendingRaw = settings.get(advancePayrollKey);
+    if (pendingRaw is Map) {
+      for (final pending in pendingRaw.entries) {
+        final slip = Hive.box<Payslip>(Boxes.payslips).get(pending.key);
+        if (slip != null && slip.status != 'paid' && pending.value is List &&
+            (pending.value as List).whereType<Map>().any((item) => item['advanceId'] == advanceId && item['employeeId'] == employeeId)) {
+          throw const HrPayrollServiceException('This advance has a deduction reserved by an unpaid payslip. Settle or correct that payroll before recording a manual repayment.');
+        }
+      }
+    }
     if (amountPaise > outstanding) throw const HrPayrollServiceException('Repayment cannot exceed the outstanding advance balance.');
     final repayments = (advance['repayments'] as List? ?? []).whereType<Map>()
         .map((e) => Map<String,dynamic>.from(e)).toList();
