@@ -86,6 +86,14 @@ class _FinanceTransactionFormScreenState
   String? get _partyTypeFilter => switch (_type) {
         'income' || 'customer_receipt' => 'customer',
         'expense' || 'supplier_payment' => 'supplier',
+        'adjustment' =>
+          _debitAccountId == 'system:receivables' ||
+                  _creditAccountId == 'system:receivables'
+              ? 'customer'
+              : _debitAccountId == 'system:payables' ||
+                      _creditAccountId == 'system:payables'
+                  ? 'supplier'
+                  : null,
         _ => null,
       };
 
@@ -93,7 +101,12 @@ class _FinanceTransactionFormScreenState
       _type == 'customer_receipt' ||
       _type == 'supplier_payment' ||
       (_type == 'income' && _debitAccountId == 'system:receivables') ||
-      (_type == 'expense' && _creditAccountId == 'system:payables');
+      (_type == 'expense' && _creditAccountId == 'system:payables') ||
+      (_type == 'adjustment' &&
+          (_debitAccountId == 'system:receivables' ||
+              _creditAccountId == 'system:receivables' ||
+              _debitAccountId == 'system:payables' ||
+              _creditAccountId == 'system:payables'));
 
   String get _debitLabel => switch (_type) {
         'income' => 'Deposit to / receivable',
@@ -122,6 +135,18 @@ class _FinanceTransactionFormScreenState
         creditAccountId == null ||
         amountPaise == null ||
         amountPaise <= 0) {
+      return;
+    }
+    final touchesReceivables = debitAccountId == 'system:receivables' ||
+        creditAccountId == 'system:receivables';
+    final touchesPayables = debitAccountId == 'system:payables' ||
+        creditAccountId == 'system:payables';
+    if (touchesReceivables && touchesPayables) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Adjust receivables and payables in separate entries.'),
+        ),
+      );
       return;
     }
     if ((_type == 'transfer' ||
