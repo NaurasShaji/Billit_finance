@@ -318,10 +318,21 @@ class SalaryComponentsScreen extends StatelessWidget {
     final name = TextEditingController();
     final minimum = TextEditingController();
     final maximum = TextEditingController();
+    String payBasis = employee.type;
     final saved = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
       title: const Text('Create salary grade band'),
       content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: name, decoration: const InputDecoration(labelText: 'Grade name')),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: payBasis,
+          decoration: const InputDecoration(labelText: 'Pay basis'),
+          items: const [
+            DropdownMenuItem(value: 'monthly', child: Text('Monthly base pay')),
+            DropdownMenuItem(value: 'daily', child: Text('Daily wage')),
+          ],
+          onChanged: (value) { if (value != null) payBasis = value; },
+        ),
         const SizedBox(height: 8),
         TextField(controller: minimum, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Minimum base pay (INR)')),
         const SizedBox(height: 8),
@@ -338,7 +349,7 @@ class SalaryComponentsScreen extends StatelessWidget {
     ));
     if (saved == true) {
       try {
-        await HrPayrollService().createSalaryGrade(name: name.text, minPaise: _parsePaise(minimum.text)!, maxPaise: _parsePaise(maximum.text)!);
+        await HrPayrollService().createSalaryGrade(name: name.text, payBasis: payBasis, minPaise: _parsePaise(minimum.text)!, maxPaise: _parsePaise(maximum.text)!);
         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salary grade created.')));
       } catch (error) {
         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not create grade: $error')));
@@ -348,7 +359,9 @@ class SalaryComponentsScreen extends StatelessWidget {
   }
 
   Future<void> _assignSalaryGrade(BuildContext context) async {
-    final grades = HrPayrollService().salaryGrades();
+    final grades = HrPayrollService().salaryGrades()
+        .where((grade) => grade['payBasis'] == employee.type)
+        .toList();
     if (grades.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Create a salary grade band first.')));
       return;
@@ -390,7 +403,7 @@ class SalaryComponentsScreen extends StatelessWidget {
   }
 
   String currencyRange(Map<String, dynamic> grade) =>
-      '₹${((grade['minPaise'] as int) / 100).toStringAsFixed(0)}–₹${((grade['maxPaise'] as int) / 100).toStringAsFixed(0)}';
+      '₹${((grade['minPaise'] as int) / 100).toStringAsFixed(0)}–₹${((grade['maxPaise'] as int) / 100).toStringAsFixed(0)} ${grade['payBasis'] == 'daily' ? 'per day' : 'per month'}';
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.simpleCurrency(locale: 'en_IN');
