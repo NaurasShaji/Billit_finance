@@ -66,6 +66,9 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
             if (employees.isEmpty) {
               return const Center(child: Text('No employee records available.'));
             }
+            final recordsInPeriod = attendanceBox.values.where((record) =>
+                !HrService.day(record.date).isBefore(HrService.day(_start)) &&
+                !HrService.day(record.date).isAfter(HrService.day(_end))).length;
             final service = HrService();
             final rows = employees.map((employee) {
               final summary = service.summarizeAttendance(
@@ -89,7 +92,7 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
                 Card(
                   child: ListTile(
                     title: const Text('Reporting period'),
-                    subtitle: Text('${dateFormat.format(_start)} – ${dateFormat.format(_end)}'),
+                    subtitle: Text('${dateFormat.format(_start)} – ${dateFormat.format(_end)} · $recordsInPeriod records'),
                     trailing: const Icon(Icons.edit_calendar_outlined),
                     onTap: _pickRange,
                   ),
