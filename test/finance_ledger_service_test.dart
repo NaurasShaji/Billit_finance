@@ -78,6 +78,18 @@ void main() {
         ),
       ];
 
+  test('finance adapter IDs remain unique and reserved from legacy IDs', () {
+    final ids = [
+      FinanceAccountAdapter().typeId,
+      FinanceTransactionAdapter().typeId,
+      FinancePostingAdapter().typeId,
+      FinanceCategoryAdapter().typeId,
+      FinancePartyAdapter().typeId,
+    ];
+    expect(ids, [10, 11, 12, 13, 14]);
+    expect(ids.toSet(), hasLength(5));
+  });
+
   test('schema v2 creates finance boxes and stable default accounts', () async {
     expect(settings.get(SchemaMigrationService.versionKey), 2);
     expect(accounts.get('system:cash')!.accountType, 'asset');
