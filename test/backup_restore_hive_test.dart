@@ -236,6 +236,40 @@ void main() {
         accountType: 'asset',
       ),
     );
+    await financeTransactions.put(
+      'old-finance-transaction',
+      FinanceTransaction(
+        id: 'old-finance-transaction',
+        transactionNumber: 'OLD-1',
+        transactionType: 'adjustment',
+      ),
+    );
+    await financePostings.put(
+      'old-finance-posting',
+      FinancePosting(
+        id: 'old-finance-posting',
+        transactionId: 'old-finance-transaction',
+        accountId: 'old-account',
+        debitPaise: 100,
+      ),
+    );
+    await financeCategories.put(
+      'old-finance-category',
+      FinanceCategory(
+        id: 'old-finance-category',
+        name: 'Old category',
+        kind: 'expense',
+        accountId: 'old-account',
+      ),
+    );
+    await financeParties.put(
+      'old-finance-party',
+      FinanceParty(
+        id: 'old-finance-party',
+        name: 'Old party',
+        partyType: 'supplier',
+      ),
+    );
 
     var injected = false;
     await expectLater(
@@ -288,6 +322,10 @@ void main() {
     expect(settings.get('business_name'), 'Original business');
     expect(financeAccounts.keys, ['old-account']);
     expect(financeAccounts.get('old-account')!.name, 'Old account');
+    expect(financeTransactions.keys, ['old-finance-transaction']);
+    expect(financePostings.keys, ['old-finance-posting']);
+    expect(financeCategories.keys, ['old-finance-category']);
+    expect(financeParties.keys, ['old-finance-party']);
     expect(users.get('old-user')!.username, 'old-user');
     expect(products.get('old-product')!.name, 'Existing product');
     expect(sales.get('old-sale')!.totalAmount, 20);
