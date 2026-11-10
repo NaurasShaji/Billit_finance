@@ -282,12 +282,20 @@ class HrPayrollService {
         employeesBox: Hive.box<Employee>(Boxes.employees),
       );
     } catch (error) {
+      // Do not mark the payslip as paid when its accounting journal failed.
+      // Keep the source expense so startup reconciliation or a later retry can
+      // post it idempotently using the stable expense ID.
       if (Hive.isBoxOpen('app_settings')) {
         await FinanceSourceSyncService.recordIssue(
           Hive.box<dynamic>('app_settings'),
           'Payroll run ${run.id}, payslip ${slip.id}: $error',
         );
       }
+      throw HrPayrollServiceException(
+        'Payroll payment was saved, but its finance journal could not be posted. '
+        'The payslip remains unpaid; retry finance reconciliation before '
+        'recording another payment. Details: $error',
+      );
     }
 
     final paidPaise = slip.paidPaise + actualPaymentPaise;
