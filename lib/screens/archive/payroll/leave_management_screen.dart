@@ -38,7 +38,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: employeeId,
+                    value: employeeId,
                     decoration: const InputDecoration(labelText: 'Employee'),
                     items: [
                       for (final employee in employees)
@@ -52,7 +52,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: leaveType,
+                    value: leaveType,
                     decoration: const InputDecoration(labelText: 'Leave type'),
                     items: const [
                       DropdownMenuItem(value: 'casual', child: Text('Casual')),
