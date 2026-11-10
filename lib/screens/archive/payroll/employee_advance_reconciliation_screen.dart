@@ -81,7 +81,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                       malformedCount++;
                       continue;
                     }
-                    final item = Map<String, dynamic>.from(value);
+                    final item = value;
                     final advanceId = item['id'] as String;
                     advanceCount++;
                     final principal = _amount(item['principalPaise']);
