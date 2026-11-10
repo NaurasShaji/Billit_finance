@@ -172,6 +172,42 @@ void main() {
       );
     });
 
+    test('rejects recurring templates with mismatched account types', () {
+      expect(
+        () => service.parse({
+          'financeAccounts': [
+            {
+              'id': 'cash',
+              'name': 'Cash',
+              'accountType': 'asset',
+            },
+            {
+              'id': 'expense',
+              'name': 'Expense',
+              'accountType': 'expense',
+            },
+          ],
+          'financeTransactions': [],
+          'financePostings': [],
+          'financeCategories': [],
+          'financeParties': [],
+          'financeRecurringTemplates': [
+            {
+              'id': 'invalid-template',
+              'name': 'Invalid expense',
+              'transactionType': 'expense',
+              'debitAccountId': 'cash',
+              'creditAccountId': 'expense',
+              'amountPaise': 10000,
+              'interval': 'monthly',
+              'nextDueDate': '2026-11-01T00:00:00.000',
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
     test('rejects posted finance transactions with unbalanced postings', () {
       expect(
         () => service.parse({
