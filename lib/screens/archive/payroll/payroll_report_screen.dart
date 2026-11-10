@@ -79,8 +79,10 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
               .where((run) => !run.periodEnd.isBefore(rangeStart) && run.periodEnd.isBefore(rangeEnd))
               .toList();
           final runIds = payrollRuns.map((run) => run.id).toSet();
+          final payrollTransactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions).values;
           final accruedSlips = payslipsBox.values
-              .where((slip) => runIds.contains(slip.payrollRunId))
+              .where((slip) => runIds.contains(slip.payrollRunId) &&
+                  payrollTransactions.any((tx) => tx.sourceType == 'payroll_accrual' && tx.sourceId == slip.id && tx.status == 'posted'))
               .toList();
           final accruedGross = accruedSlips.fold<int>(0, (sum, slip) => sum + slip.basePaise + slip.allowancesPaise);
           final accruedDeductions = accruedSlips.fold<int>(0, (sum, slip) => sum + slip.deductionsPaise);
