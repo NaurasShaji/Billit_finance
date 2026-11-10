@@ -127,11 +127,22 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                     var missingManual = 0;
                     var invalidManual = 0;
                     var manualCount = 0;
-                    final payrollPayslipIds = <String>{};
+                    final payrollRecoveryAmounts = <String, int>{};
+                    var malformedPayrollRepayments = 0;
                     for (final repayment in repayments) {
                       final source = repayment['source'];
-                      if (source == 'payroll' && repayment['payslipId'] is String) {
-                        payrollPayslipIds.add(repayment['payslipId'] as String);
+                      if (source == 'payroll') {
+                        final payslipId = repayment['payslipId'];
+                        final amount = repayment['amountPaise'];
+                        if (payslipId is! String || amount is! int || amount <= 0) {
+                          malformedPayrollRepayments++;
+                        } else {
+                          payrollRecoveryAmounts.update(
+                            payslipId,
+                            (existing) => existing + amount,
+                            ifAbsent: () => amount,
+                          );
+                        }
                       }
                       if (source != 'manual' || repayment['id'] is! String) continue;
                       manualCount++;
@@ -160,19 +171,39 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
 
                     final payrollJournals = transactionBox.values.where((tx) =>
                         tx.sourceType == 'payroll_advance_recovery' &&
-                        payrollPayslipIds.contains(tx.sourceId)).toList();
+                        payrollRecoveryAmounts.containsKey(tx.sourceId)).toList();
                     final duplicatePayrollJournals =
                         payrollJournals.map((tx) => tx.sourceId).toSet().length != payrollJournals.length;
-                    final missingPayrollJournals = payrollPayslipIds.length -
-                        payrollJournals.map((tx) => tx.sourceId).toSet().length;
+                    final linkedPayrollIds = payrollJournals.map((tx) => tx.sourceId).toSet();
+                    final missingPayrollJournals = payrollRecoveryAmounts.keys
+                        .where((id) => !linkedPayrollIds.contains(id)).length;
+                    var invalidPayrollJournals = 0;
+                    for (final payslipId in linkedPayrollIds) {
+                      final linked = payrollJournals.where((tx) => tx.sourceId == payslipId).toList();
+                      if (linked.length != 1) {
+                        invalidPayrollJournals++;
+                        continue;
+                      }
+                      final linkedLines = _linesFor(postingBox, linked.single.id);
+                      if (!_matchesJournal(
+                        transaction: linked.single,
+                        lines: linkedLines,
+                        debitAccountId: 'system:salary-expense',
+                        creditAccountId: _advanceAccountId,
+                        amountPaise: payrollRecoveryAmounts[payslipId]!,
+                      )) {
+                        invalidPayrollJournals++;
+                      }
+                    }
                     final openingProblem = openingJournals.length > 1 ||
                         (openingJournals.length == 1 && !openingValid) ||
                         (issueValid && openingValid);
                     final issueProblem = issueJournals.length > 1 ||
                         openingProblem || (!issueValid && !openingValid);
                     final repaymentProblem = missingManual > 0 ||
-                        invalidManual > 0 || duplicatePayrollJournals ||
-                        missingPayrollJournals > 0;
+                        invalidManual > 0 || malformedPayrollRepayments > 0 ||
+                        duplicatePayrollJournals || missingPayrollJournals > 0 ||
+                        invalidPayrollJournals > 0;
                     if (issueProblem) issueProblemCount++;
                     if (repaymentProblem) repaymentProblemCount++;
 
@@ -209,10 +240,12 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                           _detail('Manual repayment records', manualCount.toString()),
                           _detail('Missing manual journals', missingManual.toString()),
                           _detail('Invalid/duplicate manual journals', invalidManual.toString()),
-                          _detail('Payroll recovery records', payrollPayslipIds.length.toString()),
+                          _detail('Payroll recovery records', payrollRecoveryAmounts.length.toString()),
                           _detail('Linked payroll recovery journals', payrollJournals.length.toString()),
                           _detail('Missing payroll recovery journals', missingPayrollJournals.toString()),
-                          if (duplicatePayrollJournals || missingPayrollJournals > 0)
+                          _detail('Invalid payroll recovery journals', invalidPayrollJournals.toString()),
+                          _detail('Malformed payroll repayment records', malformedPayrollRepayments.toString()),
+                          if (duplicatePayrollJournals || missingPayrollJournals > 0 || invalidPayrollJournals > 0 || malformedPayrollRepayments > 0)
                             const ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: Icon(Icons.warning_amber_rounded),
