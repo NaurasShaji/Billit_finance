@@ -1666,8 +1666,11 @@ class HrPayrollService {
     if (grades.length != 1) throw const HrPayrollServiceException('Select an active salary grade.');
     if (grades.single['payBasis'] != employee.type) throw const HrPayrollServiceException('Salary grade pay basis must match the employee pay type.');
     final date = _day(effectiveDate);
-    final hasPayrollSnapshot = Hive.box<PayrollRun>(Boxes.payrollRuns).values.any((run) =>
-        !date.isAfter(_day(run.periodEnd)) && !date.isBefore(_day(run.periodStart)));
+    final payrollRuns = Hive.box<PayrollRun>(Boxes.payrollRuns).values;
+    final payrollSlips = Hive.box<Payslip>(Boxes.payslips).values;
+    final hasPayrollSnapshot = payrollRuns.any((run) =>
+        !_day(run.periodEnd).isBefore(date) &&
+        payrollSlips.any((slip) => slip.payrollRunId == run.id && slip.employeeId == employeeId));
     if (hasPayrollSnapshot) throw const HrPayrollServiceException('A payroll run already covers this grade effective date. Use an approved payroll adjustment instead.');
     final base = basePayPaiseFor(employee, date);
     final min = grades.single['minPaise'] as int;
@@ -1768,9 +1771,11 @@ class HrPayrollService {
     if (grade != null && (basePaise < (grade['minPaise'] as int) || basePaise > (grade['maxPaise'] as int))) {
       throw const HrPayrollServiceException('New base pay is outside the assigned salary grade range.');
     }
-    final hasSnapshot = Hive.box<PayrollRun>(Boxes.payrollRuns).values.any(
-      (run) => !_day(run.periodEnd).isBefore(date),
-    );
+    final payrollRuns = Hive.box<PayrollRun>(Boxes.payrollRuns).values;
+    final payrollSlips = Hive.box<Payslip>(Boxes.payslips).values;
+    final hasSnapshot = payrollRuns.any((run) =>
+        !_day(run.periodEnd).isBefore(date) &&
+        payrollSlips.any((slip) => slip.payrollRunId == run.id && slip.employeeId == employeeId));
     if (hasSnapshot) {
       throw const HrPayrollServiceException(
         'A payroll run already covers this effective date. Use a payroll adjustment instead of changing historical base pay.',
