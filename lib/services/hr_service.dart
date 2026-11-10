@@ -474,6 +474,12 @@ class HrService {
           (policy.annualEntitlementDays != 0 || policy.carryForwardDays != 0)) {
         throw const HrServiceException('Unpaid leave cannot accrue or carry paid leave days.');
       }
+      if (policy.carryForwardDays > 0 &&
+          (!policy.accrualEnabled || policy.annualEntitlementDays == 0)) {
+        throw const HrServiceException(
+          'Carry-forward requires an enabled paid leave entitlement.',
+        );
+      }
       if (!policy.accrualEnabled && policy.annualEntitlementDays != 0) {
         throw const HrServiceException('Disable accrual only when the entitlement is zero.');
       }
