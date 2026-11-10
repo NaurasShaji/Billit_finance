@@ -42,6 +42,9 @@ Future<void> main() async {
   Hive.registerAdapter(HrDepartmentAdapter()); // typeId 15
   Hive.registerAdapter(EmployeeAttendanceAdapter()); // typeId 16
   Hive.registerAdapter(LeaveRequestAdapter()); // typeId 17
+  Hive.registerAdapter(SalaryComponentAdapter()); // typeId 18
+  Hive.registerAdapter(PayrollRunAdapter()); // typeId 19
+  Hive.registerAdapter(PayslipAdapter()); // typeId 20
 
   await Hive.openBox<User>(Boxes.users);
   await Hive.openBox<Product>(Boxes.products);
@@ -51,13 +54,14 @@ Future<void> main() async {
   await Hive.openBox('session');
   final settings = await Hive.openBox<dynamic>('app_settings');
 
-  // Sequential migrations add finance (v2/v3) and HR persistence (v4).
+  // Sequential migrations add finance (v2/v3) and HR (v4/v5).
   await SchemaMigrationService(
-    currentVersion: 4,
+    currentVersion: 5,
     migrations: [
       FinanceSchemaMigration.versionOneToTwo,
       FinanceSchemaMigration.versionTwoToThree,
       FinanceSchemaMigration.versionThreeToFour,
+      FinanceSchemaMigration.versionFourToFive,
     ],
   ).run(settings);
 
