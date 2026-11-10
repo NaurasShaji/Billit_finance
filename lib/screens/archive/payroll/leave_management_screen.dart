@@ -158,7 +158,8 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
     };
     final saved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
         title: const Text('Annual leave entitlements'),
         content: SizedBox(
           width: 420,
@@ -218,6 +219,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save policies')),
         ],
+      ),
       ),
     );
     if (saved == true) {
