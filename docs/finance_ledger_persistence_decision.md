@@ -15,9 +15,9 @@ Use:
 
 A posted journal transaction must balance: total debits equal total credits. Draft transactions may be incomplete, but they must not affect balances or reports.
 
-## 2. Proposed Hive persistence types
+## 2. Hive persistence types
 
-Use new, reserved Hive type IDs beginning at 10. Confirm the current registry before assigning IDs in code; never reuse IDs 1–9.
+Implemented on this branch with reserved Hive type IDs 10–14. The five models use string-valued classification fields rather than persisted enums; never reuse IDs 1–14.
 
 | Model | Purpose | Key persisted fields |
 |---|---|---|
@@ -29,7 +29,7 @@ Use new, reserved Hive type IDs beginning at 10. Confirm the current registry be
 
 Use separate boxes for accounts, transaction headers, posting lines, categories, and parties. Keep posting lines independently queryable by transaction/account/date; do not rely on embedding an unbounded posting list in one transaction object.
 
-The exact model fields and validation rules will be finalized when implementing the models. Do not add these types until the schema-version/migration foundation is in place.
+Implemented model fields are in `lib/models/finance_*.dart`; generated Hive adapters are checked in alongside them. Schema migration 1→2 creates the five boxes and seeds nine stable default accounts. The journal service validates balanced integer-paise entries and writes postings before marking a transaction posted. Backup export/restore integration and failure-injection coverage for ledger writes remain pending.
 
 ## 3. Posting rules
 
@@ -72,8 +72,8 @@ Do not repurpose or remove existing `Sale`, `Expense`, `Employee`, or payroll pa
 
 ## 7. Migration and rollout sequence
 
-1. [x] Add schema versioning and a migration runner without changing existing boxes. The runner is integrated into startup; legacy installations receive schema version 1. Migration tests are authored but still require execution.
-2. Add and test new adapters, boxes, and model serialization.
+1. [x] Add schema versioning and a migration runner without changing existing boxes. The runner is integrated into startup; legacy installations receive schema version 1.
+2. [x] Add five finance models, Hive adapters, boxes, and schema migration 1→2 with default accounts. Persistence and migration tests are authored but still require execution.
 3. Create default chart-of-account records and opening-balance journal transactions.
 4. Import legacy expenses with deterministic IDs/source keys; reconcile counts and totals.
 5. Add POS sale posting with duplicate protection; verify sales totals are not double-counted.
