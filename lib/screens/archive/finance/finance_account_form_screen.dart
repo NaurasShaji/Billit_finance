@@ -65,6 +65,12 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
     if (_saving || !_formKey.currentState!.validate()) return;
     final name = _name.text.trim();
     final currency = _currency.text.trim().toUpperCase();
+    if (currency != 'INR') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only INR is supported by the current paise ledger.')),
+      );
+      return;
+    }
     final openingPaise = _parsePaise(_openingBalance.text);
     if (openingPaise == null) return;
 
@@ -83,6 +89,16 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
         Hive.box<FinancePosting>(Boxes.financePostings)
             .values
             .any((line) => line.accountId == existing.id);
+    if (existing != null &&
+        existing.currencyCode != currency &&
+        hasPostings) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Currency cannot change after journal postings exist.'),
+        ),
+      );
+      return;
+    }
     if (existing != null &&
         existing.accountType != _type &&
         hasPostings) {
