@@ -218,6 +218,58 @@ class HrPayrollService {
     await settings.put(employeeReimbursementsKey, claims);
     return claim;
   }
+  Future<void> reverseReimbursementClaim({required String claimId, required String reason}) async {
+    if (reason.trim().isEmpty) throw const HrPayrollServiceException('A cancellation/reversal reason is required.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(employeeReimbursementsKey);
+    if (raw is! List) throw const HrPayrollServiceException('Reimbursement claim was not found.');
+    final claims = List<dynamic>.from(raw);
+    final index = claims.indexWhere((entry) => entry is Map && entry['id'] == claimId);
+    if (index < 0) throw const HrPayrollServiceException('Reimbursement claim was not found.');
+    final claim = Map<String, dynamic>.from(claims[index] as Map);
+    if (claim['status'] == 'cancelled') return;
+    if (claim['status'] != 'approved' && claim['status'] != 'partially_paid' && claim['status'] != 'paid') throw const HrPayrollServiceException('Only approved reimbursement claims can be cancelled.');
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final payments = (claim['payments'] as List? ?? []).whereType<Map>().toList();
+    // Reverse cash settlements first. This records the return of funds to the original payment account.
+    for (final payment in payments.reversed) {
+      final journalId = payment['journalId'];
+      if (journalId is! String) throw const HrPayrollServiceException('Reimbursement payment history is missing its journal reference.');
+      final original = transactions.get(journalId);
+      if (original == null || original.status != 'posted') throw const HrPayrollServiceException('A reimbursement payment journal is unavailable.');
+      final reversals = transactions.values.where((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == journalId && tx.status == 'posted').toList();
+      if (reversals.isEmpty) {
+        await FinanceLedgerService().reverseTransaction(
+          originalTransactionId: journalId, reversalId: 'finance:reversal:$journalId', reversalNumber: 'REV-REIMB-PAY-${journalId.hashCode.abs()}', reversalDate: DateTime.now(),
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: transactions,
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings), categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties), memo: 'Reimbursement payment reversal: ${reason.trim()}',
+        );
+      } else if (reversals.length != 1) {
+        throw const HrPayrollServiceException('Multiple reversals exist for a reimbursement payment.');
+      }
+    }
+    final accrualId = 'finance:employee-reimbursement-accrual:$claimId';
+    final accrual = transactions.get(accrualId);
+    if (accrual == null || accrual.status != 'posted') throw const HrPayrollServiceException('Reimbursement accrual journal is unavailable.');
+    final accrualReversals = transactions.values.where((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == accrualId && tx.status == 'posted').toList();
+    if (accrualReversals.isEmpty) {
+      await FinanceLedgerService().reverseTransaction(
+        originalTransactionId: accrualId, reversalId: 'finance:reversal:$accrualId', reversalNumber: 'REV-REIMB-ACC-${claimId.hashCode.abs()}', reversalDate: DateTime.now(),
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: transactions,
+        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings), categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+        partiesBox: Hive.box<FinanceParty>(Boxes.financeParties), memo: 'Reimbursement accrual reversal: ${reason.trim()}',
+      );
+    } else if (accrualReversals.length != 1) {
+      throw const HrPayrollServiceException('Multiple reversals exist for the reimbursement accrual.');
+    }
+    claim['status'] = 'cancelled';
+    claim['cancelledAt'] = DateTime.now().toIso8601String();
+    claim['cancellationReason'] = reason.trim();
+    claim['paidPaise'] = 0;
+    claims[index] = claim;
+    await settings.put(employeeReimbursementsKey, claims);
+  }
   Future<void> addEmployeeAdvance({
     required String employeeId, required int principalPaise,
     required int installmentPaise, required DateTime issueDate,
