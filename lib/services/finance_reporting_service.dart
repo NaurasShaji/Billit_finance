@@ -20,6 +20,20 @@ class FinanceLedgerSummary {
   int get netCashFlowPaise => cashInPaise - cashOutPaise;
 }
 
+class FinanceLedgerLine {
+  const FinanceLedgerLine({
+    required this.transaction,
+    required this.debitPaise,
+    required this.creditPaise,
+    required this.runningBalancePaise,
+  });
+
+  final FinanceTransaction transaction;
+  final int debitPaise;
+  final int creditPaise;
+  final int runningBalancePaise;
+}
+
 class FinanceReportingService {
   const FinanceReportingService();
 
@@ -104,6 +118,71 @@ class FinanceReportingService {
       cashOutPaise: cashOut,
       transactionCount: postedInPeriod.length,
     );
+  }
+
+  List<FinanceLedgerLine> ledgerForAccount({
+    required FinanceAccount account,
+    required Iterable<FinanceTransaction> transactions,
+    required Iterable<FinancePosting> postings,
+    required DateSpan span,
+  }) {
+    final postedById = {
+      for (final transaction in transactions)
+        if (transaction.status == 'posted') transaction.id: transaction,
+    };
+    final grouped = <String, List<FinancePosting>>{};
+    for (final line in postings) {
+      if (line.accountId == account.id &&
+          postedById.containsKey(line.transactionId)) {
+        grouped.putIfAbsent(line.transactionId, () => []).add(line);
+      }
+    }
+
+    final ordered = grouped.entries.toList()
+      ..sort((a, b) {
+        final left = postedById[a.key]!;
+        final right = postedById[b.key]!;
+        final date = left.date.compareTo(right.date);
+        return date != 0
+            ? date
+            : left.transactionNumber.compareTo(right.transactionNumber);
+      });
+
+    final normalSign =
+        account.accountType == 'liability' ||
+                account.accountType == 'equity' ||
+                account.accountType == 'income'
+            ? -1
+            : 1;
+    var runningBalance = 0;
+    final rows = <FinanceLedgerLine>[];
+    for (final entry in ordered) {
+      final transaction = postedById[entry.key]!;
+      final debit = entry.value.fold<int>(
+        0,
+        (sum, line) => sum + line.debitPaise,
+      );
+      final credit = entry.value.fold<int>(
+        0,
+        (sum, line) => sum + line.creditPaise,
+      );
+      final movement = (debit - credit) * normalSign;
+      if (transaction.date.isBefore(span.start)) {
+        runningBalance += movement;
+        continue;
+      }
+      if (!span.contains(transaction.date)) continue;
+      runningBalance += movement;
+      rows.add(
+        FinanceLedgerLine(
+          transaction: transaction,
+          debitPaise: debit,
+          creditPaise: credit,
+          runningBalancePaise: runningBalance,
+        ),
+      );
+    }
+    return rows;
   }
 
   static Set<String> postedTransactionIds(
