@@ -683,6 +683,13 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       tooltip: 'Correct expense',
                     ),
+                  IconButton(
+                    onPressed: () => _showExpenseCorrectionHistory(expense),
+                    icon: const Icon(Icons.history, size: 18),
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    tooltip: 'Correction history',
+                  ),
                   Container(
                     decoration: BoxDecoration(
                       color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
@@ -771,6 +778,84 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
       );
       if (selected != null) setState(() => _anchor = DateTime(selected, 1, 1));
     }
+  }
+
+  Future<void> _showExpenseCorrectionHistory(Expense expense) async {
+    final raw = Hive.box<dynamic>('app_settings')
+        .get('finance_expense_corrections');
+    final records = <Map<String, dynamic>>[];
+    if (raw is Map) {
+      for (final entry in raw.entries) {
+        if (!entry.key.toString().startsWith('${expense.id}:') ||
+            entry.value is! Map) {
+          continue;
+        }
+        records.add(Map<String, dynamic>.from(entry.value as Map));
+      }
+    }
+    records.sort((a, b) {
+      final aRevision = int.tryParse(a['id'].toString().split(':').last) ?? 0;
+      final bRevision = int.tryParse(b['id'].toString().split(':').last) ?? 0;
+      return aRevision.compareTo(bRevision);
+    });
+    String amount(Map? value) {
+      final paise = value?['amountPaise'];
+      return NumberFormat.simpleCurrency(locale: 'en_IN')
+          .format((paise is num ? paise.toDouble() : 0) / 100);
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Expense correction history'),
+        content: SizedBox(
+          width: 520,
+          child: records.isEmpty
+              ? const Text('No corrections have been recorded for this expense.')
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: records.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final record = records[index];
+                    final before = record['before'] is Map
+                        ? Map<String, dynamic>.from(record['before'] as Map)
+                        : <String, dynamic>{};
+                    final after = record['after'] is Map
+                        ? Map<String, dynamic>.from(record['after'] as Map)
+                        : <String, dynamic>{};
+                    final date = DateTime.tryParse(record['date']?.toString() ?? '');
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Revision ${record['id']?.toString().split(':').last ?? '-'}'),
+                      subtitle: Text(
+                        '${record['reason'] ?? 'No reason recorded'}\n'
+                        '${before['category'] ?? '-'} • ${amount(before)} → '
+                        '${after['category'] ?? '-'} • ${amount(after)}\n'
+                        '${date == null ? 'Date unavailable' : DateFormat('dd MMM yyyy, hh:mm a').format(date)}',
+                      ),
+                      isThreeLine: true,
+                      trailing: Text(
+                        record['status'] == 'posted' ? 'Posted' : 'Pending',
+                        style: TextStyle(
+                          color: record['status'] == 'posted'
+                              ? Theme.of(context).colorScheme.tertiary
+                              : Theme.of(context).colorScheme.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _editExpense(Expense expense) async {
