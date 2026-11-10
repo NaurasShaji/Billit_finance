@@ -52,39 +52,79 @@ class _PayrollRunDetailsScreenState extends State<PayrollRunDetailsScreen> {
     final amount = TextEditingController(
       text: (slip.outstandingPaise / 100).toStringAsFixed(2),
     );
+    final accountsBox = Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    final accounts = accountsBox.values
+        .where((account) =>
+            account.active &&
+            account.accountType == 'asset' &&
+            account.currencyCode == 'INR')
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    String? selectedAccountId =
+        accounts.any((account) => account.id == 'system:cash')
+            ? 'system:cash'
+            : accounts.firstOrNull?.id;
     final paid = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Record payslip payment'),
-        content: TextField(
-          controller: amount,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: 'Amount',
-            prefixText: '₹ ',
-            helperText:
-                'Outstanding: ${_currency.format(slip.outstandingPaise / 100)}',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Record payslip payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amount,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: '₹ ',
+                  helperText:
+                      'Outstanding: ${_currency.format(slip.outstandingPaise / 100)}',
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedAccountId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Pay from account',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  for (final account in accounts)
+                    DropdownMenuItem(
+                      value: account.id,
+                      child: Text(account.name),
+                    ),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => selectedAccountId = value),
+                validator: (value) => value == null ? 'Select an account' : null,
+              ),
+            ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: accounts.isEmpty || selectedAccountId == null
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              child: const Text('Record payment'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Record payment'),
-          ),
-        ],
       ),
     );
 
     if (paid == true) {
       final amountPaise = _parsePaise(amount.text);
-      if (amountPaise == null || amountPaise <= 0) {
+      if (amountPaise == null || amountPaise <= 0 || selectedAccountId == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Enter a valid positive amount.')),
+            const SnackBar(content: Text('Enter a valid amount and select a payment account.')),
           );
         }
       } else {
@@ -92,7 +132,13 @@ class _PayrollRunDetailsScreenState extends State<PayrollRunDetailsScreen> {
           await HrPayrollService().payPayslip(
             payslipId: slip.id,
             amountPaise: amountPaise,
+            cashAccountId: selectedAccountId!,
           );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Payroll payment recorded.')),
+            );
+          }
         } catch (error) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
