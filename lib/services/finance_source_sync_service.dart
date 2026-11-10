@@ -12,6 +12,21 @@ class FinanceSourceSyncService {
 
   final FinanceLedgerService _ledger;
 
+  static Future<void> recordIssue(
+    Box<dynamic> settingsBox,
+    String issue,
+  ) async {
+    final raw = settingsBox.get(
+      'finance_sync_errors',
+      defaultValue: const <String>[],
+    );
+    final issues = raw is List
+        ? raw.map((item) => item.toString()).toList()
+        : <String>[];
+    if (!issues.contains(issue)) issues.add(issue);
+    await settingsBox.put('finance_sync_errors', issues);
+  }
+
   static int _toPaise(double amount, String source) {
     if (!amount.isFinite || amount < 0) {
       throw FinanceLedgerException(
