@@ -202,6 +202,20 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                               leading: Icon(Icons.warning_amber_rounded),
                               title: Text('Journal coverage requires investigation'),
                             ),
+                          if (issueJournals.isEmpty && repayments.isEmpty && outstanding > 0)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _recordOpeningBalance(
+                                  context,
+                                  employeeId: entry.key.toString(),
+                                  advanceId: advanceId,
+                                  outstandingPaise: outstanding,
+                                ),
+                                icon: const Icon(Icons.account_balance_outlined),
+                                label: const Text('Record verified opening balance'),
+                              ),
+                            ),
                           if (repayments.isNotEmpty) ...[
                             const Divider(),
                             Align(
@@ -293,6 +307,59 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+
+  Future<void> _recordOpeningBalance(
+    BuildContext context, {
+    required String employeeId,
+    required String advanceId,
+    required int outstandingPaise,
+  }) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: 'Opening balance effective date',
+    );
+    if (date == null || !context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Post advance opening balance?'),
+        content: Text(
+          'This will debit Employee Advances and credit Opening Balance Equity by ${_money(outstandingPaise)} as of ${DateFormat.yMMMd().format(date)}. It will not recreate historical cash movements. Only continue if this is the verified outstanding balance at the selected cut-off date.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Post opening balance'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await HrPayrollService().recordLegacyAdvanceOpeningBalance(
+        employeeId: employeeId,
+        advanceId: advanceId,
+        asOfDate: date,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Opening balance journal posted.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not post opening balance: $error')),
+      );
+    }
   }
 
   Widget _detail(String label, String value) => Padding(
