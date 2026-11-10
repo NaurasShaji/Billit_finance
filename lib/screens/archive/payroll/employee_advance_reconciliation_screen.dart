@@ -433,7 +433,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                           Row(children: [
                             Icon(
                               balanced ? Icons.verified_outlined : Icons.warning_amber_rounded,
-                              color: balanced ? Colors.green : Theme.of(context).colorScheme.error,
+                              color: balanced ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.error,
                             ),
                             const SizedBox(width: 8),
                             Expanded(child: Text(
