@@ -3,6 +3,7 @@ import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import '../../../widgets/responsive_page.dart';
 
 class PayrollReportScreen extends StatefulWidget {
   const PayrollReportScreen({super.key});
@@ -35,7 +36,7 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
   Widget build(BuildContext context) {
     final currency = NumberFormat.simpleCurrency(locale: 'en_IN');
     final dateFmt = DateFormat('dd MMM yyyy');
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Payroll Report'),
         bottom: TabBar(
@@ -224,7 +225,7 @@ class _PayrollReportScreenState extends State<PayrollReportScreen>
           },
         ),
       ),
-    );
+    ));
   }
 
   Widget _row(String title, String value, {bool isBold = false}) {
