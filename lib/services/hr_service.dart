@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 
@@ -66,6 +69,110 @@ class LeaveBalance {
 }
 
 class HrService {
+  static const employeeDocumentsSettingsKey = 'hr_employee_documents';
+  static const maxEmployeeDocumentBytes = 2 * 1024 * 1024;
+  static const allowedEmployeeDocumentExtensions = {
+    'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'
+  };
+
+  bool _isCurrentUserAdmin() {
+    final session = Hive.box<dynamic>('session');
+    final userId = session.get('user_id');
+    if (userId is! String || userId.isEmpty) return false;
+    final user = Hive.box<User>(Boxes.users).get(userId);
+    return user?.userType == UserType.admin;
+  }
+
+  List<Map<String, dynamic>> employeeDocuments(String employeeId) {
+    final raw = Hive.box<dynamic>('app_settings')
+        .get(employeeDocumentsSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) return const [];
+    return (raw[employeeId] as List)
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .where((item) => item['id'] is String &&
+            item['name'] is String &&
+            item['base64'] is String)
+        .toList()
+      ..sort((a, b) => (b['createdAt'] as String? ?? '')
+          .compareTo(a['createdAt'] as String? ?? ''));
+  }
+
+  Future<void> addEmployeeDocument({
+    required String employeeId,
+    required String fileName,
+    required List<int> bytes,
+  }) async {
+    if (!_isCurrentUserAdmin()) {
+      throw const HrServiceException('Only administrators can manage employee documents.');
+    }
+    if (Hive.box<Employee>(Boxes.employees).get(employeeId) == null) {
+      throw const HrServiceException('Employee not found.');
+    }
+    final name = fileName.trim();
+    final extension = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+    if (name.isEmpty || !allowedEmployeeDocumentExtensions.contains(extension)) {
+      throw const HrServiceException('Only PDF, PNG, JPG, DOC, and DOCX files are allowed.');
+    }
+    if (bytes.isEmpty || bytes.length > maxEmployeeDocumentBytes) {
+      throw const HrServiceException('Document must be between 1 byte and 2 MB.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(employeeDocumentsSettingsKey);
+    final documents = <String, dynamic>{
+      if (raw is Map) ...Map<String, dynamic>.from(raw),
+    };
+    final entries = documents[employeeId] is List
+        ? List<dynamic>.from(documents[employeeId] as List)
+        : <dynamic>[];
+    entries.add({
+      'id': const Uuid().v4(),
+      'name': name,
+      'extension': extension,
+      'sizeBytes': bytes.length,
+      'base64': base64Encode(bytes),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    documents[employeeId] = entries;
+    await settings.put(employeeDocumentsSettingsKey, documents);
+  }
+
+  Future<void> deleteEmployeeDocument({
+    required String employeeId,
+    required String documentId,
+  }) async {
+    if (!_isCurrentUserAdmin()) {
+      throw const HrServiceException('Only administrators can manage employee documents.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(employeeDocumentsSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) return;
+    final documents = Map<String, dynamic>.from(raw);
+    final entries = List<dynamic>.from(documents[employeeId] as List);
+    entries.removeWhere((entry) => entry is Map && entry['id'] == documentId);
+    documents[employeeId] = entries;
+    await settings.put(employeeDocumentsSettingsKey, documents);
+  }
+
+  Uint8List employeeDocumentBytes(Map<String, dynamic> document) {
+    if (!_isCurrentUserAdmin()) {
+      throw const HrServiceException('Only administrators can access employee documents.');
+    }
+    final encoded = document['base64'];
+    if (encoded is! String) {
+      throw const HrServiceException('Document data is invalid.');
+    }
+    try {
+      final bytes = base64Decode(encoded);
+      if (bytes.isEmpty || bytes.length > maxEmployeeDocumentBytes) {
+        throw const FormatException('Invalid document size.');
+      }
+      return Uint8List.fromList(bytes);
+    } on FormatException {
+      throw const HrServiceException('Document data is corrupted.');
+    }
+  }
+
   static const attendanceStatuses = {
     'present',
     'absent',
