@@ -86,7 +86,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Pay only the outstanding balance from the Team quick-pay action.
 - [x] Add unit tests for partial payment and overpayment calculations.
 - [ ] Run Flutter tests and static analysis in a Flutter-enabled environment.
-- [ ] Add widget tests for partial-payment states and repeated payments.
+- [x] Add service regression coverage for partial payments, repeated payments, bank-account selection, and invalid payment-account rejection. Widget-level interaction tests remain part of release validation.
 - [ ] Review daily-wage attendance semantics before broadening payroll calculations.
 
 ## Phase 2 — Finance core
@@ -155,7 +155,7 @@ Work branch: `feature/finance-team-promotion`
 ## Phase 7 — Finance/HR integration
 
 - [ ] Payroll liabilities and linked finance payments. Current payslip payments post a salary expense and cash/bank credit; a payable liability followed by settlement is not yet implemented.
-- [x] Employee-linked advances and reimbursements (employee advances are implemented; employee reimbursements remain deferred as low priority).
+- [x] Employee-linked advances, issuance, manual repayment, payroll instalment recovery, and subledger-to-journal reconciliation. Employee reimbursement claims and settlement remain deferred.
 - [ ] Complete cross-module reconciliation and reporting. POS/expense-to-journal and employee-advance reconciliation exist; payroll-liability and reimbursement reconciliation remain open.
 
 ## Phase 8 — UI/UX redesign
@@ -264,3 +264,12 @@ This checklist records implementation only when code exists; validation items re
 - [x] Apply configured mappings to startup and manual retry POS-to-journal synchronization, retaining the existing Cash/Bank defaults for shops that have not configured mappings.
 - [x] Add service tests for a separate UPI wallet account and rejection of invalid non-asset mappings (tests authored; execution pending).
 - [ ] Validate with Flutter test/analyze/build in CI.
+
+
+### Payroll payment account selection
+
+- [x] Add cash/bank/wallet account selection to the payslip payment dialog.
+- [x] Validate that the selected account is active, INR, and an asset account before recording payment.
+- [x] Pass the selected destination account to the payroll finance journal and reject a mismatch before marking the payslip paid.
+- [x] Cover bank posting and invalid expense-account rejection in payroll service regression tests (execution pending).
+- [ ] Payroll liability accrual and settlement remain separate from the existing immediate salary-expense payment flow.
