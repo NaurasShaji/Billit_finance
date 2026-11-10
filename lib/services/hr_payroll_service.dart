@@ -609,6 +609,15 @@ class HrPayrollService {
     if (hourlyRatePaise <= 0) {
       throw const HrPayrollServiceException('Overtime hourly rate must be positive.');
     }
+    final overtimeDate = _day(date);
+    final hasPayrollSnapshot = Hive.box<PayrollRun>(Boxes.payrollRuns).values.any((run) =>
+        !_day(run.periodEnd).isBefore(overtimeDate) &&
+        !_day(run.periodStart).isAfter(overtimeDate));
+    if (hasPayrollSnapshot) {
+      throw const HrPayrollServiceException(
+        'A payroll run already exists for this date. Record any correction through an approved payroll adjustment instead.',
+      );
+    }
     final settings = Hive.box<dynamic>('app_settings');
     final raw = settings.get(overtimeSettingsKey);
     final allEntries = <String, dynamic>{
