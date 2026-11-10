@@ -73,7 +73,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Implement balanced journal validation, immutable posting/reversal service, manual transaction UI, account management, and opening-balance journal entries.
 - [x] Extend Google Drive backup/restore and rollback to finance boxes (integration tests authored; execution pending).
 - [x] Implement manual income, expense, and transfer journal workflows.
-- [ ] Implement adjustment UI workflow.
+- [x] Implement balanced journal adjustment entry UI workflow.
 - [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
 - [ ] Add configurable categories and payment methods.
 - [ ] Add transaction search, filtering, sorting, and date ranges.
