@@ -11,11 +11,9 @@ import 'package:hive_ce/hive_ce.dart';
 void main() {
   late Directory directory;
   late Box<dynamic> settings;
-  late Box<FinanceAccount> accounts;
   late Box<FinanceTransaction> transactions;
   late Box<FinancePosting> postings;
   late Box<FinanceCategory> categories;
-  late Box<FinanceParty> parties;
   late Box<FinanceRecurringTemplate> templates;
   late FinanceRecurringService service;
 
@@ -64,12 +62,10 @@ void main() {
         FinanceSchemaMigration.versionSixToSeven,
       ],
     ).run(settings);
-    accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
     transactions =
         Hive.box<FinanceTransaction>(Boxes.financeTransactions);
     postings = Hive.box<FinancePosting>(Boxes.financePostings);
     categories = Hive.box<FinanceCategory>(Boxes.financeCategories);
-    parties = Hive.box<FinanceParty>(Boxes.financeParties);
     templates = Hive.box<FinanceRecurringTemplate>(
       Boxes.financeRecurringTemplates,
     );
