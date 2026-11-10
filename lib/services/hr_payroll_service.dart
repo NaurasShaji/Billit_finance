@@ -216,7 +216,20 @@ class HrPayrollService {
         'Approve the payroll run before recording payment.',
       );
     }
-    if (slip.status == 'paid') return slip;
+    if (slip.status == 'paid') {
+      final allSlips = slipsBox.values
+          .where((item) => item.payrollRunId == run.id)
+          .toList();
+      if (allSlips.isNotEmpty &&
+          allSlips.every((item) => item.status == 'paid') &&
+          run.status != 'paid') {
+        await runsBox.put(
+          run.id,
+          _copyRun(run, status: 'paid', paidAt: DateTime.now()),
+        );
+      }
+      return slip;
+    }
     if (slip.status != 'approved' && slip.status != 'partially_paid') {
       throw const HrPayrollServiceException(
         'Payslip is not in a payable state.',
