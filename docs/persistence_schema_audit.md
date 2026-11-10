@@ -34,8 +34,13 @@ The five typed box names are centralized in `lib/services/boxes.dart`. The two d
 | 7 | `Sale` | 0–19 |
 | 8 | `Expense` | 0–5 |
 | 9 | `Employee` | 0–5 |
+| 10 | `FinanceAccount` | 0–6 |
+| 11 | `FinanceTransaction` | 0–11 |
+| 12 | `FinancePosting` | 0–7 |
+| 13 | `FinanceCategory` | 0–4 |
+| 14 | `FinanceParty` | 0–6 |
 
-Type ID 0 is unused. IDs 1–9 are currently unique. Do not reuse an existing type ID, including IDs belonging to enums. New persisted types must receive a new, permanently reserved ID.
+Type ID 0 is unused. IDs 1–14 are now reserved. Finance models use string-valued classifications rather than persisted enums, keeping each new model to one Hive type ID. Do not reuse any type ID, including IDs belonging to enums.
 
 ## Compatibility and migration constraints
 
@@ -54,11 +59,12 @@ Type ID 0 is unused. IDs 1–9 are currently unique. Do not reuse an existing ty
 
 ## Finance implementation constraints
 
-The current app has no unified finance ledger or account model. Add the finance persistence layer with new type IDs and new box names; do not repurpose `Expense`, `Sale`, or payroll payment records as a ledger. Preserve existing boxes and their field IDs. Prefer integer minor units (paise) or a documented decimal representation for accounting source-of-truth amounts rather than binary floating-point.
+The finance persistence layer now has `FinanceAccount`, `FinanceTransaction`, `FinancePosting`, `FinanceCategory`, and `FinanceParty` models in separate Hive boxes. Type IDs 10–14 are reserved. Do not repurpose `Expense`, `Sale`, or payroll payment records as a ledger. Preserve existing boxes and their field IDs. Prefer integer minor units (paise) or a documented decimal representation for accounting source-of-truth amounts rather than binary floating-point.
 
 ## Follow-up work
 
 - Register an explicit schema migration before introducing each new persisted finance schema version.
 - Add adapter registry/type-ID uniqueness tests and run migration tests using representative legacy records.
-- Keep Google Drive restore prevalidation, integration coverage, and best-effort rollback in place; run those tests before release.
+- Extend Google Drive backup export, parser, restore snapshots, and rollback to include all five finance boxes before treating finance persistence as release-ready.
+- Run the restore and finance persistence tests before release.
 - Centralize dynamic box names and document the keys owned by each module.
