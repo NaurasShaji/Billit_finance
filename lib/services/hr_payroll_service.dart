@@ -313,6 +313,105 @@ class HrPayrollService {
     );
   }
 
+  /// Books a verified legacy advance balance as an opening asset.
+  ///
+  /// This is allowed only when no issue, repayment, or payroll-recovery journal
+  /// already exists for the advance. The current outstanding balance is posted
+  /// against Opening Balance Equity; historical cash movements are not invented.
+  Future<void> recordLegacyAdvanceOpeningBalance({
+    required String employeeId,
+    required String advanceId,
+    required DateTime asOfDate,
+  }) async {
+    final employee = Hive.box<Employee>(Boxes.employees).get(employeeId);
+    if (employee == null) {
+      throw const HrPayrollServiceException('Employee was not found.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(advanceSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) {
+      throw const HrPayrollServiceException('Advance was not found.');
+    }
+    final matches = (raw[employeeId] as List)
+        .whereType<Map>()
+        .where((item) => item['id'] == advanceId)
+        .toList();
+    if (matches.length != 1) {
+      throw const HrPayrollServiceException('Advance must exist exactly once in the HR register.');
+    }
+    final advance = matches.single;
+    final outstanding = advance['outstandingPaise'];
+    if (outstanding is! int || outstanding <= 0) {
+      throw const HrPayrollServiceException('Only an advance with a positive outstanding balance can be opened.');
+    }
+
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final repayments = advance['repayments'] is List
+        ? (advance['repayments'] as List).whereType<Map>().toList()
+        : <Map>[];
+    final repaymentIds = repayments
+        .where((item) => item['source'] == 'manual' && item['id'] is String)
+        .map((item) => item['id'] as String)
+        .toSet();
+    final payslipIds = repayments
+        .where((item) => item['source'] == 'payroll' && item['payslipId'] is String)
+        .map((item) => item['payslipId'] as String)
+        .toSet();
+    final hasLinkedHistory = transactions.values.any((tx) =>
+        (tx.sourceType == 'employee_advance_issue' && tx.sourceId == advanceId) ||
+        (tx.sourceType == 'employee_advance_repayment' && repaymentIds.contains(tx.sourceId)) ||
+        (tx.sourceType == 'payroll_advance_recovery' && payslipIds.contains(tx.sourceId)) ||
+        (tx.sourceType == 'employee_advance_opening_balance' && tx.sourceId == advanceId));
+    if (hasLinkedHistory) {
+      throw const HrPayrollServiceException(
+        'This advance already has linked journal history. Do not create an opening balance; reconcile its existing entries instead.',
+      );
+    }
+
+    final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    final advanceAccount = accounts.get(employeeAdvanceAccountId);
+    final openingEquity = accounts.get('system:opening-equity');
+    if (advanceAccount == null || !advanceAccount.active || advanceAccount.accountType != 'asset' ||
+        openingEquity == null || !openingEquity.active || openingEquity.accountType != 'equity' ||
+        advanceAccount.currencyCode != 'INR' || openingEquity.currencyCode != 'INR') {
+      throw const HrPayrollServiceException('Employee Advances or Opening Balance Equity account is unavailable or invalid.');
+    }
+
+    final transactionId = 'finance:employee-advance-opening:$advanceId';
+    await FinanceLedgerService().postTransaction(
+      transaction: FinanceTransaction(
+        id: transactionId,
+        transactionNumber: 'ADV-OPEN-$advanceId',
+        transactionType: 'opening_balance',
+        date: _day(asOfDate),
+        memo: 'Opening balance for legacy employee advance ${advance['description'] ?? advanceId} (${employee.name})',
+        sourceType: 'employee_advance_opening_balance',
+        sourceId: advanceId,
+      ),
+      postings: [
+        FinancePosting(
+          id: '$transactionId:employee-advances',
+          transactionId: transactionId,
+          accountId: employeeAdvanceAccountId,
+          debitPaise: outstanding,
+          memo: 'Legacy employee advance outstanding at opening date',
+        ),
+        FinancePosting(
+          id: '$transactionId:opening-equity',
+          transactionId: transactionId,
+          accountId: 'system:opening-equity',
+          creditPaise: outstanding,
+          memo: 'Offset for verified legacy employee advance balance',
+        ),
+      ],
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+      categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+      partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+    );
+  }
+
   /// Compares the HR advance register with the posted Employee Advances control account.
   Map<String, int> advanceReconciliation() {
     final raw = Hive.box<dynamic>('app_settings').get(advanceSettingsKey);
