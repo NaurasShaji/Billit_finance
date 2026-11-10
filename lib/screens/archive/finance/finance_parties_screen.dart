@@ -7,6 +7,7 @@ import '../../../services/boxes.dart';
 import '../../../services/finance_party_service.dart';
 import 'finance_ageing_screen.dart';
 import 'finance_party_statement_screen.dart';
+import 'finance_payment_allocation_screen.dart';
 
 class FinancePartiesScreen extends StatefulWidget {
   const FinancePartiesScreen({super.key});
@@ -91,6 +92,15 @@ class _FinancePartiesScreenState extends State<FinancePartiesScreen> {
               ),
             ),
             icon: const Icon(Icons.analytics_outlined),
+          ),
+          IconButton(
+            tooltip: 'Allocate payments to invoices',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const FinancePaymentAllocationScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.link),
           ),
           IconButton(
             tooltip: 'Add party',
