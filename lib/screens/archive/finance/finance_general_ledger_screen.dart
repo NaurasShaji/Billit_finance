@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import '../../../widgets/responsive_page.dart';
 
 class FinanceGeneralLedgerScreen extends StatefulWidget {
   const FinanceGeneralLedgerScreen({super.key});
@@ -32,7 +33,7 @@ class _FinanceGeneralLedgerScreenState extends State<FinanceGeneralLedgerScreen>
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => ScaffolResponsivePage(child: Scaffold((
         appBar: AppBar(title: const Text('General ledger')),
         body: ValueListenableBuilder<Box<FinanceAccount>>(
           valueListenable: Hive.box<FinanceAccount>(Boxes.financeAccounts).listenable(),
@@ -173,5 +174,5 @@ class _FinanceGeneralLedgerScreenState extends State<FinanceGeneralLedgerScreen>
             ),
           ),
         ),
-      );
+      ));
 }
