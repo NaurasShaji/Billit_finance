@@ -113,6 +113,13 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                     if (repaymentValues != null && repaymentValues is! List) {
                       malformedCount++;
                     }
+                    final correctionValues = item['corrections'];
+                    final corrections = correctionValues is List
+                        ? correctionValues.whereType<Map>().toList()
+                        : <Map>[];
+                    if (correctionValues != null && correctionValues is! List) {
+                      malformedCount++;
+                    }
 
                     final issueJournals = transactionBox.values.where((tx) =>
                         tx.sourceType == 'employee_advance_issue' &&
@@ -213,6 +220,36 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                         invalidPayrollJournals++;
                       }
                     }
+                    var invalidCorrections = 0;
+                    for (final correction in corrections) {
+                      final correctionId = correction['id'];
+                      final delta = correction['deltaPaise'];
+                      final offsetId = correction['offsetAccountId'];
+                      final journalId = correction['journalId'];
+                      if (correctionId is! String || delta is! int || delta == 0 ||
+                          offsetId is! String || journalId is! String) {
+                        invalidCorrections++;
+                        continue;
+                      }
+                      final linked = transactionBox.values.where((tx) =>
+                          tx.sourceType == 'employee_advance_correction' &&
+                          tx.sourceId == correctionId).toList();
+                      if (linked.length != 1 || linked.single.id != journalId) {
+                        invalidCorrections++;
+                        continue;
+                      }
+                      final debitId = delta > 0 ? _advanceAccountId : offsetId;
+                      final creditId = delta > 0 ? offsetId : _advanceAccountId;
+                      if (!_matchesJournal(
+                        transaction: linked.single,
+                        lines: _linesFor(postingBox, journalId),
+                        debitAccountId: debitId,
+                        creditAccountId: creditId,
+                        amountPaise: delta.abs(),
+                      )) {
+                        invalidCorrections++;
+                      }
+                    }
                     final openingProblem = openingJournals.length > 1 ||
                         (openingJournals.length == 1 && !openingValid) ||
                         (issueValid && openingValid);
@@ -222,7 +259,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                         invalidManual > 0 || malformedPayrollRepayments > 0 ||
                         duplicatePayrollJournals || missingPayrollJournals > 0 ||
                         invalidPayrollJournals > 0;
-                    if (issueProblem) issueProblemCount++;
+                    if (issueProblem || invalidCorrections > 0) issueProblemCount++;
                     if (repaymentProblem) repaymentProblemCount++;
 
                     final issueLabel = issueJournals.isNotEmpty
@@ -259,6 +296,8 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                           _detail('Missing manual journals', missingManual.toString()),
                           _detail('Invalid/duplicate manual journals', invalidManual.toString()),
                           _detail('Payroll recovery records', payrollRecoveryAmounts.length.toString()),
+                          _detail('Balance corrections', corrections.length.toString()),
+                          _detail('Invalid correction journals', invalidCorrections.toString()),
                           _detail('Linked payroll recovery journals', payrollJournals.length.toString()),
                           _detail('Missing payroll recovery journals', missingPayrollJournals.toString()),
                           _detail('Invalid payroll recovery journals', invalidPayrollJournals.toString()),
@@ -303,6 +342,24 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                               label: const Text('Correct verified balance'),
                             ),
                           ),
+                          if (corrections.isNotEmpty) ...[
+                            const Divider(),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Balance correction history', style: Theme.of(context).textTheme.titleSmall),
+                            ),
+                            for (final correction in corrections)
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text('${_money(_amount(correction['previousOutstandingPaise']))} → ${_money(_amount(correction['correctedOutstandingPaise']))}'),
+                                subtitle: Text('${correction['date'] ?? ''} · ${correction['reason'] ?? ''}'),
+                                trailing: correction['journalId'] is String &&
+                                        transactionBox.values.any((tx) => tx.id == correction['journalId'] && tx.status == 'posted')
+                                    ? const Icon(Icons.check_circle_outline)
+                                    : const Icon(Icons.warning_amber_rounded),
+                              ),
+                          ],
                           if (repayments.isNotEmpty) ...[
                             const Divider(),
                             Align(
