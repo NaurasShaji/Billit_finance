@@ -130,7 +130,8 @@ Work branch: `feature/finance-team-promotion`
 - [ ] Complete Finance dashboard and navigation redesign.
 - [x] Finance ledger, account management, journal, P&L/cash-flow overview, and source reconciliation screens.
 - [x] Budget tracking screen and budget form.
-- [ ] Receivables, payables, and recurring transaction screens.
+- [x] Recurring income/expense templates, schedule processing, and template archive screen.
+- [ ] Receivables and payables screens.
 - [x] Initial Team dashboard, employee directory, department management, and employee profile screens.
 - [x] Initial attendance, leave, payroll-run, salary-component, and payslip screens.
 - [ ] Responsive phone/tablet/desktop layouts.
