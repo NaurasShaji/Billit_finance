@@ -19,6 +19,7 @@ void main() {
   late Box<FinancePosting> financePostings;
   late Box<FinanceCategory> financeCategories;
   late Box<FinanceParty> financeParties;
+  late Box<FinanceBudget> financeBudgets;
   const service = BackupRestoreService();
 
   setUp(() async {
@@ -68,6 +69,9 @@ void main() {
     if (!Hive.isAdapterRegistered(14)) {
       Hive.registerAdapter(FinancePartyAdapter());
     }
+    if (!Hive.isAdapterRegistered(21)) {
+      Hive.registerAdapter(FinanceBudgetAdapter());
+    }
 
     users = await Hive.openBox<User>('users');
     products = await Hive.openBox<Product>('products');
@@ -85,6 +89,8 @@ void main() {
         await Hive.openBox<FinanceCategory>(Boxes.financeCategories);
     financeParties =
         await Hive.openBox<FinanceParty>(Boxes.financeParties);
+    financeBudgets =
+        await Hive.openBox<FinanceBudget>(Boxes.financeBudgets);
   });
 
   tearDown(() async {
@@ -110,8 +116,56 @@ void main() {
         financePostingsBox: financePostings,
         financeCategoriesBox: financeCategories,
         financePartiesBox: financeParties,
+        financeBudgetsBox: financeBudgets,
         afterWrite: afterWrite,
       );
+
+  test('restores finance budgets with account and category references', () async {
+    await restore({
+      'users': [],
+      'financeAccounts': [
+        {
+          'id': 'expense-account',
+          'name': 'Rent',
+          'accountType': 'expense',
+          'currencyCode': 'INR',
+          'active': true,
+        },
+      ],
+      'financeTransactions': [],
+      'financePostings': [],
+      'financeCategories': [
+        {
+          'id': 'rent-category',
+          'name': 'Rent',
+          'kind': 'expense',
+          'accountId': 'expense-account',
+          'active': true,
+        },
+      ],
+      'financeParties': [],
+      'financeBudgets': [
+        {
+          'id': 'rent-budget',
+          'name': 'Monthly rent',
+          'accountId': 'expense-account',
+          'categoryId': 'rent-category',
+          'periodStart': '2026-11-01T00:00:00.000',
+          'periodEnd': '2026-11-30T00:00:00.000',
+          'budgetPaise': 500000,
+          'active': true,
+          'notes': 'Shop rent',
+          'createdAt': '2026-10-30T00:00:00.000',
+        },
+      ],
+    });
+
+    final budget = financeBudgets.get('rent-budget');
+    expect(budget, isNotNull);
+    expect(budget!.budgetPaise, 500000);
+    expect(budget.accountId, 'expense-account');
+    expect(budget.categoryId, 'rent-category');
+  });
 
   test('replaces business records and merges app settings', () async {
     final oldUser = User()
