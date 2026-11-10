@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/finance_source_sync_service.dart';
 import '../../services/whatsapp_service.dart';
 import '../../widgets/whatsapp_icon.dart';
 import '../../utils/platform_support.dart';
@@ -1560,6 +1561,27 @@ class _BillingTabState extends State<BillingTab> with TickerProviderStateMixin {
         }
       }
 
+      // Journal sync is retryable at next startup; it must not undo a completed POS sale.
+      try {
+        await FinanceSourceSyncService().syncSale(
+          sale: sale,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+        );
+      } catch (financeError) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Sale saved; finance journal sync will retry on next launch: $financeError'),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
+      }
+
       // Show print option selection dialog
       if (mounted) {
         Navigator.of(context).pop(); // Close loading dialog
@@ -1732,6 +1754,28 @@ class _BillingTabState extends State<BillingTab> with TickerProviderStateMixin {
   Future<void> _deleteInvoice(Sale sale) async {
     final salesBox = Hive.box<Sale>(Boxes.sales);
     final productsBox = Hive.box<Product>(Boxes.products);
+
+    // Reverse immutable journal history before deleting the operational invoice.
+    try {
+      await FinanceSourceSyncService().reverseSale(
+        sale: sale,
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+        transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+        categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+        partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      );
+    } catch (financeError) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invoice was not deleted because its journal reversal failed: $financeError'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
     // Remove sale from Hive
     await salesBox.delete(sale.id);
