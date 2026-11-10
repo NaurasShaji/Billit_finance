@@ -23,6 +23,7 @@ class _FinanceTransactionFormScreenState
   String _type = 'expense';
   String? _debitAccountId;
   String? _creditAccountId;
+  String? _categoryId;
   bool _saving = false;
 
   @override
@@ -127,6 +128,7 @@ class _FinanceTransactionFormScreenState
             transactionId: id,
             accountId: creditAccountId,
             creditPaise: amountPaise,
+            categoryId: _type == 'income' ? _categoryId : null,
             memo: _memoController.text.trim(),
           ),
         ],
@@ -193,6 +195,7 @@ class _FinanceTransactionFormScreenState
                     _type = value ?? _type;
                     _debitAccountId = null;
                     _creditAccountId = null;
+                    _categoryId = null;
                   }),
                 ),
                 const SizedBox(height: 20),
@@ -250,6 +253,52 @@ class _FinanceTransactionFormScreenState
                   validator: (value) =>
                       value == null ? 'Select an account' : null,
                 ),
+                if (_type == 'income' || _type == 'expense') ...[
+                  const SizedBox(height: 16),
+                  ValueListenableBuilder<Box<FinanceCategory>>(
+                    valueListenable: Hive.box<FinanceCategory>(
+                      Boxes.financeCategories,
+                    ).listenable(),
+                    builder: (context, categoryBox, _) {
+                      final categoryKind =
+                          _type == 'income' ? 'income' : 'expense';
+                      final accountId = _type == 'income'
+                          ? _creditAccountId
+                          : _debitAccountId;
+                      final availableCategories = categoryBox.values
+                          .where((category) =>
+                              category.active &&
+                              category.kind == categoryKind &&
+                              category.accountId == accountId)
+                          .toList()
+                        ..sort((a, b) => a.name.compareTo(b.name));
+                      if (!availableCategories
+                          .any((category) => category.id == _categoryId)) {
+                        _categoryId = null;
+                      }
+                      return DropdownButtonFormField<String?>(
+                        value: _categoryId,
+                        decoration: const InputDecoration(
+                          labelText: 'Category (optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('No category'),
+                          ),
+                          for (final category in availableCategories)
+                            DropdownMenuItem<String?>(
+                              value: category.id,
+                              child: Text(category.name),
+                            ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _categoryId = value),
+                      );
+                    },
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _memoController,
