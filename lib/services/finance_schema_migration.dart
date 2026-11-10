@@ -74,4 +74,32 @@ class FinanceSchemaMigration {
           }
         },
       );
+
+  /// Adds dedicated accounts used by legacy POS, expense and payroll imports.
+  static SchemaMigration get versionTwoToThree => SchemaMigration(
+        fromVersion: 2,
+        toVersion: 3,
+        apply: (_) async {
+          final accounts = await Hive.openBox<FinanceAccount>(
+            Boxes.financeAccounts,
+          );
+          final defaults = <FinanceAccount>[
+            FinanceAccount(
+              id: 'system:gst-payable',
+              name: 'GST Payable',
+              accountType: 'liability',
+            ),
+            FinanceAccount(
+              id: 'system:salary-expense',
+              name: 'Salaries and Wages',
+              accountType: 'expense',
+            ),
+          ];
+          for (final account in defaults) {
+            if (!accounts.containsKey(account.id)) {
+              await accounts.put(account.id, account);
+            }
+          }
+        },
+      );
 }
