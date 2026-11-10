@@ -214,6 +214,72 @@ void main() {
     expect(summary.netCashFlowPaise, 0);
   });
 
+  test('general ledger includes opening balance and running account balance',
+      () {
+    final cash = FinanceAccount(
+      id: 'system:cash',
+      name: 'Cash',
+      accountType: 'asset',
+    );
+    final transactions = [
+      FinanceTransaction(
+        id: 'opening',
+        transactionNumber: 'OPEN-1',
+        transactionType: 'opening_balance',
+        status: 'posted',
+        date: DateTime(2026, 9, 1),
+      ),
+      FinanceTransaction(
+        id: 'receipt',
+        transactionNumber: 'RCPT-1',
+        transactionType: 'income',
+        status: 'posted',
+        date: DateTime(2026, 10, 5),
+      ),
+      FinanceTransaction(
+        id: 'payment',
+        transactionNumber: 'PAY-1',
+        transactionType: 'expense',
+        status: 'posted',
+        date: DateTime(2026, 10, 6),
+      ),
+    ];
+    final postings = [
+      FinancePosting(
+        id: 'opening-cash',
+        transactionId: 'opening',
+        accountId: cash.id,
+        debitPaise: 10000,
+      ),
+      FinancePosting(
+        id: 'receipt-cash',
+        transactionId: 'receipt',
+        accountId: cash.id,
+        debitPaise: 5000,
+      ),
+      FinancePosting(
+        id: 'payment-cash',
+        transactionId: 'payment',
+        accountId: cash.id,
+        creditPaise: 2000,
+      ),
+    ];
+
+    final rows = const FinanceReportingService().ledgerForAccount(
+      account: cash,
+      transactions: transactions,
+      postings: postings,
+      span: DateSpan(DateTime(2026, 10, 1), DateTime(2026, 11, 1)),
+    );
+    expect(rows, hasLength(2));
+    expect(rows[0].transaction.id, 'receipt');
+    expect(rows[0].runningBalancePaise, 15000);
+    expect(rows[1].transaction.id, 'payment');
+    expect(rows[1].debitPaise, 0);
+    expect(rows[1].creditPaise, 2000);
+    expect(rows[1].runningBalancePaise, 13000);
+  });
+
   test('draft and out-of-period transactions are excluded', () {
     final account = FinanceAccount(
       id: 'income',
