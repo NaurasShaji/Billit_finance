@@ -322,11 +322,19 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
               final accounts = accountsBox.values.toList();
               final transactions = transactionsBox.values.toList();
               final postings = postingsBox.values.toList();
+              final paymentMappings = Hive.box<dynamic>('app_settings').get(
+                'finance_payment_account_mapping',
+              );
+              final cashAccountIds = <String>{'system:cash', 'system:bank'};
+              if (paymentMappings is Map) {
+                cashAccountIds.addAll(paymentMappings.values.whereType<String>());
+              }
               final summary = const FinanceReportingService().summarize(
                 accounts: accounts,
                 transactions: transactions,
                 postings: postings,
                 span: span,
+                cashAccountIds: cashAccountIds,
               );
               final rows = _trialBalance(
                 accounts: accounts,
