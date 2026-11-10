@@ -341,6 +341,20 @@ class FinanceLedgerService {
         'Only an existing posted transaction can be reversed.',
       );
     }
+    // A posted journal has at most one effective reversal. This check protects
+    // callers that do not use a deterministic reversal ID and avoids double
+    // reversing an immutable accounting event.
+    final existingReversal = transactionsBox.values.any(
+      (transaction) =>
+          transaction.status == 'posted' &&
+          transaction.transactionType == 'reversal' &&
+          transaction.reversedTransactionId == originalTransactionId,
+    );
+    if (existingReversal) {
+      throw FinanceLedgerException(
+        'Transaction ${original.transactionNumber} has already been reversed.',
+      );
+    }
     final originalLines = postingsBox.values
         .where((line) => line.transactionId == originalTransactionId)
         .toList();
