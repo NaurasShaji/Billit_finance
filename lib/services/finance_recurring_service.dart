@@ -145,9 +145,26 @@ class FinanceRecurringService {
     if (partyId != null) {
       final party =
           Hive.box<FinanceParty>(Boxes.financeParties).get(partyId);
-      if (party == null || !party.active) {
-        throw const FinanceRecurringException('Choose an active party.');
+      final expectedPartyType = transactionType == 'income'
+          ? 'customer'
+          : transactionType == 'expense'
+              ? 'supplier'
+              : null;
+      if (party == null ||
+          !party.active ||
+          expectedPartyType == null ||
+          party.partyType != expectedPartyType) {
+        throw const FinanceRecurringException(
+          'Choose an active customer for income or supplier for expense. Transfers cannot be party-linked.',
+        );
       }
+    }
+    if (transactionType == 'income' &&
+        debitAccountId == 'system:receivables' &&
+        partyId == null) {
+      throw const FinanceRecurringException(
+        'A customer is required for recurring receivable entries.',
+      );
     }
 
     final due = _day(nextDueDate);
