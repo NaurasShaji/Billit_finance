@@ -1,4 +1,4 @@
-# Hive Persistence Audit
+# Hive CE Persistence Audit
 
 Branch audited: `feature/finance-team-promotion`
 
@@ -8,7 +8,7 @@ Startup is centralized in `lib/main.dart`:
 
 1. `WidgetsFlutterBinding.ensureInitialized()` runs before storage initialization.
 2. Web uses `Hive.initFlutter()`; other platforms initialize Hive under the application documents directory.
-3. All fourteen adapters listed below are registered before any typed box is opened.
+3. All twenty adapters listed below are registered before any typed box is opened.
 4. Typed boxes opened at startup:
    - `users` — `Box<User>`
    - `products` — `Box<Product>`
@@ -27,7 +27,7 @@ Startup is centralized in `lib/main.dart`:
 
 All ten typed box names are centralized in `lib/services/boxes.dart`. The two dynamic box names remain string literals in startup and backup code.
 
-## Hive adapter registry
+## Hive CE adapter registry
 
 | Type ID | Adapter / persisted type | Field IDs |
 |---:|---|---|
@@ -51,7 +51,7 @@ Type ID 0 is unused. IDs 1–14 are now reserved. Finance models use string-valu
 ## Compatibility and migration constraints
 
 - Hive field IDs are the persisted schema. Never renumber or reuse an existing field ID.
-- Additive fields must use a new field ID and have a backward-compatible default in the generated adapter. Regenerate adapters after model changes; do not hand-edit generated files.
+- Additive fields must use a new field ID and have a backward-compatible default in the generated Hive CE adapter. Regenerate adapters after model changes; do not hand-edit generated files.
 - `Expense.employeeId` is the newest additive field (ID 5) and is nullable, so records written before it existed can be read as null.
 - `Product`, `SaleItem`, and `Sale` generated readers contain defaults for several newer optional fields. Other fields are read with strict casts and have no migration fallback.
 - `Employee` fields 0–5 are all read as required values. Changing this model needs explicit compatibility handling for older records.
@@ -61,7 +61,7 @@ Type ID 0 is unused. IDs 1–14 are now reserved. Finance models use string-valu
 - Finance schema migration 1→2 is registered at startup. It creates the five finance boxes and seeds nine default accounts using deterministic IDs. Finance migration and journal tests have been authored but have not yet been executed.
 - Adapter registration and box opening remain explicit calls in `main()`; adapter uniqueness/registration coverage is still pending.
 - `session` and `app_settings` are dynamic key/value stores and have no typed schema enforcement. Their keys and value formats need a separately maintained migration contract.
-- Google Drive backup uses a manually serialized JSON format, not Hive binary files. Backup compatibility must be maintained separately from Hive adapter compatibility.
+- Google Drive backup uses a manually serialized JSON format, not Hive binary files. Backup compatibility must be maintained separately from Hive CE adapter compatibility.
 
 ## Finance implementation constraints
 
@@ -72,6 +72,6 @@ The finance persistence layer now has `FinanceAccount`, `FinanceTransaction`, `F
 - Register an explicit schema migration before introducing each new persisted finance schema version.
 - Add adapter registry/type-ID uniqueness tests and run migration tests using representative legacy records.
 - Google Drive backup export, parser, restore snapshots, and rollback now include all five finance boxes; the integration tests are authored but still need execution.
-- `Sale.financeRevision` and `Expense.financeRevision` are additive Hive fields for immutable journal revision tracking; keep their generated adapters and backup serializers in sync.
+- `Sale.financeRevision` and `Expense.financeRevision` are additive Hive fields for immutable journal revision tracking; keep their generated Hive CE adapters and backup serializers in sync.
 - Run the restore and finance persistence tests before release.
 - Centralize dynamic box names and document the keys owned by each module.
