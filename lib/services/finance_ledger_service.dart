@@ -197,6 +197,67 @@ class FinanceLedgerService {
     }
   }
 
+  /// Posts an exact opposite entry without modifying the original posted record.
+  Future<void> reverseTransaction({
+    required String originalTransactionId,
+    required String reversalId,
+    required String reversalNumber,
+    required DateTime reversalDate,
+    required Box<FinanceAccount> accountsBox,
+    required Box<FinanceTransaction> transactionsBox,
+    required Box<FinancePosting> postingsBox,
+    String memo = '',
+  }) async {
+    final original = transactionsBox.get(originalTransactionId);
+    if (original == null || original.status != 'posted') {
+      throw const FinanceLedgerException(
+        'Only an existing posted transaction can be reversed.',
+      );
+    }
+    final originalLines = postingsBox.values
+        .where((line) => line.transactionId == originalTransactionId)
+        .toList();
+    if (originalLines.length < 2) {
+      throw const FinanceLedgerException(
+        'The original transaction has no complete journal entry to reverse.',
+      );
+    }
+
+    final reversal = FinanceTransaction(
+      id: reversalId,
+      transactionNumber: reversalNumber,
+      transactionType: 'reversal',
+      date: reversalDate,
+      memo: memo.isEmpty ? 'Reversal of ${original.transactionNumber}' : memo,
+      reference: original.transactionNumber,
+      sourceType: 'reversal',
+      sourceId: original.id,
+      reversedTransactionId: original.id,
+    );
+    final reversalLines = originalLines
+        .map(
+          (line) => FinancePosting(
+            id: '$reversalId:${line.id}',
+            transactionId: reversalId,
+            accountId: line.accountId,
+            debitPaise: line.creditPaise,
+            creditPaise: line.debitPaise,
+            partyId: line.partyId,
+            categoryId: line.categoryId,
+            memo: line.memo,
+          ),
+        )
+        .toList();
+
+    await postTransaction(
+      transaction: reversal,
+      postings: reversalLines,
+      accountsBox: accountsBox,
+      transactionsBox: transactionsBox,
+      postingsBox: postingsBox,
+    );
+  }
+
   /// Returns the raw debit-minus-credit balance in paise for an account.
   /// Only postings belonging to posted transactions are included.
   int balancePaise({
