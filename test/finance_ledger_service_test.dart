@@ -168,7 +168,7 @@ void main() {
     );
     await expectLater(
       service.postTransaction(
-        transaction: transaction(),
+        transaction: transaction(id: 'txn-1', sourceId: 'different-source'),
         postings: balancedLines('txn-1'),
         accountsBox: accounts,
         transactionsBox: transactions,
