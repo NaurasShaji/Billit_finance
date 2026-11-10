@@ -184,6 +184,22 @@ class FinanceSchemaMigration {
         },
       );
 
+  /// Adds the liability control account for approved employee reimbursements.
+  static SchemaMigration get versionTenToEleven => SchemaMigration(
+        fromVersion: 10,
+        toVersion: 11,
+        apply: (_) async {
+          final accounts = await Hive.openBox<FinanceAccount>(Boxes.financeAccounts);
+          if (!accounts.containsKey('system:employee-reimbursements-payable')) {
+            await accounts.put('system:employee-reimbursements-payable', FinanceAccount(
+              id: 'system:employee-reimbursements-payable',
+              name: 'Employee Reimbursements Payable',
+              accountType: 'liability',
+            ));
+          }
+        },
+      );
+
   /// Adds primitive-map storage for immutable invoice payment allocations.
   static SchemaMigration get versionSevenToEight => SchemaMigration(
         fromVersion: 7,
