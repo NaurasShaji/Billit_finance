@@ -81,8 +81,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             .map((e) => e.toJson())
             .toList(),
         'appSettings': {
-          'hr_employee_documents': Hive.box<dynamic>('app_settings')
-              .get('hr_employee_documents', defaultValue: {}),
+          for (final key in [
+            'hr_employee_documents',
+            'hr_employment_history',
+            'hr_leave_policies',
+          ])
+            if (Hive.box<dynamic>('app_settings').containsKey(key))
+              key: Hive.box<dynamic>('app_settings').get(key),
         },
       };
 
@@ -235,9 +240,17 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               .map((e) => Employee.fromJson(e as Map<String, dynamic>)),
         );
       }
-      if (rawDocuments != null) {
-        await Hive.box<dynamic>('app_settings')
-            .put('hr_employee_documents', rawDocuments);
+      if (rawAppSettings is Map) {
+        final settings = Hive.box<dynamic>('app_settings');
+        for (final key in [
+          'hr_employee_documents',
+          'hr_employment_history',
+          'hr_leave_policies',
+        ]) {
+          if (rawAppSettings.containsKey(key)) {
+            await settings.put(key, rawAppSettings[key]);
+          }
+        }
       }
 
       if (!mounted) return;
