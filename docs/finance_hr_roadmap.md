@@ -21,6 +21,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Migrate application, model, service, and test imports to Hive CE.
 - [x] Document in-place storage compatibility requirements and real-device validation steps.
 - [ ] Regenerate/verify Hive CE adapters with build_runner and run all persistence tests.
+- [x] Add journal reporting coverage for reversal of internal transfers in cash-flow totals.
 - [ ] Confirm the refreshed pubspec.lock is committed by CI and dependency resolution is clean.
 - [ ] Verify existing production Hive v2 data opens unchanged with Hive CE on a test device.
 - [ ] Verify rollback behavior under actual device storage failures.
@@ -35,7 +36,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Track sale/expense revisions and reverse older journal snapshots.
 - [x] Reverse journal history before deleting POS invoices or expenses.
 - [x] Add retry visibility for startup reconciliation errors.
-- [ ] Add reconciliation report comparing source-record counts and totals with journal totals.
+- [ ] Add reconciliation report comparing source-record counts and totals with journal totals, including failed startup syncs.
 - [ ] Verify all create/edit/delete/restore paths on device.
 
 ### Finance workflows and reporting
@@ -46,8 +47,9 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Journal list and reversal action.
 - [x] Journal-based period P&L and cash-flow summary.
 - [x] Separate POS gross-profit estimate from accounting P&L.
-- [ ] Opening balance setup and reconciliation workflow.
-- [ ] Account creation, editing, archiving, and hierarchy management UI.
+- [x] Opening balance entry when creating asset/liability accounts.
+- [ ] Opening balance reconciliation and adjustment workflow.
+- [x] Account creation, editing, archiving, and hierarchy management UI.
 - [ ] Customer/supplier subledgers and receivables/payables settlements.
 - [ ] Budget creation, period tracking, and variance reporting.
 - [ ] Recurring income/expense templates and due-date processing.
@@ -73,12 +75,15 @@ This roadmap tracks implementation state. A checked implementation item is not a
 ### Compensation and payroll
 - [x] Partial salary/wage payments with outstanding balance calculations.
 - [x] Payroll expense linked to employee ID.
-- [ ] Salary structures with earnings, allowances, deductions, and effective dates.
-- [ ] Payroll periods/runs with draft, approval, and paid states.
+- [x] Employee-specific earning/deduction components with effective dates.
+- [ ] Reusable salary structures, grade templates, and effective-dated base pay changes.
+- [x] Payroll periods/runs with draft, approval, and paid states.
 - [ ] Overtime and statutory deduction configuration.
 - [ ] Salary advances and recovery schedules.
-- [ ] Payslip generation and PDF export.
-- [ ] Payroll journal posting with period/run references and reversal support.
+- [x] Immutable payslip snapshots generated for each payroll run.
+- [ ] Payslip PDF export.
+- [x] Journal posting for payroll payments with run/payslip references through source-linked expense records.
+- [ ] Payroll accrual journal, payroll liability settlement, and reversal workflow.
 
 ## Release gates
 - [ ] Run `dart run build_runner build --delete-conflicting-outputs` using hive_ce_generator.
