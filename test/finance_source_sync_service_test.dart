@@ -272,6 +272,60 @@ void main() {
     );
   });
 
+  test('configured POS payment mapping posts receipts to the selected asset account', () async {
+    await sync.savePaymentAccountMapping(
+      mapping: const {
+        'cash': 'system:bank',
+        'card': 'system:cash',
+        'upi': 'system:bank',
+      },
+      accountsBox: accounts,
+      settingsBox: settings,
+    );
+
+    final sale = Sale()
+      ..id = 'sale-mapped-cash'
+      ..date = DateTime(2026, 10, 6)
+      ..items = []
+      ..totalAmount = 75
+      ..payment = PaymentMethod.cash;
+
+    await sync.syncSale(
+      sale: sale,
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: postings,
+      categoriesBox: categories,
+      partiesBox: parties,
+      settingsBox: settings,
+    );
+
+    final receipt = postings.values.singleWhere(
+      (line) => line.transactionId == 'finance:sale:sale-mapped-cash:r0' &&
+          line.debitPaise > 0,
+    );
+    expect(receipt.accountId, 'system:bank');
+    expect(receipt.debitPaise, 7500);
+  });
+
+  test('payment mapping rejects inactive or non-asset destination accounts', () async {
+    final expenseAccount = accounts.get('system:operating-expense')!;
+    await expectLater(
+      sync.savePaymentAccountMapping(
+        mapping: const {
+          'cash': 'system:operating-expense',
+          'card': 'system:bank',
+          'upi': 'system:bank',
+        },
+        accountsBox: accounts,
+        settingsBox: settings,
+      ),
+      throwsA(isA<FinanceLedgerException>()),
+    );
+    expect(settings.get(FinanceSourceSyncService.paymentAccountSettingsKey), isNull);
+    expect(expenseAccount.accountType, 'expense');
+  });
+
   test('sale edits reverse the previous snapshot and post the new revision',
       () async {
     final sale = Sale()
