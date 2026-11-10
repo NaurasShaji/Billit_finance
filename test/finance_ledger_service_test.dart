@@ -116,6 +116,7 @@ void main() {
       postingsBox: postings,
     );
 
+    expect(entry.status, 'draft');
     expect(transactions.get(entry.id)!.status, 'posted');
     expect(transactions.get(entry.id)!.postedAt, isNotNull);
     expect(postings.length, 2);
