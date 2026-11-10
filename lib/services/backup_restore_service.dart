@@ -10,6 +10,9 @@ import '../models/finance_transaction.dart';
 import '../models/hr_department.dart';
 import '../models/employee_attendance.dart';
 import '../models/leave_request.dart';
+import '../models/salary_component.dart';
+import '../models/payroll_run.dart';
+import '../models/payslip.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
 import '../models/user.dart';
@@ -32,6 +35,9 @@ class BackupRestorePayload {
   final List<HrDepartment>? hrDepartments;
   final List<EmployeeAttendance>? employeeAttendance;
   final List<LeaveRequest>? leaveRequests;
+  final List<SalaryComponent>? salaryComponents;
+  final List<PayrollRun>? payrollRuns;
+  final List<Payslip>? payslips;
   final Map<String, dynamic>? appSettings;
 
   const BackupRestorePayload({
@@ -48,6 +54,9 @@ class BackupRestorePayload {
     required this.hrDepartments,
     required this.employeeAttendance,
     required this.leaveRequests,
+    required this.salaryComponents,
+    required this.payrollRuns,
+    required this.payslips,
     required this.appSettings,
   });
 }
@@ -72,6 +81,9 @@ class BackupRestoreService {
     Box<HrDepartment>? hrDepartmentsBox,
     Box<EmployeeAttendance>? employeeAttendanceBox,
     Box<LeaveRequest>? leaveRequestsBox,
+    Box<SalaryComponent>? salaryComponentsBox,
+    Box<PayrollRun>? payrollRunsBox,
+    Box<Payslip>? payslipsBox,
     Future<void> Function(String stage)? afterWrite,
   }) async {
     final payload = parse(data);
@@ -91,6 +103,9 @@ class BackupRestoreService {
       hrDepartmentsBox: hrDepartmentsBox,
       employeeAttendanceBox: employeeAttendanceBox,
       leaveRequestsBox: leaveRequestsBox,
+      salaryComponentsBox: salaryComponentsBox,
+      payrollRunsBox: payrollRunsBox,
+      payslipsBox: payslipsBox,
       afterWrite: afterWrite,
     );
   }
@@ -114,6 +129,9 @@ class BackupRestoreService {
     Box<HrDepartment>? hrDepartmentsBox,
     Box<EmployeeAttendance>? employeeAttendanceBox,
     Box<LeaveRequest>? leaveRequestsBox,
+    Box<SalaryComponent>? salaryComponentsBox,
+    Box<PayrollRun>? payrollRunsBox,
+    Box<Payslip>? payslipsBox,
     Future<void> Function(String stage)? afterWrite,
   }) async {
     final hasFinancePayload = payload.financeAccounts != null;
@@ -129,6 +147,7 @@ class BackupRestoreService {
     }
 
     final hasHrPayload = payload.hrDepartments != null;
+    final hasPayrollPayload = payload.salaryComponents != null;
     if (hasHrPayload &&
         (hrDepartmentsBox == null ||
             employeeAttendanceBox == null ||
@@ -147,6 +166,25 @@ class BackupRestoreService {
     final leaveRequestsSnapshot = leaveRequestsBox == null
         ? null
         : Map<dynamic, LeaveRequest>.from(leaveRequestsBox.toMap());
+
+    if (hasPayrollPayload &&
+        (salaryComponentsBox == null ||
+            payrollRunsBox == null ||
+            payslipsBox == null)) {
+      throw const FormatException(
+        'Payroll backup data was supplied but payroll storage boxes are unavailable.',
+      );
+    }
+
+    final salaryComponentsSnapshot = salaryComponentsBox == null
+        ? null
+        : Map<dynamic, SalaryComponent>.from(salaryComponentsBox.toMap());
+    final payrollRunsSnapshot = payrollRunsBox == null
+        ? null
+        : Map<dynamic, PayrollRun>.from(payrollRunsBox.toMap());
+    final payslipsSnapshot = payslipsBox == null
+        ? null
+        : Map<dynamic, Payslip>.from(payslipsBox.toMap());
 
     final financeAccountsSnapshot =
         financeAccountsBox == null ? null : Map<dynamic, FinanceAccount>.from(financeAccountsBox.toMap());
@@ -199,6 +237,23 @@ class BackupRestoreService {
           for (final item in payload.leaveRequests!) item.id: item,
         });
         await afterWrite?.call('leaveRequests.putAll');
+      }
+      if (hasPayrollPayload) {
+        await salaryComponentsBox!.clear();
+        await salaryComponentsBox.putAll({
+          for (final item in payload.salaryComponents!) item.id: item,
+        });
+        await afterWrite?.call('salaryComponents.putAll');
+        await payrollRunsBox!.clear();
+        await payrollRunsBox.putAll({
+          for (final item in payload.payrollRuns!) item.id: item,
+        });
+        await afterWrite?.call('payrollRuns.putAll');
+        await payslipsBox!.clear();
+        await payslipsBox.putAll({
+          for (final item in payload.payslips!) item.id: item,
+        });
+        await afterWrite?.call('payslips.putAll');
       }
       if (hasFinancePayload) {
         await financeAccountsBox!.clear();
@@ -254,6 +309,18 @@ class BackupRestoreService {
         if (leaveRequestsSnapshot != null) {
           await leaveRequestsBox!.clear();
           await leaveRequestsBox.putAll(leaveRequestsSnapshot);
+        }
+        if (salaryComponentsSnapshot != null) {
+          await salaryComponentsBox!.clear();
+          await salaryComponentsBox.putAll(salaryComponentsSnapshot);
+        }
+        if (payrollRunsSnapshot != null) {
+          await payrollRunsBox!.clear();
+          await payrollRunsBox.putAll(payrollRunsSnapshot);
+        }
+        if (payslipsSnapshot != null) {
+          await payslipsBox!.clear();
+          await payslipsBox.putAll(payslipsSnapshot);
         }
         if (financeAccountsSnapshot != null) {
           await financeAccountsBox!.clear();
