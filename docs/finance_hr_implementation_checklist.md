@@ -169,8 +169,9 @@ Work branch: `feature/finance-team-promotion`
 - [x] Customer/supplier directory and party-level receivable/payable balances.
 - [x] Initial Team dashboard, employee directory, department management, and employee profile screens.
 - [x] Initial attendance, leave, payroll-run, salary-component, and payslip screens.
-- [ ] Responsive phone/tablet/desktop layouts.
-- [ ] Light/dark theme review and consistent empty/error states.
+- [x] Apply adaptive metric grids and centered max-width content frames to Finance dashboard, accounting reports, and reconciliation. Other Finance forms/lists remain scrollable and use available width.
+- [x] Replace hardcoded dashboard colors with theme color-scheme roles; core Finance ledger/report/reconciliation screens use ThemeData surfaces and text styles.
+- [ ] Complete the global responsive and light/dark/empty/error review across remaining Finance and HR screens.
 
 ## Phase 9 — Regression and release
 
