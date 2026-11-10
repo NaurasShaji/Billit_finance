@@ -290,10 +290,8 @@ class FinanceRecurringService {
                 template.transactionType == 'expense' ? template.categoryId : null;
             final categoryOnCredit =
                 template.transactionType == 'income' ? template.categoryId : null;
-            final partyOnDebit =
-                template.transactionType == 'expense' ? template.partyId : null;
-            final partyOnCredit =
-                template.transactionType == 'income' ? template.partyId : null;
+            final partyOnDebit = template.partyId;
+            final partyOnCredit = template.partyId;
             await _ledger.postTransaction(
               transaction: FinanceTransaction(
                 id: transactionId,
