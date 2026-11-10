@@ -26,7 +26,7 @@ Work branch: `feature/finance-team-promotion`
 - Added immutable reversal posting: exact opposite journal lines are appended and the original posted transaction is not modified.
 - Added finance persistence/migration and ledger integrity tests. These are authored but have not been executed.
 - Extended Google Drive backup export, parser, restore, snapshots, and rollback to include all five finance boxes. Legacy backups without finance keys preserve current finance data; partial finance collection sets, broken cross-references, duplicate transaction/source identifiers, invalid posting lines, and unbalanced posted entries are rejected before writes.
-- Added `FinanceSourceSyncService` for legacy POS sales, GST split, general expenses, and payroll expenses. Stable source IDs and `financeRevision` fields prevent duplicate imports and represent invoice edits as reversal plus replacement entries. Invoice/expense deletion creates reversals. Startup reconciliation reports failures and the Finance tab exposes retry. Manual income/expense/transfer entry and initial accounts, journal, P&L, and cash-flow screens are present. `build_runner`, formatting, analysis, tests, and Android build remain unverified.
+- Added schema v4 HR persistence for departments, employee attendance, and leave requests. Employee records now include code, contact details, department, designation, joining date, employment status, address, and notes. Attendance can be marked per employee/day; leave requests support overlap checks and approval/rejection, and approved leave creates locked attendance records. HR collections and extended employee profiles are included in backup/restore with validation and rollback tests. Added `FinanceSourceSyncService` for legacy POS sales, GST split, general expenses, and payroll expenses. Stable source IDs and `financeRevision` fields prevent duplicate imports and represent invoice edits as reversal plus replacement entries. Invoice/expense deletion creates reversals. Startup reconciliation reports failures and the Finance tab exposes retry. Manual income/expense/transfer entry and initial accounts, journal, P&L, and cash-flow screens are present. `build_runner`, formatting, analysis, tests, and Android build remain unverified.
 
 ## Phase 0 — Repository audit and safe foundation
 
@@ -87,17 +87,17 @@ Work branch: `feature/finance-team-promotion`
 
 ## Phase 4 — HR foundation
 
-- [ ] Expanded employee profiles and employment status.
-- [ ] Departments, designations, and employee numbers.
+- [x] Expanded employee profiles and employment status.
+- [x] Departments, designations, and employee numbers.
 - [ ] Employment history and employee documents.
 - [ ] Configurable employment and pay frequencies.
 
 ## Phase 5 — Attendance and leave
 
-- [ ] Daily attendance states and attendance corrections.
+- [x] Daily attendance states and attendance corrections.
 - [ ] Optional check-in/check-out.
-- [ ] Leave types, policies, requests, and approvals.
-- [ ] Leave balances and attendance reports.
+- [x] Leave types, requests, and approval/rejection workflow.
+- [ ] Leave balances, policy accrual, and attendance reports.
 
 ## Phase 6 — Payroll expansion
 
