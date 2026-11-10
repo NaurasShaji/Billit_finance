@@ -17,7 +17,7 @@ A posted journal transaction must balance: total debits equal total credits. Dra
 
 ## 2. Hive persistence types
 
-Implemented on this branch with reserved Hive type IDs 10–14 and 21–22. The finance models use string-valued classification fields rather than persisted enums; never reuse IDs 1–21.
+Implemented on this branch with reserved Hive type IDs 10–14 and 21–22. The finance models use string-valued classification fields rather than persisted enums; never reuse IDs 1–22.
 
 | Model | Purpose | Key persisted fields |
 |---|---|---|
@@ -75,7 +75,7 @@ Do not repurpose or remove existing `Sale`, `Expense`, `Employee`, or payroll pa
 ## 7. Migration and rollout sequence
 
 1. [x] Add schema versioning and a migration runner without changing existing boxes. The runner is integrated into startup; legacy installations receive schema version 1.
-2. [x] Add five finance models, Hive CE adapters, boxes, and schema migration 1→2 with default accounts. Persistence and migration tests are authored but still require execution.
+2. [x] Add seven finance models, Hive CE adapters, boxes, and sequential schema migrations 1→2, 2→3, 5→6, and 6→7. Persistence and migration tests are authored but still require execution.
 3. [x] Seed the default chart of accounts, including GST and payroll accounts. Opening balances still require an explicit setup workflow.
 4. [x] Import legacy expenses and payroll expenses with deterministic source keys; reconciliation tests are authored but not yet executed.
 5. [x] Add POS sale posting with duplicate protection, GST split, revision tracking, and reversal on edit/delete; reconciliation tests are authored but not yet executed.
