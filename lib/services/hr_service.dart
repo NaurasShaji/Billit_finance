@@ -306,8 +306,26 @@ class HrService {
         effectiveFrom: start,
       ));
     }
+    final previous = componentsBox.values
+        .where((item) => item.employeeId == employeeId && item.active &&
+            !item.effectiveFrom.isAfter(start) &&
+            (item.effectiveTo == null || !day(item.effectiveTo!).isBefore(start)))
+        .toList();
+    final snapshots = {for (final item in previous) item.id: item};
     final inserted = <String>[];
     try {
+      for (final item in previous) {
+        await componentsBox.put(item.id, SalaryComponent(
+          id: item.id,
+          employeeId: item.employeeId,
+          name: item.name,
+          componentType: item.componentType,
+          amountPaise: item.amountPaise,
+          effectiveFrom: item.effectiveFrom,
+          effectiveTo: start.subtract(const Duration(days: 1)),
+          active: item.active,
+        ));
+      }
       for (final component in additions) {
         await componentsBox.put(component.id, component);
         inserted.add(component.id);
@@ -315,6 +333,9 @@ class HrService {
     } catch (_) {
       for (final id in inserted.reversed) {
         try { await componentsBox.delete(id); } catch (_) {}
+      }
+      for (final item in snapshots.values) {
+        try { await componentsBox.put(item.id, item); } catch (_) {}
       }
       rethrow;
     }
