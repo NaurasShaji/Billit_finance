@@ -300,6 +300,51 @@ class HrPayrollService {
     return updatedSlip;
   }
 
+  Future<SalaryComponent> addSalaryComponent({
+    required String employeeId,
+    required String name,
+    required String componentType,
+    required int amountPaise,
+    required DateTime effectiveFrom,
+    DateTime? effectiveTo,
+  }) async {
+    final employee = Hive.box<Employee>(Boxes.employees).get(employeeId);
+    if (employee == null) {
+      throw const HrPayrollServiceException('Employee was not found.');
+    }
+    if (name.trim().isEmpty) {
+      throw const HrPayrollServiceException('Component name is required.');
+    }
+    if (componentType != 'earning' && componentType != 'deduction') {
+      throw const HrPayrollServiceException(
+        'Component type must be earning or deduction.',
+      );
+    }
+    if (amountPaise <= 0) {
+      throw const HrPayrollServiceException(
+        'Component amount must be positive.',
+      );
+    }
+    if (effectiveTo != null &&
+        _day(effectiveTo).isBefore(_day(effectiveFrom))) {
+      throw const HrPayrollServiceException(
+        'Effective end date cannot be before start date.',
+      );
+    }
+    final component = SalaryComponent(
+      id: 'salary-component:${Uri.encodeComponent(employeeId)}:${DateTime.now().microsecondsSinceEpoch}',
+      employeeId: employeeId,
+      name: name.trim(),
+      componentType: componentType,
+      amountPaise: amountPaise,
+      effectiveFrom: _day(effectiveFrom),
+      effectiveTo: effectiveTo == null ? null : _day(effectiveTo),
+    );
+    await Hive.box<SalaryComponent>(Boxes.salaryComponents)
+        .put(component.id, component);
+    return component;
+  }
+
   Future<void> archiveSalaryComponent(String componentId) async {
     final box = Hive.box<SalaryComponent>(Boxes.salaryComponents);
     final component = box.get(componentId);
