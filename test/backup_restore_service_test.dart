@@ -133,6 +133,43 @@ void main() {
       );
     });
 
+    test('treats backups without finance collections as legacy', () {
+      final payload = service.parse({'users': [], 'products': []});
+      expect(payload.financeAccounts, isNull);
+      expect(payload.financeTransactions, isNull);
+    });
+
+    test('rejects a partial finance backup collection set', () {
+      expect(
+        () => service.parse({
+          'financeAccounts': [],
+          'financeTransactions': [],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('rejects fractional paise values in finance postings', () {
+      expect(
+        () => service.parse({
+          'financeAccounts': [],
+          'financeTransactions': [],
+          'financePostings': [
+            {
+              'id': 'line',
+              'transactionId': 'txn',
+              'accountId': 'cash',
+              'debitPaise': 10.5,
+              'creditPaise': 0,
+            },
+          ],
+          'financeCategories': [],
+          'financeParties': [],
+        }),
+        throwsFormatException,
+      );
+    });
+
     test('preserves provided app settings as a map', () {
       final payload = service.parse({
         'appSettings': {'theme': 'dark', 'showLogo': true},
