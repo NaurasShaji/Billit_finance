@@ -146,6 +146,16 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
           text: current[type]!.annualEntitlementDays.toString(),
         ),
     };
+    final carryControllers = <String, TextEditingController>{
+      for (final type in HrService.leaveTypes)
+        type: TextEditingController(
+          text: current[type]!.carryForwardDays.toString(),
+        ),
+    };
+    final excludeWeekends = <String, bool>{
+      for (final type in HrService.leaveTypes)
+        type: current[type]!.excludeWeekends,
+    };
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -156,18 +166,48 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Accrual is monthly from the employee joining date or 1 January, whichever is later. Approved leave reduces the current calendar-year balance.'),
+                const Text('Accrual is monthly from the employee joining date or 1 January, whichever is later. Carry-forward is capped per leave type. Weekend exclusion applies to approved leave-day counting and attendance generation.'),
                 const SizedBox(height: 12),
                 for (final type in HrService.leaveTypes)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: TextField(
-                      controller: controllers[type],
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: '${type[0].toUpperCase()}${type.substring(1)} (days/year)',
-                        border: const OutlineInputBorder(),
-                      ),
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${type[0].toUpperCase()}${type.substring(1)} leave',
+                          style: Theme.of(dialogContext).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: controllers[type],
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Annual entitlement (days)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: carryControllers[type],
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Maximum carry-forward (days)',
+                            helperText: 'Unused days from the previous calendar year',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: excludeWeekends[type] ?? false,
+                          title: const Text('Exclude Saturdays and Sundays'),
+                          onChanged: type == 'unpaid'
+                              ? null
+                              : (value) => setState(() {
+                                    excludeWeekends[type] = value ?? false;
+                                  }),
+                        ),
+                      ],
                     ),
                   ),
               ],
@@ -185,12 +225,16 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
         final policies = <String, LeavePolicy>{};
         for (final type in HrService.leaveTypes) {
           final days = int.tryParse(controllers[type]!.text.trim());
-          if (days == null || days < 0 || days > 365) {
-            throw const HrServiceException('Enter a whole-number entitlement from 0 to 365 for every leave type.');
+          final carry = int.tryParse(carryControllers[type]!.text.trim());
+          if (days == null || days < 0 || days > 365 ||
+              carry == null || carry < 0 || carry > 365) {
+            throw const HrServiceException('Enter whole-number annual entitlement and carry-forward limits from 0 to 365 for every leave type.');
           }
           policies[type] = LeavePolicy(
             annualEntitlementDays: days,
             accrualEnabled: days > 0,
+            carryForwardDays: carry,
+            excludeWeekends: excludeWeekends[type] ?? false,
           );
         }
         await service.saveLeavePolicies(policies);
@@ -204,6 +248,9 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
       }
     }
     for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    for (final controller in carryControllers.values) {
       controller.dispose();
     }
   }
