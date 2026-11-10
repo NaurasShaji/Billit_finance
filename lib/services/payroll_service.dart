@@ -105,6 +105,19 @@ class PayrollService {
         .fold<double>(0, (total, payment) => total + payment.amount);
   }
 
+  static EmployeeAttendance? attendanceFor(
+    Employee employee,
+    DateTime now,
+  ) {
+    if (employee.type != typeDaily ||
+        !Hive.isBoxOpen(Boxes.employeeAttendance)) {
+      return null;
+    }
+    return Hive.box<EmployeeAttendance>(Boxes.employeeAttendance).get(
+      HrService.attendanceId(employee.id, now),
+    );
+  }
+
   /// Remaining amount due in the applicable payroll period.
   static double outstandingFor(
     Employee employee,
@@ -112,13 +125,24 @@ class PayrollService {
     DateTime now, {
     required Iterable<Employee> allEmployees,
   }) {
+    var targetAmount = employee.wage;
+    if (employee.type == typeDaily &&
+        Hive.isBoxOpen(Boxes.employeeAttendance)) {
+      final attendance = attendanceFor(employee, now);
+      if (attendance == null) return 0;
+      if (attendance.status == 'half_day') {
+        targetAmount = employee.wage / 2;
+      } else if (attendance.status != 'present') {
+        return 0;
+      }
+    }
     final paid = paidAmountFor(
       employee,
       expenses,
       now,
       allEmployees: allEmployees,
     );
-    return (employee.wage - paid).clamp(0.0, double.infinity).toDouble();
+    return (targetAmount - paid).clamp(0.0, double.infinity).toDouble();
   }
 
   /// Monthly staff: fully paid this month. Daily staff: fully paid today.
