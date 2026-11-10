@@ -396,6 +396,43 @@ void main() {
     expect(transactions.values.where((item) => item.sourceType == 'employee_advance_repayment'), hasLength(1));
   });
 
+  test('multiple advance recoveries share one correctly balanced payslip journal', () async {
+    await payroll.addEmployeeAdvance(
+      employeeId: 'monthly-1',
+      principalPaise: 600000,
+      installmentPaise: 150000,
+      issueDate: DateTime(2026, 10, 1),
+      firstDueDate: DateTime(2026, 11, 1),
+      cashAccountId: 'system:cash',
+    );
+    await payroll.addEmployeeAdvance(
+      employeeId: 'monthly-1',
+      principalPaise: 400000,
+      installmentPaise: 100000,
+      issueDate: DateTime(2026, 10, 2),
+      firstDueDate: DateTime(2026, 11, 1),
+      cashAccountId: 'system:bank',
+    );
+    final run = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+    );
+    final slip = payslips.values.singleWhere((item) => item.employeeId == 'monthly-1');
+    expect(slip.deductionsPaise, 250000);
+    await payroll.approveRun(run.id);
+    await payroll.payPayslip(payslipId: slip.id, amountPaise: slip.netPaise);
+
+    final recovery = transactions.values.singleWhere(
+      (item) => item.sourceType == 'payroll_advance_recovery' && item.sourceId == slip.id,
+    );
+    final lines = postings.values.where((line) => line.transactionId == recovery.id).toList();
+    expect(lines.where((line) => line.accountId == 'system:salary-expense').single.debitPaise, 250000);
+    expect(lines.where((line) => line.accountId == 'system:employee-advances').single.creditPaise, 250000);
+    expect(payroll.advances('monthly-1').where((item) => item['outstandingPaise'] == 450000), hasLength(1));
+    expect(payroll.advances('monthly-1').where((item) => item['outstandingPaise'] == 300000), hasLength(1));
+    expect(payroll.advanceReconciliation()['differencePaise'], 0);
+  });
+
   test('verified legacy advance opening balance posts against opening equity', () async {
     await settings.put(HrPayrollService.advanceSettingsKey, {
       'monthly-1': [
