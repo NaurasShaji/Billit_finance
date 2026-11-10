@@ -15,6 +15,7 @@ import '../archive/finance/finance_ledger_screen.dart';
 import '../archive/finance/finance_reconciliation_screen.dart';
 import '../archive/finance/finance_category_management_screen.dart';
 import '../archive/finance/finance_reports_screen.dart';
+import '../archive/finance/finance_parties_screen.dart';
 import '../archive/finance/finance_budgets_screen.dart';
 
 /// Top-level Finance screen: what came in, what went out, what is left.
@@ -133,6 +134,11 @@ class _FinanceTabState extends State<FinanceTab> {
                             _open(const FinanceCategoryManagementScreen()),
                         icon: const Icon(Icons.category_outlined),
                         label: const Text('Categories'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _open(const FinancePartiesScreen()),
+                        icon: const Icon(Icons.people_outline),
+                        label: const Text('Customers & suppliers'),
                       ),
                       OutlinedButton.icon(
                         onPressed: () => _open(const FinanceBudgetsScreen()),
