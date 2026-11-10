@@ -1468,6 +1468,9 @@ class HrPayrollService {
     final grades = salaryGrades().where((grade) => grade['id'] == gradeId).toList();
     if (grades.length != 1) throw const HrPayrollServiceException('Select an active salary grade.');
     final date = _day(effectiveDate);
+    final hasPayrollSnapshot = Hive.box<PayrollRun>(Boxes.payrollRuns).values.any((run) =>
+        !date.isAfter(_day(run.periodEnd)) && !date.isBefore(_day(run.periodStart)));
+    if (hasPayrollSnapshot) throw const HrPayrollServiceException('A payroll run already covers this grade effective date. Use an approved payroll adjustment instead.');
     final base = basePayPaiseFor(employee, date);
     final min = grades.single['minPaise'] as int;
     final max = grades.single['maxPaise'] as int;
