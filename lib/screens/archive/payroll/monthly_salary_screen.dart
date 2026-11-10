@@ -32,7 +32,7 @@ class MonthlySalaryScreen extends StatelessWidget {
             valueListenable: Hive.box<Expense>(Boxes.expenses).listenable(),
             builder: (context, Box<Expense> expBox, __) {
               final monthlyEmployees = empBox.values
-                  .where((e) => e.type == 'monthly')
+                  .where((e) => e.type == 'monthly' && e.employmentStatus == 'active')
                   .toList()
                 ..sort((a, b) => a.name.compareTo(b.name));
 
