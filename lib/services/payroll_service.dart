@@ -227,10 +227,12 @@ class PayrollService {
           employeesBox: employeesBox,
         );
       } catch (error) {
-        await FinanceSourceSyncService.recordIssue(
-          Hive.box<dynamic>('app_settings'),
-          'Payroll expense ${payment.id}: $error',
-        );
+        if (Hive.isBoxOpen('app_settings')) {
+          await FinanceSourceSyncService.recordIssue(
+            Hive.box<dynamic>('app_settings'),
+            'Payroll expense ${payment.id}: $error',
+          );
+        }
       }
     }
     return payment;
