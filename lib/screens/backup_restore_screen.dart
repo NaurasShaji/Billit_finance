@@ -86,6 +86,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             'hr_employment_history',
             'hr_leave_policies',
             'hr_employee_terms',
+            'hr_overtime_entries',
           ])
             if (Hive.box<dynamic>('app_settings').containsKey(key))
               key: Hive.box<dynamic>('app_settings').get(key),
@@ -166,6 +167,50 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       final rawDocuments = rawAppSettings is Map
           ? rawAppSettings['hr_employee_documents']
           : null;
+      final rawOvertime = rawAppSettings is Map
+          ? rawAppSettings['hr_overtime_entries']
+          : null;
+      if (rawOvertime == null) {
+        final existingOvertime = Hive.box<dynamic>('app_settings')
+            .get('hr_overtime_entries');
+        if (existingOvertime is Map && existingOvertime.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates overtime records. Export a current backup before restoring it, or remove existing overtime records explicitly.',
+          );
+        }
+      }
+      if (rawOvertime != null) {
+        if (rawOvertime is! Map) {
+          throw const FormatException('Overtime backup is malformed.');
+        }
+        final employeeIds = (data['employees'] as List? ?? [])
+            .whereType<Map>()
+            .map((item) => item['id'])
+            .whereType<String>()
+            .toSet();
+        for (final entry in rawOvertime.entries) {
+          if (entry.key is! String ||
+              !employeeIds.contains(entry.key) ||
+              entry.value is! List) {
+            throw const FormatException('Overtime record references an unknown employee.');
+          }
+          for (final item in entry.value as List) {
+            if (item is! Map ||
+                item['id'] is! String ||
+                item['date'] is! String ||
+                item['hoursMilli'] is! int ||
+                item['hourlyRatePaise'] is! int ||
+                item['amountPaise'] is! int ||
+                (item['hoursMilli'] as int) <= 0 ||
+                (item['hoursMilli'] as int) > 24000 ||
+                (item['hourlyRatePaise'] as int) <= 0 ||
+                (item['amountPaise'] as int) <= 0) {
+              throw const FormatException('Overtime record contains invalid fields.');
+            }
+            DateTime.parse(item['date'] as String);
+          }
+        }
+      }
       final rawEmployeeTerms = rawAppSettings is Map
           ? rawAppSettings['hr_employee_terms']
           : null;
@@ -294,6 +339,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           'hr_employment_history',
           'hr_leave_policies',
           'hr_employee_terms',
+          'hr_overtime_entries',
         ]) {
           if (rawAppSettings.containsKey(key)) {
             await settings.put(key, rawAppSettings[key]);
