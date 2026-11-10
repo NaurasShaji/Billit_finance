@@ -11,6 +11,7 @@ import 'finance_transaction_form_screen.dart';
 import 'finance_account_form_screen.dart';
 import 'finance_general_ledger_screen.dart';
 import '../../../widgets/responsive_page.dart';
+import '../../../widgets/finance_content_frame.dart';
 
 class FinanceLedgerScreen extends StatefulWidget {
   const FinanceLedgerScreen({super.key});
@@ -143,7 +144,7 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
             ],
           ),
         ),
-        body: ValueListenableBuilder<Box<FinanceAccount>>(
+        body: FinanceContentFrame(child: ValueListenableBuilder<Box<FinanceAccount>>(
           valueListenable:
               Hive.box<FinanceAccount>(Boxes.financeAccounts).listenable(),
           builder: (context, accountsBox, _) =>
@@ -182,7 +183,7 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
               },
             ),
           ),
-        ),
+        )),
       ),
     );
   }
