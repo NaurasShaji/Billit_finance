@@ -1321,7 +1321,8 @@ class BackupRestoreService {
       }
     }
     final categoryIds = categories.map((item) => item.id).toSet();
-    final partyIds = parties.map((item) => item.id).toSet();
+    final partiesById = {for (final item in parties) item.id: item};
+    final partyIds = partiesById.keys.toSet();
     final postingsByTransaction = <String, List<FinancePosting>>{};
 
     for (final category in categories) {
@@ -1353,6 +1354,26 @@ class BackupRestoreService {
         throw FormatException(
           'financePostings.${line.id} references an unknown party.',
         );
+      }
+      final requiresCustomer = line.accountId == 'system:receivables';
+      final requiresSupplier = line.accountId == 'system:payables';
+      if ((requiresCustomer || requiresSupplier) && line.partyId == null) {
+        throw FormatException(
+          'financePostings.${line.id} requires a customer or supplier party.',
+        );
+      }
+      if (line.partyId != null) {
+        final party = partiesById[line.partyId]!;
+        if (requiresCustomer && party.partyType != 'customer') {
+          throw FormatException(
+            'financePostings.${line.id} requires a customer party.',
+          );
+        }
+        if (requiresSupplier && party.partyType != 'supplier') {
+          throw FormatException(
+            'financePostings.${line.id} requires a supplier party.',
+          );
+        }
       }
       if (line.categoryId != null && !categoryIds.contains(line.categoryId)) {
         throw FormatException(
