@@ -172,49 +172,49 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
     ]);
     summarySheet.appendRow([
       TextCellValue('Income'),
-      IntCellValue(summary.incomePaise),
+      DoubleCellValue(summary.incomePaise / 100),
     ]);
     summarySheet.appendRow([
       TextCellValue('Expenses'),
-      IntCellValue(summary.expensePaise),
+      DoubleCellValue(summary.expensePaise / 100),
     ]);
     summarySheet.appendRow([
       TextCellValue('Net profit'),
-      IntCellValue(summary.netProfitPaise),
+      DoubleCellValue(summary.netProfitPaise / 100),
     ]);
     summarySheet.appendRow([
       TextCellValue('Cash received'),
-      IntCellValue(summary.cashInPaise),
+      DoubleCellValue(summary.cashInPaise / 100),
     ]);
     summarySheet.appendRow([
       TextCellValue('Cash paid'),
-      IntCellValue(summary.cashOutPaise),
+      DoubleCellValue(summary.cashOutPaise / 100),
     ]);
     summarySheet.appendRow([
       TextCellValue('Net cash flow'),
-      IntCellValue(summary.netCashFlowPaise),
+      DoubleCellValue(summary.netCashFlowPaise / 100),
     ]);
 
     final trialBalance = workbook['Trial Balance'];
     trialBalance.appendRow([
       TextCellValue('Account'),
       TextCellValue('Type'),
-      TextCellValue('Debit (paise)'),
-      TextCellValue('Credit (paise)'),
+      TextCellValue('Debit (INR)'),
+      TextCellValue('Credit (INR)'),
     ]);
     for (final row in rows) {
       trialBalance.appendRow([
         TextCellValue(row.account.name),
         TextCellValue(row.account.accountType),
-        IntCellValue(row.debitPaise),
-        IntCellValue(row.creditPaise),
+        DoubleCellValue(row.debitPaise / 100),
+        DoubleCellValue(row.creditPaise / 100),
       ]);
     }
     trialBalance.appendRow([
       TextCellValue('TOTAL'),
       TextCellValue(''),
-      IntCellValue(debitTotal),
-      IntCellValue(creditTotal),
+      DoubleCellValue(debitTotal / 100),
+      DoubleCellValue(creditTotal / 100),
     ]);
 
     final bytes = workbook.save();
