@@ -420,6 +420,70 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     amount.dispose();
   }
 
+  Future<void> _reviewOvertimeEntry(
+    Map<String, dynamic> entry, {
+    required bool approve,
+  }) async {
+    final reason = TextEditingController();
+    if (!approve) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Reject overtime'),
+          content: TextField(
+            controller: reason,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Reason for rejection',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                dialogContext,
+                reason.text.trim().isNotEmpty,
+              ),
+              child: const Text('Reject'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) {
+        reason.dispose();
+        return;
+      }
+    }
+    try {
+      if (approve) {
+        await HrPayrollService().approveOvertimeEntry(
+          employeeId: widget.employee.id,
+          entryId: entry['id'] as String,
+        );
+      } else {
+        await HrPayrollService().rejectOvertimeEntry(
+          employeeId: widget.employee.id,
+          entryId: entry['id'] as String,
+          reason: reason.text,
+        );
+      }
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not review overtime: $error')),
+        );
+      }
+    } finally {
+      reason.dispose();
+    }
+  }
+
   Future<void> _addOvertimeEntry() async {
     final hours = TextEditingController();
     final rate = TextEditingController();
@@ -871,11 +935,33 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                   final date = DateTime.parse(entry['date'] as String);
                   final hours = (entry['hoursMilli'] as int) / 1000;
                   final amount = (entry['amountPaise'] as int) / 100;
+                  final status = entry['status'] ?? 'approved';
+                  final pending = status == 'pending';
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.schedule_outlined),
+                    leading: Icon(
+                      pending ? Icons.pending_outlined :
+                          status == 'approved' ? Icons.check_circle_outline : Icons.cancel_outlined,
+                    ),
                     title: Text('${DateFormat('dd MMM yyyy').format(date)} · $hours hours'),
-                    subtitle: Text('₹${amount.toStringAsFixed(2)}'),
+                    subtitle: Text('₹${amount.toStringAsFixed(2)} · ${status.toString().toUpperCase()}'),
+                    trailing: pending
+                        ? Wrap(
+                            spacing: 0,
+                            children: [
+                              IconButton(
+                                tooltip: 'Approve overtime',
+                                onPressed: () => _reviewOvertimeEntry(entry, approve: true),
+                                icon: const Icon(Icons.check_circle_outline),
+                              ),
+                              IconButton(
+                                tooltip: 'Reject overtime',
+                                onPressed: () => _reviewOvertimeEntry(entry, approve: false),
+                                icon: const Icon(Icons.cancel_outlined),
+                              ),
+                            ],
+                          )
+                        : null,
                   );
                 }),
                 if (HrPayrollService().overtimeEntries(widget.employee.id).isEmpty)
