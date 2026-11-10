@@ -59,7 +59,7 @@ Future<void> main() async {
 
   // Sequential migrations add finance (v2/v3/v6/v7) and HR (v4/v5).
   await SchemaMigrationService(
-    currentVersion: 8,
+    currentVersion: 9,
     migrations: [
       FinanceSchemaMigration.versionOneToTwo,
       FinanceSchemaMigration.versionTwoToThree,
@@ -68,6 +68,7 @@ Future<void> main() async {
       FinanceSchemaMigration.versionFiveToSix,
       FinanceSchemaMigration.versionSixToSeven,
       FinanceSchemaMigration.versionSevenToEight,
+      FinanceSchemaMigration.versionEightToNine,
     ],
   ).run(settings);
 
