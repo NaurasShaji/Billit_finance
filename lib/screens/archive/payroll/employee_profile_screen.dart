@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import '../../../services/hr_service.dart';
 import 'salary_components_screen.dart';
 
 class EmployeeProfileScreen extends StatefulWidget {
@@ -72,6 +73,93 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
       lastDate: DateTime.now(),
     );
     if (picked != null) setState(() => _joiningDate = picked);
+  }
+
+  Future<void> _addHistoryEvent() async {
+    String eventType = 'other';
+    DateTime effectiveDate = DateTime.now();
+    final title = TextEditingController();
+    final notes = TextEditingController();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add employment history'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: eventType,
+                    decoration: const InputDecoration(labelText: 'Event type'),
+                    items: const [
+                      DropdownMenuItem(value: 'joining', child: Text('Joining')),
+                      DropdownMenuItem(value: 'designation', child: Text('Designation change')),
+                      DropdownMenuItem(value: 'department', child: Text('Department change')),
+                      DropdownMenuItem(value: 'status', child: Text('Employment status')),
+                      DropdownMenuItem(value: 'pay_change', child: Text('Pay change')),
+                      DropdownMenuItem(value: 'other', child: Text('Other')),
+                    ],
+                    onChanged: (value) => setDialogState(() => eventType = value ?? eventType),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: title,
+                    decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: effectiveDate,
+                        firstDate: DateTime(1980),
+                        lastDate: DateTime.now().add(const Duration(days: 3650)),
+                      );
+                      if (picked != null) setDialogState(() => effectiveDate = picked);
+                    },
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    label: Text(DateFormat('dd MMM yyyy').format(effectiveDate)),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notes,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save event')),
+          ],
+        ),
+      ),
+    );
+    if (saved == true) {
+      try {
+        await HrService().addEmploymentHistory(
+          employeeId: widget.employee.id,
+          eventType: eventType,
+          title: title.text,
+          effectiveDate: effectiveDate,
+          notes: notes.text,
+        );
+        if (mounted) setState(() {});
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not add employment history: $error')),
+          );
+        }
+      }
+    }
+    title.dispose();
+    notes.dispose();
   }
 
   Future<void> _save() async {
@@ -261,6 +349,32 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Employment history', style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                    IconButton(
+                      onPressed: _addHistoryEvent,
+                      tooltip: 'Add history event',
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                  ],
+                ),
+                ...HrService().employmentHistory(widget.employee.id).map((entry) {
+                  final effective = DateTime.parse(entry['effectiveDate'] as String);
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.history),
+                    title: Text(entry['title'] as String? ?? ''),
+                    subtitle: Text('${(entry['eventType'] as String? ?? 'other').replaceAll('_', ' ')} · ${dateFormat.format(effective)}${(entry['notes'] as String? ?? '').isEmpty ? '' : '\\n${entry['notes']}'}'),
+                    isThreeLine: (entry['notes'] as String? ?? '').isNotEmpty,
+                  );
+                }),
+                if (HrService().employmentHistory(widget.employee.id).isEmpty)
+                  const Text('No employment history recorded.'),
+                const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
