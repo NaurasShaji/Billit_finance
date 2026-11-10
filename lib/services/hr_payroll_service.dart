@@ -625,12 +625,65 @@ class HrPayrollService {
     }
     final corrections = (advance['corrections'] as List? ?? []).whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).toList();
     if (!corrections.any((entry) => entry['id'] == correctionId)) {
-      corrections.add({'id': correctionId, 'date': date.toIso8601String(), 'previousOutstandingPaise': current, 'correctedOutstandingPaise': correctedOutstandingPaise, 'deltaPaise': delta, 'offsetAccountId': offsetAccountId, 'reason': reason.trim(), 'journalId': transactionId});
+      corrections.add({'id': correctionId, 'date': date.toIso8601String(), 'previousOutstandingPaise': current, 'correctedOutstandingPaise': correctedOutstandingPaise, 'deltaPaise': delta, 'offsetAccountId': offsetAccountId, 'reason': reason.trim(), 'journalId': transactionId, 'status': 'posted'});
     }
     advance['outstandingPaise'] = correctedOutstandingPaise;
     advance['status'] = correctedOutstandingPaise == 0 ? 'settled' : 'active';
     advance['corrections'] = corrections;
     list[index] = advance;
+    all[employeeId] = list;
+    await settings.put(advanceSettingsKey, all);
+  }
+  Future<void> reverseEmployeeAdvanceCorrection({required String employeeId, required String advanceId, required String correctionId, required String reason}) async {
+    if (reason.trim().isEmpty) throw const HrPayrollServiceException('A reversal reason is required.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(advanceSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) throw const HrPayrollServiceException('Advance was not found.');
+    final all = <String, dynamic>{...Map<String, dynamic>.from(raw)};
+    final list = List<dynamic>.from(all[employeeId] as List);
+    final advanceIndex = list.indexWhere((entry) => entry is Map && entry['id'] == advanceId);
+    if (advanceIndex < 0) throw const HrPayrollServiceException('Advance was not found.');
+    final advance = Map<String, dynamic>.from(list[advanceIndex] as Map);
+    final corrections = (advance['corrections'] as List? ?? []).whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).toList();
+    final index = corrections.indexWhere((entry) => entry['id'] == correctionId);
+    if (index < 0) throw const HrPayrollServiceException('Advance correction was not found.');
+    final correction = corrections[index];
+    if (correction['status'] == 'reversed') return;
+    if (corrections.skip(index + 1).any((entry) => entry['status'] != 'reversed')) throw const HrPayrollServiceException('Reverse later balance corrections first.');
+    final current = advance['outstandingPaise'];
+    final previous = correction['previousOutstandingPaise'];
+    final corrected = correction['correctedOutstandingPaise'];
+    final delta = correction['deltaPaise'];
+    final journalId = correction['journalId'];
+    if (current is! int || previous is! int || corrected is! int || delta is! int || journalId is! String || current != corrected) throw const HrPayrollServiceException('Advance balance has changed since this correction. Reconcile subsequent activity before reversing it.');
+    final correctionDate = DateTime.tryParse(correction['date']?.toString() ?? '');
+    if (correctionDate == null) throw const HrPayrollServiceException('Correction date is malformed.');
+    final repayments = (advance['repayments'] as List? ?? []).whereType<Map>();
+    if (repayments.any((entry) { final date = DateTime.tryParse(entry['date']?.toString() ?? ''); return date != null && !_day(date).isBefore(_day(correctionDate)); })) throw const HrPayrollServiceException('This advance has repayment activity on or after the correction date. Reverse or reconcile that activity first.');
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final original = transactions.get(journalId);
+    if (original == null || original.status != 'posted') throw const HrPayrollServiceException('Original advance correction journal is unavailable.');
+    final reversalId = 'finance:reversal:$journalId';
+    final reversals = transactions.values.where((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == journalId && tx.status == 'posted').toList();
+    if (reversals.isEmpty) {
+      await FinanceLedgerService().reverseTransaction(
+        originalTransactionId: journalId, reversalId: reversalId, reversalNumber: 'REV-ADV-COR-${correctionId.hashCode.abs()}', reversalDate: DateTime.now(),
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: transactions,
+        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings), categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+        partiesBox: Hive.box<FinanceParty>(Boxes.financeParties), memo: 'Employee advance correction reversal: ${reason.trim()}',
+      );
+    } else if (reversals.length != 1) {
+      throw const HrPayrollServiceException('Multiple reversals exist for this advance correction. Reconcile manually.');
+    }
+    advance['outstandingPaise'] = previous;
+    advance['status'] = previous == 0 ? 'settled' : 'active';
+    correction['status'] = 'reversed';
+    correction['reversedAt'] = DateTime.now().toIso8601String();
+    correction['reversalReason'] = reason.trim();
+    correction['reversalJournalId'] = reversalId;
+    corrections[index] = correction;
+    advance['corrections'] = corrections;
+    list[advanceIndex] = advance;
     all[employeeId] = list;
     await settings.put(advanceSettingsKey, all);
   }
