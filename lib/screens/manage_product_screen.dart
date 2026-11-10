@@ -611,7 +611,7 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: DropdownButtonFormField<UnitType>(
-                          initialValue: _selectedUnit,
+                          value: _selectedUnit,
                           decoration: InputDecoration(
                             labelText: 'Unit',
                             border: OutlineInputBorder(
