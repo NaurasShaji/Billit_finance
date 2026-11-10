@@ -252,6 +252,7 @@ class FinanceSourceSyncService {
     required Box<FinanceCategory> categoriesBox,
     required Box<FinanceParty> partiesBox,
     Box<Employee>? employeesBox,
+    Box<dynamic>? settingsBox,
     String paymentAccountId = 'system:cash',
   }) async {
     final sourceType = 'legacy_expense';
@@ -295,14 +296,21 @@ class FinanceSourceSyncService {
     }
     final transactionId =
         'finance:expense:${expense.id}:r${expense.financeRevision}';
+    final correctionHistory = settingsBox?.get('finance_expense_corrections');
+    final correction = correctionHistory is Map ? correctionHistory[sourceId] : null;
+    final correctionReason = correction is Map && correction['reason'] is String
+        ? (correction['reason'] as String).trim()
+        : '';
+    final expenseMemo = expense.description.isEmpty ? category.name : expense.description;
     final transaction = FinanceTransaction(
       id: transactionId,
       transactionNumber: 'EXP-${expense.id}-${expense.financeRevision}',
       transactionType: 'expense',
       date: expense.date,
-      memo: expense.description.isEmpty
-          ? category.name
-          : expense.description,
+      memo: correctionReason.isEmpty
+          ? expenseMemo
+          : '$expenseMemo • Correction: $correctionReason',
+      reference: correctionReason.isEmpty ? expense.id : 'Correction: $correctionReason',
       sourceType: sourceType,
       sourceId: sourceId,
     );
@@ -550,6 +558,7 @@ class FinanceSourceSyncService {
           categoriesBox: categoriesBox,
           partiesBox: partiesBox,
           employeesBox: employeesBox,
+          settingsBox: settingsBox,
         );
       } catch (error) {
         issues.add('Expense ${expense.id}: $error');
