@@ -83,6 +83,7 @@ Future<void> main() async {
     postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
     categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
     partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+    settingsBox: settings,
   );
   if (financeSyncIssues.isEmpty) {
     await settings.delete('finance_sync_errors');
