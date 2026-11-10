@@ -1,4 +1,4 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 part 'finance_account.g.dart';
 
 /// A chart-of-accounts entry. Balances are derived from posted journal lines.
