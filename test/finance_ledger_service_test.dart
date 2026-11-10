@@ -195,6 +195,88 @@ void main() {
     expect(transactions.length, 2);
   });
 
+  test('category and party references must exist and match posting accounts',
+      () async {
+    final categories = Hive.box<FinanceCategory>(Boxes.financeCategories);
+    final parties = Hive.box<FinanceParty>(Boxes.financeParties);
+    await categories.put(
+      'category:rent',
+      FinanceCategory(
+        id: 'category:rent',
+        name: 'Rent',
+        kind: 'expense',
+        accountId: 'system:operating-expense',
+      ),
+    );
+    await parties.put(
+      'party:landlord',
+      FinanceParty(
+        id: 'party:landlord',
+        name: 'Landlord',
+        partyType: 'supplier',
+      ),
+    );
+
+    final entry = transaction(id: 'categorized-entry');
+    await FinanceLedgerService().postTransaction(
+      transaction: entry,
+      postings: [
+        FinancePosting(
+          id: 'categorized-entry-debit',
+          transactionId: entry.id,
+          accountId: 'system:operating-expense',
+          debitPaise: 5000,
+          categoryId: 'category:rent',
+          partyId: 'party:landlord',
+        ),
+        FinancePosting(
+          id: 'categorized-entry-credit',
+          transactionId: entry.id,
+          accountId: 'system:cash',
+          creditPaise: 5000,
+        ),
+      ],
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: postings,
+      categoriesBox: categories,
+      partiesBox: parties,
+    );
+    expect(transactions.get(entry.id)!.status, 'posted');
+
+    final invalid = transaction(
+      id: 'invalid-category-entry',
+      sourceId: 'source-invalid-category',
+    );
+    await expectLater(
+      FinanceLedgerService().postTransaction(
+        transaction: invalid,
+        postings: [
+          FinancePosting(
+            id: 'invalid-category-debit',
+            transactionId: invalid.id,
+            accountId: 'system:cash',
+            debitPaise: 5000,
+            categoryId: 'category:rent',
+          ),
+          FinancePosting(
+            id: 'invalid-category-credit',
+            transactionId: invalid.id,
+            accountId: 'system:operating-expense',
+            creditPaise: 5000,
+          ),
+        ],
+        accountsBox: accounts,
+        transactionsBox: transactions,
+        postingsBox: postings,
+        categoriesBox: categories,
+        partiesBox: parties,
+      ),
+      throwsA(isA<FinanceLedgerException>()),
+    );
+    expect(transactions.containsKey(invalid.id), isFalse);
+  });
+
   test('rejects unbalanced entries without writing anything', () async {
     final entry = transaction();
     final validLines = balancedLines(entry.id);
