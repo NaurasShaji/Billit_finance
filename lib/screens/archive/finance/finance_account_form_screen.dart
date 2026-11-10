@@ -87,6 +87,17 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
     }
     final openingPaise = _parsePaise(_openingBalance.text);
     if (openingPaise == null) return;
+    if (existing == null &&
+        openingPaise > 0 &&
+        _type != 'asset' &&
+        _type != 'liability') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Opening balances are supported only for asset and liability accounts.'),
+        ),
+      );
+      return;
+    }
 
     final duplicate = accounts.values.any((item) =>
         item.id != widget.account?.id &&
@@ -155,11 +166,6 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
         );
 
         if (openingPaise > 0) {
-          if (_type != 'asset' && _type != 'liability') {
-            throw const FormatException(
-              'Opening balances are supported only for asset and liability accounts.',
-            );
-          }
           final transactionId = 'finance:opening:$id';
           final openingEquity = 'system:opening-equity';
           final debitAccount =
@@ -213,9 +219,16 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
         try {
           final hasJournal = Hive.box<FinanceTransaction>(
             Boxes.financeTransactions,
-          ).values.any((item) => item.sourceType == 'account_opening' &&
-              item.sourceId == createdId);
-          if (!hasJournal) await accounts.delete(createdId);
+          ).values.any((item) =>
+              item.sourceType == 'account_opening' && item.sourceId == createdId);
+          final hasOrphanPostings = Hive.box<FinancePosting>(
+            Boxes.financePostings,
+          ).values.any((line) =>
+              line.accountId == createdId ||
+              line.transactionId == 'finance:opening:$createdId');
+          if (!hasJournal && !hasOrphanPostings) {
+            await accounts.delete(createdId);
+          }
         } catch (_) {}
       }
       if (mounted) {
