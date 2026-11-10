@@ -336,6 +336,17 @@ void main() {
         partyType: 'supplier',
       ),
     );
+    await financeBudgets.put(
+      'old-budget',
+      FinanceBudget(
+        id: 'old-budget',
+        name: 'Old budget',
+        accountId: 'old-account',
+        periodStart: DateTime(2026, 1, 1),
+        periodEnd: DateTime(2026, 1, 31),
+        budgetPaise: 25000,
+      ),
+    );
 
     var injected = false;
     await expectLater(
@@ -359,11 +370,29 @@ void main() {
               'active': true,
               'createdAt': '2026-01-01T00:00:00.000',
             },
+            {
+              'id': 'new-expense',
+              'name': 'New expense',
+              'accountType': 'expense',
+              'currencyCode': 'INR',
+              'active': true,
+              'createdAt': '2026-01-01T00:00:00.000',
+            },
           ],
           'financeTransactions': [],
           'financePostings': [],
           'financeCategories': [],
           'financeParties': [],
+          'financeBudgets': [
+            {
+              'id': 'new-budget',
+              'name': 'New budget',
+              'accountId': 'new-expense',
+              'periodStart': '2026-01-01T00:00:00.000',
+              'periodEnd': '2026-01-31T00:00:00.000',
+              'budgetPaise': 50000,
+            },
+          ],
         },
         afterWrite: (stage) async {
           if (stage == 'appSettings.putAll' && !injected) {
@@ -392,6 +421,8 @@ void main() {
     expect(financePostings.keys, ['old-finance-posting']);
     expect(financeCategories.keys, ['old-finance-category']);
     expect(financeParties.keys, ['old-finance-party']);
+    expect(financeBudgets.keys, ['old-budget']);
+    expect(financeBudgets.get('old-budget')!.budgetPaise, 25000);
     expect(users.get('old-user')!.username, 'old-user');
     expect(products.get('old-product')!.name, 'Existing product');
     expect(sales.get('old-sale')!.totalAmount, 20);
