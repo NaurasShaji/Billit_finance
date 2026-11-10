@@ -36,7 +36,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Track sale/expense revisions and reverse older journal snapshots.
 - [x] Reverse journal history before deleting POS invoices or expenses.
 - [x] Add retry visibility for startup reconciliation errors.
-- [ ] Add reconciliation report comparing source-record counts and totals with journal totals, including failed startup syncs.
+- [x] Add reconciliation report comparing source-record counts and totals with journal totals, including failed startup syncs.
 - [ ] Verify all create/edit/delete/restore paths on device.
 
 ### Finance workflows and reporting
@@ -82,7 +82,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Overtime and statutory deduction configuration.
 - [ ] Salary advances and recovery schedules.
 - [x] Immutable payslip snapshots generated for each payroll run.
-- [ ] Payslip PDF export.
+- [x] Payslip PDF/print output.
 - [x] Journal posting for payroll payments with run/payslip references through source-linked expense records.
 - [ ] Payroll accrual journal, payroll liability settlement, and reversal workflow.
 
