@@ -135,6 +135,78 @@ void main() {
     );
   });
 
+  test('POS payment accounts can be configured independently by method', () async {
+    final wallet = FinanceAccount(
+      id: 'shop-wallet',
+      name: 'Shop Wallet',
+      accountType: 'asset',
+      currencyCode: 'INR',
+    );
+    await accounts.put(wallet.id, wallet);
+    await sync.savePaymentAccountMapping(
+      mapping: {
+        'cash': 'system:cash',
+        'card': 'system:bank',
+        'upi': wallet.id,
+      },
+      accountsBox: accounts,
+      settingsBox: settings,
+    );
+
+    final sale = Sale()
+      ..id = 'sale-mapped-upi'
+      ..date = DateTime(2026, 10, 2)
+      ..items = []
+      ..totalAmount = 250
+      ..gstEnabled = false
+      ..payment = PaymentMethod.upi;
+
+    await sync.syncSale(
+      sale: sale,
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: postings,
+      categoriesBox: categories,
+      partiesBox: parties,
+      settingsBox: settings,
+    );
+
+    final receipt = postings.values.singleWhere(
+      (line) => line.transactionId == 'finance:sale:sale-mapped-upi:r0:receipt',
+    );
+    expect(receipt.accountId, wallet.id);
+    expect(receipt.debitPaise, 25000);
+  });
+
+  test('invalid POS payment account mapping is rejected before posting', () async {
+    await settings.put(
+      FinanceSourceSyncService.paymentAccountSettingsKey,
+      {'cash': 'system:operating-expense', 'card': 'system:bank', 'upi': 'system:bank'},
+    );
+    final sale = Sale()
+      ..id = 'sale-invalid-method-map'
+      ..date = DateTime(2026, 10, 2)
+      ..items = []
+      ..totalAmount = 25
+      ..gstEnabled = false
+      ..payment = PaymentMethod.cash;
+
+    await expectLater(
+      sync.syncSale(
+        sale: sale,
+        accountsBox: accounts,
+        transactionsBox: transactions,
+        postingsBox: postings,
+        categoriesBox: categories,
+        partiesBox: parties,
+        settingsBox: settings,
+      ),
+      throwsA(isA<FinanceLedgerException>()),
+    );
+    expect(transactions.values.where((t) => t.sourceType == 'pos_sale'), isEmpty);
+    expect(postings.values, isEmpty);
+  });
+
   test('imports expenses in paise and maps payroll to salary account and party',
       () async {
     final employee = Employee(
