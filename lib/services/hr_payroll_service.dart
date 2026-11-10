@@ -33,6 +33,69 @@ class HrPayrollService {
     return 'payroll:${key(start)}:${key(end)}';
   }
 
+  static const overtimeSettingsKey = 'hr_overtime_entries';
+
+  List<Map<String, dynamic>> overtimeEntries(String employeeId) {
+    final raw = Hive.box<dynamic>('app_settings').get(overtimeSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) return const [];
+    return (raw[employeeId] as List)
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
+        .where((entry) =>
+            entry['id'] is String &&
+            entry['date'] is String &&
+            entry['hoursMilli'] is int &&
+            entry['hourlyRatePaise'] is int)
+        .toList()
+      ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+  }
+
+  Future<void> addOvertimeEntry({
+    required String employeeId,
+    required DateTime date,
+    required double hours,
+    required int hourlyRatePaise,
+  }) async {
+    if (Hive.box<Employee>(Boxes.employees).get(employeeId) == null) {
+      throw const HrPayrollServiceException('Employee was not found.');
+    }
+    if (!hours.isFinite || hours <= 0 || hours > 24) {
+      throw const HrPayrollServiceException('Overtime hours must be greater than zero and no more than 24.');
+    }
+    if (hourlyRatePaise <= 0) {
+      throw const HrPayrollServiceException('Overtime hourly rate must be positive.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(overtimeSettingsKey);
+    final allEntries = <String, dynamic>{
+      if (raw is Map) ...Map<String, dynamic>.from(raw),
+    };
+    final entries = allEntries[employeeId] is List
+        ? List<dynamic>.from(allEntries[employeeId] as List)
+        : <dynamic>[];
+    final hoursMilli = (hours * 1000).round();
+    entries.add({
+      'id': const Uuid().v4(),
+      'date': _day(date).toIso8601String(),
+      'hoursMilli': hoursMilli,
+      'hourlyRatePaise': hourlyRatePaise,
+      'amountPaise': (hoursMilli * hourlyRatePaise / 1000).round(),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    allEntries[employeeId] = entries;
+    await settings.put(overtimeSettingsKey, allEntries);
+  }
+
+  int _approvedOvertimePaise(String employeeId, DateTime start, DateTime end) {
+    return overtimeEntries(employeeId).where((entry) {
+      final date = _day(DateTime.parse(entry['date'] as String));
+      return !date.isBefore(start) && !date.isAfter(end);
+    }).fold<int>(
+      0,
+      (total, entry) => total + (entry['amountPaise'] as int),
+    );
+  }
+
   Future<PayrollRun> generateRun({
     required DateTime periodStart,
     required DateTime periodEnd,
@@ -107,7 +170,8 @@ class HrPayrollService {
           deductions += component.amountPaise;
         }
       }
-      final gross = basePaise + allowances;
+      final overtime = _approvedOvertimePaise(employee.id, start, end);
+      final gross = basePaise + allowances + overtime;
       final net = gross - deductions;
       if (net < 0) {
         throw HrPayrollServiceException(
