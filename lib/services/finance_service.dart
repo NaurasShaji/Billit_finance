@@ -59,9 +59,12 @@ class FinanceSummary {
 class FinanceService {
   static const salaryDailyCategory = 'Salary-Daily';
   static const salaryMonthlyCategory = 'Salary-Monthly';
+  static const salaryRunCategory = 'Salary-Run';
 
   static bool isSalaryCategory(String category) =>
-      category == salaryDailyCategory || category == salaryMonthlyCategory;
+      category == salaryDailyCategory ||
+      category == salaryMonthlyCategory ||
+      category == salaryRunCategory;
 
   static bool isSalary(Expense e) => isSalaryCategory(e.category);
 
@@ -72,6 +75,8 @@ class FinanceService {
         return 'Daily wages';
       case salaryMonthlyCategory:
         return 'Monthly salaries';
+      case salaryRunCategory:
+        return 'Payroll run payments';
       default:
         return category.trim().isEmpty ? 'Uncategorised' : category.trim();
     }
