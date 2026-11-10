@@ -214,6 +214,43 @@ void main() {
     expect(leaveRequests.get(request.id)!.reviewedBy, 'admin');
   });
 
+  test('approving leave locks an existing manually marked leave day',
+      () async {
+    final service = HrService();
+    final date = DateTime(2026, 11, 18);
+    await service.recordAttendance(
+      employeeId: 'employee-1',
+      date: date,
+      status: 'leave',
+      notes: 'Marked manually',
+    );
+    final request = await service.submitLeaveRequest(
+      employeeId: 'employee-1',
+      leaveType: 'sick',
+      startDate: date,
+      endDate: date,
+    );
+
+    await service.reviewLeaveRequest(
+      requestId: request.id,
+      decision: 'approved',
+      reviewerId: 'admin',
+    );
+
+    expect(
+      attendance.values.single.notes,
+      'Approved leave request ${request.id}',
+    );
+    await expectLater(
+      service.recordAttendance(
+        employeeId: 'employee-1',
+        date: date,
+        status: 'present',
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+  });
+
   test('leave approval fails when attendance already exists for a date',
       () async {
     final service = HrService();
