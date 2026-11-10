@@ -85,7 +85,7 @@ Work branch: `feature/finance-team-promotion`
 - [ ] Customer and supplier records.
 - [ ] Receivables and payables with due dates.
 - [ ] Partial payment allocation and outstanding balances.
-- [ ] Budgets and actual-versus-budget reports.
+- [x] Budget creation, period tracking, and actual-versus-budget reporting from posted expense journal lines (tests authored; execution pending).
 - [x] Journal-based cash-flow and profit-and-loss summaries.
 - [x] Clearly distinguish POS gross-profit estimate from journal-based accounting profit.
 - [ ] PDF and spreadsheet exports.
@@ -127,7 +127,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Add initial Finance ledger overview, accounts, and journal navigation.
 - [ ] Complete Finance dashboard and navigation redesign.
 - [x] Finance ledger, account management, journal, P&L/cash-flow overview, and source reconciliation screens.
-- [ ] Receivables, payables, budgets, and recurring transaction screens.
+- [x] Budget tracking screen and budget form.
+- [ ] Receivables, payables, and recurring transaction screens.
 - [x] Initial Team dashboard, employee directory, department management, and employee profile screens.
 - [x] Initial attendance, leave, payroll-run, salary-component, and payslip screens.
 - [ ] Responsive phone/tablet/desktop layouts.
