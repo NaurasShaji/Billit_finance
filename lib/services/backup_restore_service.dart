@@ -1424,7 +1424,7 @@ class BackupRestoreService {
   FinanceTransaction _parseFinanceTransaction(Map<String, dynamic> json) {
     const path = 'financeTransactions';
     final type = _requiredString(json, 'transactionType', path);
-    if (!{'income', 'expense', 'transfer', 'opening_balance', 'adjustment', 'reversal'}.contains(type)) {
+    if (!{'income', 'expense', 'transfer', 'customer_receipt', 'supplier_payment', 'opening_balance', 'adjustment', 'reversal'}.contains(type)) {
       throw FormatException('$path.transactionType is unsupported.');
     }
     final status = _optionalString(json, 'status', 'draft', path);
