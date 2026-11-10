@@ -4,6 +4,7 @@ import '../models/models.dart';
 import 'boxes.dart';
 import 'finance_source_sync_service.dart';
 import 'hr_service.dart';
+import 'payroll_service.dart';
 
 class HrPayrollServiceException implements Exception {
   const HrPayrollServiceException(this.message);
@@ -73,22 +74,15 @@ class HrPayrollService {
     for (final employee in activeEmployees) {
       final payType =
           employee.type == PayrollService.typeDaily ? 'daily' : 'monthly';
+      final attendance = HrService().summarizeAttendance(
+        employeeId: employee.id,
+        start: start,
+        end: end,
+      );
       final basePaise = payType == 'daily'
-          ? _rupeesToPaise(employee.wage, 'Daily wage') *
-              HrService().summarizeAttendance(
-                employeeId: employee.id,
-                start: start,
-                end: end,
-              ).payableDays
-                  .toDouble() == 0
-              ? 0
-              : (_rupeesToPaise(employee.wage, 'Daily wage') *
-                      HrService().summarizeAttendance(
-                        employeeId: employee.id,
-                        start: start,
-                        end: end,
-                      ).payableDays)
-                  .round()
+          ? (_rupeesToPaise(employee.wage, 'Daily wage') *
+                  attendance.payableDays)
+              .round()
           : _rupeesToPaise(employee.wage, 'Monthly salary');
 
       final components = componentsBox.values.where((component) =>
@@ -114,11 +108,6 @@ class HrPayrollService {
         );
       }
 
-      final attendance = HrService().summarizeAttendance(
-        employeeId: employee.id,
-        start: start,
-        end: end,
-      );
       final slip = Payslip(
         id: '$runId:${Uri.encodeComponent(employee.id)}',
         payrollRunId: runId,
