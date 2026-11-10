@@ -11,6 +11,7 @@ class Boxes {
   static const financeCategories = 'finance_categories';
   static const financeParties = 'finance_parties';
   static const financeBudgets = 'finance_budgets';
+  static const financeRecurringTemplates = 'finance_recurring_templates';
 
   static const hrDepartments = 'hr_departments';
   static const employeeAttendance = 'employee_attendance';
