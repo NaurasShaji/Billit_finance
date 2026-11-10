@@ -34,11 +34,14 @@ Work branch: `feature/finance-team-promotion`
 - Added optional due dates to manual receivable/payable journal entries. The due date is persisted as an additive nullable Hive field and carried into posted transaction records. Due-date ageing and invoice-level allocation remain outstanding; adapter generation and migration compatibility are unverified.
 - Added a receivables/payables ageing report reachable from the customer/supplier directory. It shows open invoice balances and ageing buckets as of a selected date; posted receipts/payments are applied FIFO to the oldest eligible invoice for reporting. This FIFO allocation is calculated at report time and is not persisted. Backup restore parsing now preserves nullable transaction due dates. Adapter generation, backup export verification, and Flutter tests remain pending.
 - Added account-wise General Ledger reporting with account selection, optional date range, opening balance, period debit/credit totals, closing balance, and transaction-level running balance. Linked it from the Accounts & Journal screen.
+- Added customer/supplier statements with date-filtered opening/closing balances and running transaction balances. Linked them from the party directory.
 - Added schema v8 and a primitive-map allocation store to avoid consuming a new Hive adapter type ID. Added a payment allocation service with immutable allocation records, partial allocation support, party/type/date validation, invoice and settlement over-allocation protection, and reversal-aware effective balances.
 - Added an invoice allocation screen from the customer/supplier directory. Users can select a party, a posted receipt/payment, an outstanding invoice, and the amount to allocate; allocation history is shown below.
 - Extended Google Drive backup export/restore and rollback snapshots for allocation history, including validation of linked transactions, party types, invoice/settlement types, positive amounts, and aggregate allocation limits. Older finance backups are rejected if restoring them would silently orphan existing allocations.
 - Updated receivables/payables ageing to apply persisted invoice allocations first and retain FIFO only for unallocated legacy settlement amounts. Also ensured transaction due dates are included in backup export.
-- Added customer/supplier statements from the party directory. Each statement derives its entries from posted receivable/payable journal lines and shows date-filtered opening balance, period movement, closing balance, and running balance per transaction. This remains a journal-derived statement; invoice-level payment allocation is still not persisted.
+- Added customer/supplier statements from the party directory. Each statement derives its entries from posted receivable/payable journal lines and shows date-filtered opening balance, period movement, closing balance, and running balance per transaction.
+- Invoice-level payment allocation is now persisted in the schema-v8 allocation store. The standalone allocation screen supports partial allocations and allocation history; ageing applies explicit allocations before applying any remaining legacy settlement balance FIFO. Backup export, validation, restore, and rollback include allocation records.
+- **Remaining allocation workflow:** customer receipts and supplier payments are still created in the transaction form first, then allocated from the separate allocation screen. In-form multi-invoice allocation during settlement creation is not implemented. The current allocation service validates explicit allocation totals against invoice/settlement gross amounts; reconciliation against legacy FIFO settlements before a new explicit allocation needs additional coverage before production use.
 - Tests, formatting, static analysis, and platform builds remain pending.
 - Added unit tests for partial allocation, over-allocation rejection, and reversal-aware allocation history. **Validation remains pending:** no Flutter commands have been run in this environment. The Hive CE workflow must regenerate `pubspec.lock` and adapters, then run formatting, analysis, tests, and Android build.
 
@@ -99,9 +102,11 @@ Work branch: `feature/finance-team-promotion`
 
 - [x] Customer and supplier records with contact and tax identifiers.
 - [x] Receivables and payables linked to customer/supplier party records.
-- [x] Optional due dates for manual receivable/payable entries and receivables/payables ageing report with current, 1–30, 31–60, 61–90, and 90+ day buckets. Report applies settlements FIFO for calculation; persisted invoice-payment allocations remain outstanding.
+- [x] Optional due dates for manual receivable/payable entries and receivables/payables ageing report with current, 1–30, 31–60, 61–90, and 90+ day buckets. Report applies persisted explicit allocations first, then applies unallocated legacy settlement balances FIFO.
 - [x] Partial customer receipts and supplier payments with party-level outstanding balances.
-- [ ] Invoice-level payment allocation.
+- [x] Persisted invoice-level payment allocation, partial allocation UI, allocation history, reversal-aware effective balances, and backup/restore support.
+- [ ] Integrate allocation into customer receipt and supplier payment creation, supporting one settlement split across multiple invoices.
+- [ ] Reconcile new explicit allocations against invoices already settled through legacy FIFO receipts/payments; add regression tests for mixed explicit/FIFO histories.
 - [x] Budget creation, period tracking, and actual-versus-budget reporting from posted expense journal lines (tests authored; execution pending).
 - [x] Journal-based cash-flow and profit-and-loss summaries.
 - [x] Clearly distinguish POS gross-profit estimate from journal-based accounting profit.
