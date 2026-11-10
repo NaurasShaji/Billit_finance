@@ -402,7 +402,7 @@ void main() {
         {
           'id': 'legacy-advance-1',
           'description': 'Legacy staff advance',
-          'principalPaise': 600000,
+          'principalPaise': 400000,
           'outstandingPaise': 400000,
           'installmentPaise': 100000,
           'issueDate': DateTime(2026, 7, 1).toIso8601String(),
@@ -465,7 +465,7 @@ void main() {
       ),
       throwsA(isA<HrPayrollServiceException>()),
     );
-    expect(transactions, isEmpty);
+    expect(transactions.isEmpty, isTrue);
   });
 
   test('paying a payslip cannot exceed the remaining balance', () async {
