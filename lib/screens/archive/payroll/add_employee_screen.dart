@@ -127,7 +127,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
 
                         // Employee Type Dropdown
                         DropdownButtonFormField<String>(
-                          initialValue: _employeeType,
+                          value: _employeeType,
                           decoration: InputDecoration(
                             labelText: 'Employee Type',
                             prefixIcon: const Icon(Icons.work_outline),
@@ -619,7 +619,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: type,
+                    value: type,
                     decoration: InputDecoration(
                       labelText: 'Employee Type',
                       border: OutlineInputBorder(
