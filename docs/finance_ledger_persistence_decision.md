@@ -72,7 +72,7 @@ Do not repurpose or remove existing `Sale`, `Expense`, `Employee`, or payroll pa
 
 ## 7. Migration and rollout sequence
 
-1. Add schema versioning and a migration runner without changing existing boxes.
+1. [x] Add schema versioning and a migration runner without changing existing boxes. The runner is integrated into startup; legacy installations receive schema version 1. Migration tests are authored but still require execution.
 2. Add and test new adapters, boxes, and model serialization.
 3. Create default chart-of-account records and opening-balance journal transactions.
 4. Import legacy expenses with deterministic IDs/source keys; reconcile counts and totals.
