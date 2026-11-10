@@ -172,7 +172,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Initial attendance, leave, payroll-run, salary-component, and payslip screens.
 - [x] Apply adaptive metric grids and centered max-width content frames to Finance dashboard, accounting reports, and reconciliation. Other Finance forms/lists remain scrollable and use available width.
 - [x] Replace hardcoded dashboard colors with theme color-scheme roles; core Finance ledger/report/reconciliation screens use ThemeData surfaces and text styles.
-- [ ] Complete the global responsive and light/dark/empty/error review across remaining Finance and HR screens.
+- [x] Apply shared max-width responsive page framing across Finance and HR screens; replace hardcoded light-only colors in expense entry/history and key HR screens with theme color-scheme roles; add missing payment-allocation empty states and retain explicit error/retry feedback.
 
 ## Phase 9 — Regression and release
 
