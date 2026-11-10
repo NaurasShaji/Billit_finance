@@ -20,7 +20,12 @@ Work branch: `feature/finance-team-promotion`
 - Existing export format, backup filename, Google Drive sign-in/transport, session box, and app-settings merge behavior remain unchanged.
 - Added deterministic write-failure injection to the restore service and a Hive integration test that throws after all replacement writes, then verifies that every original box and app settings are restored.
 - **Validation pending:** the parser/Hive tests (including the new rollback test), Flutter test suite, static analysis, and builds have not been run.
-- **Next:** inspect and test rollback behavior in a Flutter-enabled environment, then continue payroll and finance implementation.
+- Added finance ledger models and Hive adapters using type IDs 10–14: accounts, transaction headers, posting lines, categories, and parties.
+- Added schema migration 1→2 to create the five finance boxes and seed nine deterministic default accounts.
+- Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, valid account references, unique transaction/source IDs, and posted-only account balance calculation.
+- Added finance persistence/migration and ledger integrity tests. These are authored but have not been executed.
+- **Important release gap:** Google Drive backup export/restore does not yet include the five finance boxes. Existing finance data must not be considered backup-protected until that integration and rollback coverage are implemented.
+- **Next:** extend Google Drive backup/restore for finance data, then execute the full test suite and static analysis.
 
 ## Phase 0 — Repository audit and safe foundation
 
@@ -56,8 +61,11 @@ Work branch: `feature/finance-team-promotion`
 
 ## Phase 2 — Finance core
 
-- [ ] Define account and opening-balance models.
-- [ ] Implement unified income, expense, transfer, and adjustment ledger.
+- [x] Define initial account, transaction, posting, category, and party persistence models.
+- [x] Add schema migration and default chart-of-accounts seed.
+- [x] Implement initial balanced journal validation and posting service (service-level integrity only; UI workflows pending).
+- [ ] Extend Google Drive backup/restore and rollback to finance boxes.
+- [ ] Implement income, expense, transfer, and adjustment UI workflows.
 - [ ] Add configurable categories and payment methods.
 - [ ] Add transaction search, filtering, sorting, and date ranges.
 - [ ] Add recurring transactions.
