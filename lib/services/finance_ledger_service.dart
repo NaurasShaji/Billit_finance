@@ -78,7 +78,7 @@ class FinanceLedgerService {
           'Posting references an unknown account: ${line.accountId}',
         );
       }
-      if (!account.active) {
+      if (!account.active && transaction.transactionType != 'reversal') {
         throw FinanceLedgerException(
           'Posting references an inactive account: ${line.accountId}',
         );
@@ -170,7 +170,8 @@ class FinanceLedgerService {
           );
         }
         final category = categoriesBox.get(line.categoryId);
-        if (category == null || !category.active) {
+        if (category == null ||
+            (!category.active && transaction.transactionType != 'reversal')) {
           throw FinanceLedgerException(
             'Posting references an unknown or inactive category: ${line.categoryId}',
           );
@@ -190,7 +191,8 @@ class FinanceLedgerService {
           );
         }
         final party = partiesBox.get(line.partyId);
-        if (party == null || !party.active) {
+        if (party == null ||
+            (!party.active && transaction.transactionType != 'reversal')) {
           throw FinanceLedgerException(
             'Posting references an unknown or inactive party: ${line.partyId}',
           );
