@@ -296,6 +296,7 @@ class FinanceLedgerService {
       createdAt: transaction.createdAt,
       postedAt: DateTime.now(),
       reversedTransactionId: transaction.reversedTransactionId,
+      dueDate: transaction.dueDate,
     );
     final insertedIds = <String>[];
     try {

@@ -25,6 +25,7 @@ class _FinanceTransactionFormScreenState
   String? _creditAccountId;
   String? _categoryId;
   String? _partyId;
+  DateTime? _dueDate;
   bool _saving = false;
 
   @override
@@ -117,6 +118,25 @@ class _FinanceTransactionFormScreenState
         _ => 'Expense account',
       };
 
+  bool get _hasDueDate =>
+      (_type == 'income' && _debitAccountId == 'system:receivables') ||
+      (_type == 'expense' && _creditAccountId == 'system:payables');
+
+  Future<void> _pickDueDate() async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _dueDate ?? now.add(const Duration(days: 30)),
+      firstDate: DateTime(now.year - 10),
+      lastDate: DateTime(now.year + 20),
+    );
+    if (selected != null && mounted) {
+      setState(() => _dueDate = DateTime(
+        selected.year, selected.month, selected.day,
+      ));
+    }
+  }
+
   String get _creditLabel => switch (_type) {
         'income' => 'Income account',
         'transfer' => 'Transfer from',
@@ -192,6 +212,7 @@ class _FinanceTransactionFormScreenState
         memo: _memoController.text.trim(),
         sourceType: 'manual',
         sourceId: id,
+        dueDate: _hasDueDate ? _dueDate : null,
       );
       await FinanceLedgerService().postTransaction(
         transaction: transaction,
@@ -390,6 +411,24 @@ class _FinanceTransactionFormScreenState
                       );
                     },
                   ),
+                ],
+                if (_hasDueDate) ...[
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _pickDueDate,
+                    icon: const Icon(Icons.event_available_outlined),
+                    label: Text(_dueDate == null
+                        ? 'Set due date (optional)'
+                        : 'Due ${DateFormat('dd MMM yyyy').format(_dueDate!)}'),
+                  ),
+                  if (_dueDate != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => setState(() => _dueDate = null),
+                        child: const Text('Clear due date'),
+                      ),
+                    ),
                 ],
                 if (_type != 'transfer') ...[
                   const SizedBox(height: 16),

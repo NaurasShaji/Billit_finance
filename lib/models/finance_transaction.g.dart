@@ -28,14 +28,15 @@ class FinanceTransactionAdapter extends TypeAdapter<FinanceTransaction> {
       sourceId: fields[8] as String,
       createdAt: fields[9] as DateTime,
       postedAt: fields[10] as DateTime?,
-      reversedTransactionId: fields[11] as String?
+      reversedTransactionId: fields[11] as String?,
+      dueDate: fields[12] as DateTime?
     );
   }
 
   @override
   void write(BinaryWriter writer, FinanceTransaction obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -59,7 +60,9 @@ class FinanceTransactionAdapter extends TypeAdapter<FinanceTransaction> {
       ..writeByte(10)
       ..write(obj.postedAt)
       ..writeByte(11)
-      ..write(obj.reversedTransactionId);
+      ..write(obj.reversedTransactionId)
+      ..writeByte(12)
+      ..write(obj.dueDate);
   }
 
   @override

@@ -19,11 +19,12 @@ class FinanceTransaction {
   @HiveField(9) final DateTime createdAt;
   @HiveField(10) final DateTime? postedAt;
   @HiveField(11) final String? reversedTransactionId;
+  @HiveField(12) final DateTime? dueDate;
 
   FinanceTransaction({required this.id, required this.transactionNumber,
     required this.transactionType, this.status = 'draft', DateTime? date,
     this.memo = '', this.reference = '', this.sourceType = '', this.sourceId = '',
-    DateTime? createdAt, this.postedAt, this.reversedTransactionId})
+    DateTime? createdAt, this.postedAt, this.reversedTransactionId, this.dueDate})
       : date = date ?? DateTime.now(),
         createdAt = createdAt ?? DateTime.now();
 }
