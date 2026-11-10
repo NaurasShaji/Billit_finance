@@ -170,7 +170,7 @@ class FinanceReconciliationService {
         issues.add(FinanceReconciliationIssue(
           sourceType: 'legacy_expense',
           sourceId: sourceId,
-          message: error.message,
+          message: error.message.toString(),
         ));
         continue;
       }
