@@ -54,7 +54,8 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Opening balance reconciliation and adjustment workflow.
 - [x] Account creation, editing, archiving, and hierarchy management UI.
 - [x] Customer/supplier subledgers and receivables/payables settlements with partial receipts/payments.
-- [ ] Invoice-level payment allocation, due dates, and ageing reports.
+- [ ] Persisted invoice-level payment allocation (current ageing report calculates FIFO settlement allocation at report time; this is not stored).
+- [x] Optional receivable/payable due dates and ageing report with current, 1–30, 31–60, 61–90, and 90+ day buckets; FIFO settlements are calculated against the oldest eligible invoice.
 - [x] Budget creation, period tracking, and actual-versus-budget tracking from posted journal entries (tests authored; execution pending).
 - [x] Recurring income/expense templates with startup/manual due-date processing, stable idempotency keys, and month-end cadence handling (tests authored; execution pending).
 - [x] Trial balance, P&L, and cash-flow reports with PDF and Excel workbook export.
