@@ -87,7 +87,7 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
     }
     final openingPaise = _parsePaise(_openingBalance.text);
     if (openingPaise == null) return;
-    if (existing == null &&
+    if (widget.account == null &&
         openingPaise > 0 &&
         _type != 'asset' &&
         _type != 'liability') {
