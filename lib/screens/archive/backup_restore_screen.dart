@@ -1025,6 +1025,16 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
     final salesBox = Hive.box<Sale>(Boxes.sales);
     final expensesBox = Hive.box<Expense>(Boxes.expenses);
     final employeesBox = Hive.box<Employee>(Boxes.employees);
+    final financeAccountsBox =
+        Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    final financeTransactionsBox =
+        Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final financePostingsBox =
+        Hive.box<FinancePosting>(Boxes.financePostings);
+    final financeCategoriesBox =
+        Hive.box<FinanceCategory>(Boxes.financeCategories);
+    final financePartiesBox =
+        Hive.box<FinanceParty>(Boxes.financeParties);
     final appSettingsBox = Hive.box<dynamic>('app_settings');
 
     return {
@@ -1119,6 +1129,65 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'salaryPaid': e.salaryPaid,
               })
           .toList(),
+      'financeAccounts': financeAccountsBox.values
+          .map((a) => {
+                'id': a.id,
+                'name': a.name,
+                'accountType': a.accountType,
+                'parentId': a.parentId,
+                'currencyCode': a.currencyCode,
+                'active': a.active,
+                'createdAt': a.createdAt.toIso8601String(),
+              })
+          .toList(),
+      'financeTransactions': financeTransactionsBox.values
+          .map((t) => {
+                'id': t.id,
+                'transactionNumber': t.transactionNumber,
+                'transactionType': t.transactionType,
+                'status': t.status,
+                'date': t.date.toIso8601String(),
+                'memo': t.memo,
+                'reference': t.reference,
+                'sourceType': t.sourceType,
+                'sourceId': t.sourceId,
+                'createdAt': t.createdAt.toIso8601String(),
+                'postedAt': t.postedAt?.toIso8601String(),
+                'reversedTransactionId': t.reversedTransactionId,
+              })
+          .toList(),
+      'financePostings': financePostingsBox.values
+          .map((p) => {
+                'id': p.id,
+                'transactionId': p.transactionId,
+                'accountId': p.accountId,
+                'debitPaise': p.debitPaise,
+                'creditPaise': p.creditPaise,
+                'partyId': p.partyId,
+                'categoryId': p.categoryId,
+                'memo': p.memo,
+              })
+          .toList(),
+      'financeCategories': financeCategoriesBox.values
+          .map((category) => {
+                'id': category.id,
+                'name': category.name,
+                'kind': category.kind,
+                'accountId': category.accountId,
+                'active': category.active,
+              })
+          .toList(),
+      'financeParties': financePartiesBox.values
+          .map((party) => {
+                'id': party.id,
+                'name': party.name,
+                'partyType': party.partyType,
+                'phone': party.phone,
+                'email': party.email,
+                'taxIdentifier': party.taxIdentifier,
+                'active': party.active,
+              })
+          .toList(),
     };
   }
 
@@ -1131,6 +1200,13 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
       expensesBox: Hive.box<Expense>(Boxes.expenses),
       employeesBox: Hive.box<Employee>(Boxes.employees),
       appSettingsBox: Hive.box<dynamic>('app_settings'),
+      financeAccountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+      financeTransactionsBox:
+          Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+      financePostingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+      financeCategoriesBox:
+          Hive.box<FinanceCategory>(Boxes.financeCategories),
+      financePartiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
     );
   }
 }
