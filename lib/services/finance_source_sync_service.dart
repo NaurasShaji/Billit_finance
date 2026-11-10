@@ -424,7 +424,7 @@ class FinanceSourceSyncService {
   }
 
   /// Reconciles all existing POS and expense records at startup.
-  Future<void> syncAll({
+  Future<List<String>> syncAll({
     required Box<Sale> salesBox,
     required Box<Expense> expensesBox,
     required Box<Employee> employeesBox,
@@ -434,26 +434,36 @@ class FinanceSourceSyncService {
     required Box<FinanceCategory> categoriesBox,
     required Box<FinanceParty> partiesBox,
   }) async {
+    final issues = <String>[];
     for (final sale in salesBox.values) {
-      await syncSale(
-        sale: sale,
-        accountsBox: accountsBox,
-        transactionsBox: transactionsBox,
-        postingsBox: postingsBox,
-        categoriesBox: categoriesBox,
-        partiesBox: partiesBox,
-      );
+      try {
+        await syncSale(
+          sale: sale,
+          accountsBox: accountsBox,
+          transactionsBox: transactionsBox,
+          postingsBox: postingsBox,
+          categoriesBox: categoriesBox,
+          partiesBox: partiesBox,
+        );
+      } catch (error) {
+        issues.add('Sale ${sale.id}: $error');
+      }
     }
     for (final expense in expensesBox.values) {
-      await syncExpense(
-        expense: expense,
-        accountsBox: accountsBox,
-        transactionsBox: transactionsBox,
-        postingsBox: postingsBox,
-        categoriesBox: categoriesBox,
-        partiesBox: partiesBox,
-        employeesBox: employeesBox,
-      );
+      try {
+        await syncExpense(
+          expense: expense,
+          accountsBox: accountsBox,
+          transactionsBox: transactionsBox,
+          postingsBox: postingsBox,
+          categoriesBox: categoriesBox,
+          partiesBox: partiesBox,
+          employeesBox: employeesBox,
+        );
+      } catch (error) {
+        issues.add('Expense ${expense.id}: $error');
+      }
     }
+    return issues;
   }
 }
