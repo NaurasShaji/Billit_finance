@@ -226,6 +226,100 @@ class HrService {
     await settings.put(employeeTermsSettingsKey, allTerms);
   }
 
+  static const salaryStructuresSettingsKey = 'hr_salary_structures';
+
+  Map<String, Map<String, dynamic>> salaryStructures() {
+    final raw = Hive.box<dynamic>('app_settings').get(salaryStructuresSettingsKey);
+    if (raw is! Map) return const {};
+    final result = <String, Map<String, dynamic>>{};
+    for (final entry in raw.entries) {
+      if (entry.key is String && entry.value is Map) {
+        final value = Map<String, dynamic>.from(entry.value as Map);
+        if (value['name'] is String && value['components'] is List) {
+          result[entry.key as String] = value;
+        }
+      }
+    }
+    return result;
+  }
+
+  Future<String> saveSalaryStructure({
+    String? structureId,
+    required String name,
+    required List<Map<String, dynamic>> components,
+  }) async {
+    if (name.trim().isEmpty || components.isEmpty) {
+      throw const HrServiceException('Enter a structure name and at least one component.');
+    }
+    for (final component in components) {
+      if (component['name'] is! String ||
+          (component['name'] as String).trim().isEmpty ||
+          !{'earning', 'deduction'}.contains(component['componentType']) ||
+          component['amountPaise'] is! int ||
+          (component['amountPaise'] as int) <= 0) {
+        throw const HrServiceException('Salary structure contains an invalid component.');
+      }
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final all = <String, dynamic>{
+      if (settings.get(salaryStructuresSettingsKey) is Map)
+        ...Map<String, dynamic>.from(settings.get(salaryStructuresSettingsKey) as Map),
+    };
+    final id = structureId ?? const Uuid().v4();
+    all[id] = {
+      'id': id,
+      'name': name.trim(),
+      'components': components.map((item) => Map<String, dynamic>.from(item)).toList(),
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+    await settings.put(salaryStructuresSettingsKey, all);
+    return id;
+  }
+
+  Future<void> applySalaryStructure({
+    required String employeeId,
+    required String structureId,
+    required DateTime effectiveFrom,
+  }) async {
+    if (Hive.box<Employee>(Boxes.employees).get(employeeId) == null) {
+      throw const HrServiceException('Employee not found.');
+    }
+    final structure = salaryStructures()[structureId];
+    if (structure == null) throw const HrServiceException('Salary structure not found.');
+    final start = day(effectiveFrom);
+    final runs = Hive.box<PayrollRun>(Boxes.payrollRuns);
+    if (runs.values.any((run) => !day(run.periodEnd).isBefore(start))) {
+      throw const HrServiceException(
+        'A payroll run already covers this effective date. Apply the structure from a future date.',
+      );
+    }
+    final componentsBox = Hive.box<SalaryComponent>(Boxes.salaryComponents);
+    final additions = <SalaryComponent>[];
+    for (final raw in structure['components'] as List) {
+      final item = Map<String, dynamic>.from(raw as Map);
+      additions.add(SalaryComponent(
+        id: 'salary-component:${Uri.encodeComponent(employeeId)}:${const Uuid().v4()}',
+        employeeId: employeeId,
+        name: item['name'] as String,
+        componentType: item['componentType'] as String,
+        amountPaise: item['amountPaise'] as int,
+        effectiveFrom: start,
+      ));
+    }
+    final inserted = <String>[];
+    try {
+      for (final component in additions) {
+        await componentsBox.put(component.id, component);
+        inserted.add(component.id);
+      }
+    } catch (_) {
+      for (final id in inserted.reversed) {
+        try { await componentsBox.delete(id); } catch (_) {}
+      }
+      rethrow;
+    }
+  }
+
   static const attendanceStatuses = {
     'present',
     'absent',
