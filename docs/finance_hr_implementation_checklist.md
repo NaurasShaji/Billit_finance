@@ -89,7 +89,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Budget creation, period tracking, and actual-versus-budget reporting from posted expense journal lines (tests authored; execution pending).
 - [x] Journal-based cash-flow and profit-and-loss summaries.
 - [x] Clearly distinguish POS gross-profit estimate from journal-based accounting profit.
-- [ ] PDF and spreadsheet exports.
+- [x] Journal-based accounting report screen with profit-and-loss, cash-flow, and trial-balance views plus PDF/print export.
+- [ ] Spreadsheet exports.
 
 ## Phase 4 — HR foundation
 
