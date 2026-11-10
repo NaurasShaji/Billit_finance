@@ -295,6 +295,88 @@ void main() {
     expect(employees.get('old-employee')!.name, 'Existing employee');
   });
 
+  test('restores finance collections while preserving paise precision', () async {
+    await financeAccounts.put(
+      'old-account',
+      FinanceAccount(
+        id: 'old-account',
+        name: 'Old account',
+        accountType: 'asset',
+      ),
+    );
+
+    await restore({
+      'financeAccounts': [
+        {
+          'id': 'cash',
+          'name': 'Cash',
+          'accountType': 'asset',
+          'currencyCode': 'INR',
+          'active': true,
+          'createdAt': '2026-01-01T00:00:00.000',
+        },
+      ],
+      'financeTransactions': [
+        {
+          'id': 'txn',
+          'transactionNumber': 'TXN-1',
+          'transactionType': 'expense',
+          'status': 'posted',
+          'date': '2026-01-02T00:00:00.000',
+          'createdAt': '2026-01-02T00:00:00.000',
+          'memo': 'Office supplies',
+          'reference': '',
+          'sourceType': 'manual',
+          'sourceId': 'expense-1',
+        },
+      ],
+      'financePostings': [
+        {
+          'id': 'line-debit',
+          'transactionId': 'txn',
+          'accountId': 'expense',
+          'debitPaise': 12551,
+          'creditPaise': 0,
+          'memo': '',
+        },
+        {
+          'id': 'line-credit',
+          'transactionId': 'txn',
+          'accountId': 'cash',
+          'debitPaise': 0,
+          'creditPaise': 12551,
+          'memo': '',
+        },
+      ],
+      'financeCategories': [
+        {
+          'id': 'office',
+          'name': 'Office',
+          'kind': 'expense',
+          'accountId': 'expense',
+          'active': true,
+        },
+      ],
+      'financeParties': [
+        {
+          'id': 'supplier',
+          'name': 'Stationery supplier',
+          'partyType': 'supplier',
+          'phone': '',
+          'email': '',
+          'taxIdentifier': '',
+          'active': true,
+        },
+      ],
+    });
+
+    expect(financeAccounts.keys, ['cash']);
+    expect(financeTransactions.get('txn')!.status, 'posted');
+    expect(financePostings.get('line-debit')!.debitPaise, 12551);
+    expect(financeCategories.get('office')!.accountId, 'expense');
+    expect(financeParties.get('supplier')!.partyType, 'supplier');
+  });
+
   test('legacy payload without app settings leaves current settings intact',
       () async {
     await settings.put('business_name', 'Legacy business');
