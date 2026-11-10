@@ -84,6 +84,7 @@ class HrService {
   }
 
   List<Map<String, dynamic>> employeeDocuments(String employeeId) {
+    if (!_isCurrentUserAdmin()) return const [];
     final raw = Hive.box<dynamic>('app_settings')
         .get(employeeDocumentsSettingsKey);
     if (raw is! Map || raw[employeeId] is! List) return const [];
