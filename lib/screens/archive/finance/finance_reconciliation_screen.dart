@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../widgets/finance_content_frame.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -95,7 +97,7 @@ class _FinanceReconciliationScreenState
                       .whereType<Map>()
                       .map((entry) => Map<String, dynamic>.from(entry)),
                 );
-                return ListView(
+                return FinanceContentFrame(child: ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
                     _status(summary),
@@ -229,7 +231,7 @@ class _FinanceReconciliationScreenState
                           ),
                     ),
                   ],
-                );
+                ));
               },
             ),
                     ),
