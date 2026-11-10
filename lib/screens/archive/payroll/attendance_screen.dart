@@ -6,6 +6,7 @@ import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_service.dart';
 import 'attendance_report_screen.dart';
+import '../../../widgets/responsive_page.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -86,7 +87,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('EEEE, dd MMM yyyy');
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Attendance'),
         actions: [
@@ -191,7 +192,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _countChip(String label, int count) => Chip(
