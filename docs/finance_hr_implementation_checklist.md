@@ -216,3 +216,8 @@ Added a Team navigation entry for the employee advance reconciliation screen. Th
 ## Employee advance reconciliation hardening
 
 The reconciliation screen now handles missing, duplicate, unposted, and structurally mismatched issue journals without relying on a single-result lookup that could throw at runtime. Manual repayment coverage checks validate the linked journal's posted state, two-line structure, amount, and Employee Advances credit. The report separately counts missing and duplicate payroll recovery journals, surfaces malformed register entries, and refreshes when the finance posting box changes. A zero aggregate difference is explicitly distinguished from per-advance journal integrity. The screen remains read-only; no historical opening-balance journal or correction is posted automatically. No tests, formatting, analysis, or builds were run.
+
+
+## Legacy employee advance opening balances
+
+A controlled opening-balance action is now available for legacy advances that have a positive outstanding balance, no repayment history, and no linked issue/repayment/payroll journal. The operator selects an effective date and explicitly confirms the amount. The service posts a stable-source opening-balance journal: debit Employee Advances and credit Opening Balance Equity. It rejects duplicate register IDs, existing linked journal history, repayment history, invalid account configuration, and dates before the issue date or in the future. It does not recreate historical cash movements or auto-adjust records with partial journal history. The reconciliation report recognizes and validates the opening-balance journal. Regression tests cover successful posting, idempotent rejection, and repayment-history rejection; tests have not been run.
