@@ -211,6 +211,27 @@ void main() {
     );
   });
 
+  test('ledger rejects a supplier party on a receivable posting', () async {
+    final supplier = await service.saveParty(
+      id: 'wrong-party',
+      name: 'Wrong party',
+      partyType: 'supplier',
+    );
+    await expectLater(
+      post(
+        id: 'wrong-receivable-party',
+        type: 'income',
+        debitAccount: 'system:receivables',
+        creditAccount: 'system:sales-income',
+        amountPaise: 10000,
+        partyId: supplier.id,
+      ),
+      throwsA(isA<FinanceLedgerException>()),
+    );
+    expect(transactions.isEmpty, isTrue);
+    expect(postings.isEmpty, isTrue);
+  });
+
   test('rejects duplicate parties and reserved employee party type', () async {
     await service.saveParty(
       id: 'customer-one',
