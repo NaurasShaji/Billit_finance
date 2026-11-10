@@ -590,4 +590,71 @@ void main() {
     expect(expenses.isEmpty, isTrue);
     expect(transactions.isEmpty, isTrue);
   });
+  test('effective-dated base-pay changes apply to later payroll runs', () async {
+    await payroll.addBasePayChange(
+      employeeId: 'monthly-1',
+      basePaise: 3200000,
+      effectiveDate: DateTime(2026, 12, 1),
+      note: 'Annual review',
+    );
+    final november = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+    );
+    final novemberSlip = payslips.values.singleWhere(
+      (item) => item.payrollRunId == november.id && item.employeeId == 'monthly-1',
+    );
+    expect(novemberSlip.basePaise, 3000000);
+    final december = await payroll.generateRun(
+      periodStart: DateTime(2026, 12, 1),
+      periodEnd: DateTime(2026, 12, 31),
+    );
+    final decemberSlip = payslips.values.singleWhere(
+      (item) => item.payrollRunId == december.id && item.employeeId == 'monthly-1',
+    );
+    expect(decemberSlip.basePaise, 3200000);
+    await expectLater(
+      payroll.addBasePayChange(
+        employeeId: 'monthly-1',
+        basePaise: 3300000,
+        effectiveDate: DateTime(2026, 12, 1),
+      ),
+      throwsA(isA<HrPayrollServiceException>()),
+    );
+  });
+
+  test('salary structures can be saved and applied without overlapping old components', () async {
+    await components.put('old-allowance', SalaryComponent(
+      id: 'old-allowance',
+      employeeId: 'monthly-1',
+      name: 'Old transport',
+      componentType: 'earning',
+      amountPaise: 100000,
+      effectiveFrom: DateTime(2026, 1, 1),
+    ));
+    final structureId = await HrService().saveSalaryStructure(
+      name: 'Grade A',
+      components: [
+        {'name': 'Housing', 'componentType': 'earning', 'amountPaise': 250000},
+        {'name': 'Meal deduction', 'componentType': 'deduction', 'amountPaise': 50000},
+      ],
+    );
+    await HrService().applySalaryStructure(
+      employeeId: 'monthly-1',
+      structureId: structureId,
+      effectiveFrom: DateTime(2026, 11, 1),
+    );
+    final old = components.get('old-allowance')!;
+    expect(old.effectiveTo, DateTime(2026, 10, 31));
+    final run = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+    );
+    final slip = payslips.values.singleWhere(
+      (item) => item.payrollRunId == run.id && item.employeeId == 'monthly-1',
+    );
+    expect(slip.allowancesPaise, 250000);
+    expect(slip.deductionsPaise, 50000);
+  });
+
 }
