@@ -413,6 +413,19 @@ void main() {
         budgetPaise: 25000,
       ),
     );
+    await recurringTemplates.put(
+      'old-recurring',
+      FinanceRecurringTemplate(
+        id: 'old-recurring',
+        name: 'Old recurring',
+        transactionType: 'transfer',
+        debitAccountId: 'old-account',
+        creditAccountId: 'old-account',
+        amountPaise: 1000,
+        interval: 'monthly',
+        nextDueDate: DateTime(2026, 1, 1),
+      ),
+    );
 
     var injected = false;
     await expectLater(
@@ -459,6 +472,18 @@ void main() {
               'budgetPaise': 50000,
             },
           ],
+          'financeRecurringTemplates': [
+            {
+              'id': 'new-recurring',
+              'name': 'New recurring',
+              'transactionType': 'expense',
+              'debitAccountId': 'new-expense',
+              'creditAccountId': 'new-account',
+              'amountPaise': 1000,
+              'interval': 'monthly',
+              'nextDueDate': '2026-01-01T00:00:00.000',
+            },
+          ],
         },
         afterWrite: (stage) async {
           if (stage == 'appSettings.putAll' && !injected) {
@@ -489,6 +514,8 @@ void main() {
     expect(financeParties.keys, ['old-finance-party']);
     expect(financeBudgets.keys, ['old-budget']);
     expect(financeBudgets.get('old-budget')!.budgetPaise, 25000);
+    expect(recurringTemplates.keys, ['old-recurring']);
+    expect(recurringTemplates.get('old-recurring')!.name, 'Old recurring');
     expect(users.get('old-user')!.username, 'old-user');
     expect(products.get('old-product')!.name, 'Existing product');
     expect(sales.get('old-sale')!.totalAmount, 20);
