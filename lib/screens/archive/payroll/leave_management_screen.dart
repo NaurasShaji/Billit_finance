@@ -156,6 +156,10 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
       for (final type in HrService.leaveTypes)
         type: current[type]!.excludeWeekends,
     };
+    final excludeHolidays = <String, bool>{
+      for (final type in HrService.leaveTypes)
+        type: current[type]!.excludeHolidays,
+    };
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -167,7 +171,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Accrual is monthly from the employee joining date or 1 January, whichever is later. Carry-forward is capped per leave type. Weekend exclusion applies to approved leave-day counting and attendance generation.'),
+                const Text('Accrual is monthly from the employee joining date or 1 January, whichever is later. Carry-forward is capped per leave type. Weekend and holiday exclusions apply to approved leave-day counting and attendance generation.'),
                 const SizedBox(height: 12),
                 for (final type in HrService.leaveTypes)
                   Padding(
@@ -204,8 +208,19 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
                           title: const Text('Exclude Saturdays and Sundays'),
                           onChanged: type == 'unpaid'
                               ? null
-                              : (value) => setState(() {
+                              : (value) => setDialogState(() {
                                     excludeWeekends[type] = value ?? false;
+                                  }),
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: excludeHolidays[type] ?? false,
+                          title: const Text('Exclude marked holidays'),
+                          subtitle: const Text('Uses holiday attendance records for the employee'),
+                          onChanged: type == 'unpaid'
+                              ? null
+                              : (value) => setDialogState(() {
+                                    excludeHolidays[type] = value ?? false;
                                   }),
                         ),
                       ],
@@ -237,6 +252,7 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
             accrualEnabled: days > 0,
             carryForwardDays: carry,
             excludeWeekends: excludeWeekends[type] ?? false,
+            excludeHolidays: excludeHolidays[type] ?? false,
           );
         }
         await service.saveLeavePolicies(policies);
