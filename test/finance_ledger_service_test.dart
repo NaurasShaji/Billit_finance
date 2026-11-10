@@ -180,6 +180,19 @@ void main() {
       ),
       0,
     );
+    await expectLater(
+      service.reverseTransaction(
+        originalTransactionId: original.id,
+        reversalId: 'txn-reversal-duplicate',
+        reversalNumber: 'TXN-REV-2',
+        reversalDate: DateTime(2026, 1, 5),
+        accountsBox: accounts,
+        transactionsBox: transactions,
+        postingsBox: postings,
+      ),
+      throwsA(isA<FinanceLedgerException>()),
+    );
+    expect(transactions.length, 2);
   });
 
   test('rejects unbalanced entries without writing anything', () async {
