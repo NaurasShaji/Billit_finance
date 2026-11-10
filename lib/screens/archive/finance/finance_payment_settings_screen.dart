@@ -4,6 +4,7 @@ import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_source_sync_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 /// Configures which INR asset account receives each POS payment method.
 class FinancePaymentSettingsScreen extends StatefulWidget {
@@ -76,7 +77,7 @@ class _FinancePaymentSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(title: const Text('POS payment accounts')),
       body: ValueListenableBuilder<Box<FinanceAccount>>(
         valueListenable:
@@ -155,6 +156,6 @@ class _FinancePaymentSettingsScreenState
           );
         },
       ),
-    );
+    ));
   }
 }
