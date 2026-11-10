@@ -97,6 +97,53 @@ void main() {
     );
   }
 
+  Future<void> postSecondInvoice() async {
+    const id = 'invoice-2';
+    await FinanceLedgerService().postTransaction(
+      transaction: FinanceTransaction(id:id, transactionNumber:'INV-2', transactionType:'income', date:DateTime(2026,1,3), sourceType:'test', sourceId:id),
+      postings:[
+        FinancePosting(id:'$id:ar', transactionId:id, accountId:'system:receivables', debitPaise:10000, partyId:'customer-1'),
+        FinancePosting(id:'$id:sales', transactionId:id, accountId:'system:sales-income', creditPaise:10000),
+      ],
+      accountsBox:accounts, transactionsBox:transactions, postingsBox:postings, partiesBox:parties,
+    );
+  }
+
+  Future<void> postSecondReceipt() async {
+    const id = 'receipt-2';
+    await FinanceLedgerService().postTransaction(
+      transaction: FinanceTransaction(id:id, transactionNumber:'REC-2', transactionType:'customer_receipt', date:DateTime(2026,1,4), sourceType:'test', sourceId:id),
+      postings:[
+        FinancePosting(id:'$id:cash', transactionId:id, accountId:'system:cash', debitPaise:7000),
+        FinancePosting(id:'$id:ar', transactionId:id, accountId:'system:receivables', creditPaise:7000, partyId:'customer-1'),
+      ],
+      accountsBox:accounts, transactionsBox:transactions, postingsBox:postings, partiesBox:parties,
+    );
+  }
+
+  test('splits one receipt across multiple invoices', () async {
+    await postInvoice();
+    await postReceipt();
+    await postSecondInvoice();
+    await postSecondReceipt();
+    final service = FinancePaymentAllocationService();
+    final result = await service.allocateBatch(
+      settlementTransactionId:'receipt-2',
+      partyId:'customer-1',
+      partyType:'customer',
+      drafts:[
+        const FinanceAllocationDraft(id:'split-1', invoiceTransactionId:'invoice-1', amountPaise:2000),
+        const FinanceAllocationDraft(id:'split-2', invoiceTransactionId:'invoice-2', amountPaise:4000),
+      ],
+      transactions:transactions.values,
+      postings:postings.values,
+    );
+    expect(result, hasLength(2));
+    expect(service.allocatedFromSettlement('receipt-2', transactions:transactions.values), 6000);
+    expect(service.allocatedToInvoice('invoice-1', transactions:transactions.values), 2000);
+    expect(service.allocatedToInvoice('invoice-2', transactions:transactions.values), 4000);
+  });
+
   test('legacy FIFO receipts reduce the balance before a new allocation', () async {
     await postInvoice();
     await postReceipt();
