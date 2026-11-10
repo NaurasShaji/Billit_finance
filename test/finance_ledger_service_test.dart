@@ -138,6 +138,48 @@ void main() {
     );
   });
 
+  test('rejects a second reversal of the same posted transaction', () async {
+    final service = FinanceLedgerService();
+    final original = transaction();
+    await service.postTransaction(
+      transaction: original,
+      postings: balancedLines(original.id),
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: postings,
+    );
+
+    await service.reverseTransaction(
+      originalTransactionId: original.id,
+      reversalId: 'txn-reversal-first',
+      reversalNumber: 'TXN-REV-FIRST',
+      reversalDate: DateTime(2026, 1, 4),
+      accountsBox: accounts,
+      transactionsBox: transactions,
+      postingsBox: postings,
+    );
+
+    await expectLater(
+      service.reverseTransaction(
+        originalTransactionId: original.id,
+        reversalId: 'txn-reversal-second',
+        reversalNumber: 'TXN-REV-SECOND',
+        reversalDate: DateTime(2026, 1, 5),
+        accountsBox: accounts,
+        transactionsBox: transactions,
+        postingsBox: postings,
+      ),
+      throwsA(isA<FinanceLedgerException>()),
+    );
+    expect(
+      transactions.values.where(
+        (item) => item.transactionType == 'reversal' &&
+            item.reversedTransactionId == original.id,
+      ),
+      hasLength(1),
+    );
+  });
+
   test('reverses a posted entry without mutating its original', () async {
     final service = FinanceLedgerService();
     final original = transaction();
