@@ -140,7 +140,7 @@ Work branch: `feature/finance-team-promotion`
 
 - [x] Salary components with effective dates and earning/deduction types.
 - [x] Allowances and deductions in payroll runs.
-- [ ] Overtime, bonuses, and reimbursements.
+- [x] Dated overtime entries with hours and hourly rates, included in payroll gross and payslip totals; one-off dated bonuses with descriptions and amounts, included only in the payroll period containing their date. Both are backed up and restore-validated. Overtime approval workflow and reimbursements remain outstanding.
 - [ ] Advances and loan repayments.
 - [x] Payroll runs with draft, approval, partial-payment, and paid states.
 - [x] Payslip generation and payroll history.
@@ -189,3 +189,5 @@ Work branch: `feature/finance-team-promotion`
 ## Overtime payroll update
 
 Employee profiles now allow dated overtime entries with hours and an hourly rate. Payroll generation includes overtime falling within the run period in gross pay and the payslip's allowance total. Entries are stored in the backed-up app-settings collection; restore validates employee references, dates, hours, rate, and amount. A regression test covers the overtime-to-payslip calculation but has not been run. Overtime is currently treated as payroll-eligible when entered; a separate approval/rejection workflow and statutory deduction rules are still outstanding. Existing salary components can represent one-off bonuses by adding an earning component named Bonus, but there is not yet a dedicated bonus workflow.
+
+- One-off bonus entry and overtime capture are available from employee profiles. Both feed payroll generation and payslip allowance totals; both are included in the Google Drive HR settings backup payload with restore validation. Tests authored but not run.
