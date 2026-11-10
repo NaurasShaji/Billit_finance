@@ -71,6 +71,6 @@ The finance persistence layer now has `FinanceAccount`, `FinanceTransaction`, `F
 
 - Register an explicit schema migration before introducing each new persisted finance schema version.
 - Add adapter registry/type-ID uniqueness tests and run migration tests using representative legacy records.
-- Extend Google Drive backup export, parser, restore snapshots, and rollback to include all five finance boxes before treating finance persistence as release-ready.
+- Google Drive backup export, parser, restore snapshots, and rollback now include all five finance boxes; the integration tests are authored but still need execution.
 - Run the restore and finance persistence tests before release.
 - Centralize dynamic box names and document the keys owned by each module.
