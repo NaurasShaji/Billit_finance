@@ -93,6 +93,7 @@ void main() {
         postingsBox: postings,
         categoriesBox: categories,
         partiesBox: parties,
+        settingsBox: settings,
       ),
       isTrue,
     );
@@ -104,6 +105,7 @@ void main() {
         postingsBox: postings,
         categoriesBox: categories,
         partiesBox: parties,
+        settingsBox: settings,
       ),
       isFalse,
     );
