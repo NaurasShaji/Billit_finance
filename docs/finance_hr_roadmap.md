@@ -7,7 +7,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 ## Finance
 
 ### Persistence and accounting integrity
-- [x] Sequential Hive schema migrations (legacy v1 → finance v2/v3 → HR v4/v5 → budgets v6).
+- [x] Sequential Hive schema migrations (legacy v1 → finance v2/v3 → HR v4/v5 → budgets v6, recurring templates v7).
 - [x] Add chart of accounts, transaction headers, postings, categories, and parties.
 - [x] Persist accounting amounts as integer paise.
 - [x] Enforce balanced debit/credit journals and immutable posted transaction snapshots.
@@ -20,7 +20,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Replace Hive runtime, Flutter integration, and adapter generator dependencies with Hive CE.
 - [x] Migrate application, model, service, and test imports to Hive CE.
 - [x] Document in-place storage compatibility requirements and real-device validation steps.
-- [ ] Regenerate/verify Hive CE adapters with build_runner and run all persistence tests, including the new budget model.
+- [ ] Regenerate/verify Hive CE adapters with build_runner and run all persistence tests, including budget and recurring-template models.
 - [x] Add journal reporting coverage for reversal of internal transfers in cash-flow totals.
 - [ ] Confirm the refreshed pubspec.lock is committed by CI and dependency resolution is clean.
 - [ ] Verify existing production Hive v2 data opens unchanged with Hive CE on a test device.
@@ -52,7 +52,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Account creation, editing, archiving, and hierarchy management UI.
 - [ ] Customer/supplier subledgers and receivables/payables settlements.
 - [x] Budget creation, period tracking, and actual-versus-budget tracking from posted journal entries (tests authored; execution pending).
-- [ ] Recurring income/expense templates and due-date processing.
+- [x] Recurring income/expense templates with startup/manual due-date processing, stable idempotency keys, and month-end cadence handling (tests authored; execution pending).
 - [ ] Exportable trial balance, P&L, cash-flow, and general-ledger reports.
 - [ ] Transaction attachments, audit metadata, and approval rules.
 
