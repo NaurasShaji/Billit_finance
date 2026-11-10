@@ -64,7 +64,7 @@ class _FinanceReconciliationScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return FinanceContentFrame(child: Scaffold(
       appBar: AppBar(title: const Text('Finance reconciliation')),
       body: ValueListenableBuilder<Box<Sale>>(
         valueListenable: Hive.box<Sale>(Boxes.sales).listenable(),
@@ -327,7 +327,7 @@ class _FinanceReconciliationScreenState
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _row(String label, String value, {Color? valueColor}) => Padding(
