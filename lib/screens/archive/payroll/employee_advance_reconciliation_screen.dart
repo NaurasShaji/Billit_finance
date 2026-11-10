@@ -507,7 +507,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
     required DateTime issueDate,
   }) async {
     final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts).values
-        .where((account) => account.active && account.currencyCode == 'INR' && account.id != _advanceAccountId)
+        .where((account) => account.active && account.currencyCode == 'INR' && account.accountType != 'asset' && account.id != _advanceAccountId)
         .toList()..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     if (accounts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Create an active INR offset account before correcting an advance.')));
