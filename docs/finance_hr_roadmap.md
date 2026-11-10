@@ -17,12 +17,15 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Preserve finance data when restoring legacy backups without finance collections.
 - [x] Validate finance backup references, category/account compatibility, reversals, and posted journal balance.
 - [x] Add best-effort restore rollback across business and finance boxes.
-- [x] Replace Hive runtime, Flutter integration, and adapter generator dependencies with Hive CE.
-- [x] Migrate application, model, service, and test imports to Hive CE.
+- [x] Replace Hive runtime, Flutter integration, and adapter generator dependencies in pubspec.yaml with Hive CE packages.
+- [x] Migrate the application, model, service, finance screen, and persistence-test imports inspected so far to Hive CE.
+- [ ] Audit every Dart source and generated adapter for remaining legacy Hive imports or API incompatibilities.
+- [ ] Regenerate all Hive adapters with hive_ce_generator; manually maintained adapter files are not yet verified against generator output.
+- [ ] Resolve dependencies and refresh/commit pubspec.lock (the current lockfile has not yet been regenerated for Hive CE).
 - [x] Document in-place storage compatibility requirements and real-device validation steps.
-- [ ] Regenerate/verify Hive CE adapters with build_runner and run all persistence tests, including budget and recurring-template models.
+- [ ] Run all persistence tests, including budget and recurring-template models.
 - [x] Add journal reporting coverage for reversal of internal transfers in cash-flow totals.
-- [ ] Confirm the refreshed pubspec.lock is committed by CI and dependency resolution is clean.
+- [ ] Confirm the refreshed pubspec.lock is committed and dependency resolution is clean.
 - [ ] Verify existing production Hive v2 data opens unchanged with Hive CE on a test device.
 - [ ] Verify rollback behavior under actual device storage failures.
 
@@ -106,3 +109,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - COGS/inventory valuation is intentionally not posted because Billit does not yet maintain a complete inventory valuation ledger.
 - No multi-user concurrent posting, bank feeds, tax filing, FX revaluation, or statutory payroll compliance is included in the current scope.
 - All code and tests added in this branch remain unverified by a Flutter toolchain until the release gates above pass.
+
+## Current execution status (2026-11-10)
+
+The Hive CE migration is **in progress, not complete**. pubspec.yaml now declares hive_ce, hive_ce_flutter, and hive_ce_generator, and imports in the core models, startup, backup/restore service, finance services/screens, and several application screens/tests have been switched. The existing pubspec.lock is still stale and has not been regenerated. Adapter generation, full repository import/API audit, dependency resolution, formatting, analysis, tests, Android build, and existing-data device compatibility have not been verified. Do not treat the Hive CE migration as release-ready until every gate above passes.
