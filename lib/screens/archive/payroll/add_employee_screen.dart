@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../../models/employee.dart';
 import '../../../services/boxes.dart';
 import '../../../utils/theme_colors.dart';
+import '../../../widgets/responsive_page.dart';
 
 class AddEmployeeScreen extends StatefulWidget {
   const AddEmployeeScreen({super.key});
@@ -30,7 +31,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       backgroundColor:
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
@@ -448,7 +449,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _addEmployee() async {
