@@ -159,6 +159,32 @@ class FinanceSchemaMigration {
       );
 
   /// Adds primitive-map storage for immutable invoice payment allocations.
+  /// Adds dedicated payroll control accounts for accrual-based payroll.
+  static SchemaMigration get versionNineToTen => SchemaMigration(
+        fromVersion: 9,
+        toVersion: 10,
+        apply: (_) async {
+          final accounts = await Hive.openBox<FinanceAccount>(Boxes.financeAccounts);
+          final defaults = <FinanceAccount>[
+            FinanceAccount(
+              id: 'system:payroll-payable',
+              name: 'Payroll Payable',
+              accountType: 'liability',
+            ),
+            FinanceAccount(
+              id: 'system:payroll-deductions-payable',
+              name: 'Payroll Deductions Payable',
+              accountType: 'liability',
+            ),
+          ];
+          for (final account in defaults) {
+            if (!accounts.containsKey(account.id)) {
+              await accounts.put(account.id, account);
+            }
+          }
+        },
+      );
+
   static SchemaMigration get versionSevenToEight => SchemaMigration(
         fromVersion: 7,
         toVersion: 8,
