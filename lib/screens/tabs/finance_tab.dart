@@ -12,6 +12,7 @@ import '../archive/expenses/add_expense_screen.dart';
 import '../archive/expenses/expenses_list_screen.dart';
 import '../archive/gst_exports_screen.dart';
 import '../archive/finance/finance_ledger_screen.dart';
+import '../archive/finance/finance_reconciliation_screen.dart';
 
 /// Top-level Finance screen: what came in, what went out, what is left.
 class FinanceTab extends StatefulWidget {
@@ -112,6 +113,12 @@ class _FinanceTabState extends State<FinanceTab> {
                         onPressed: () => _open(const FinanceLedgerScreen()),
                         icon: const Icon(Icons.account_balance_outlined),
                         label: const Text('Accounts & journal'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            _open(const FinanceReconciliationScreen()),
+                        icon: const Icon(Icons.fact_check_outlined),
+                        label: const Text('Reconciliation'),
                       ),
                     ],
                   ),
