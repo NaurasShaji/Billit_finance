@@ -24,7 +24,7 @@ Work branch: `feature/finance-team-promotion`
 - Added schema migration 1→2 to create the five finance boxes and seed nine deterministic default accounts.
 - Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, valid account references, unique transaction/source IDs, and posted-only account balance calculation.
 - Added finance persistence/migration and ledger integrity tests. These are authored but have not been executed.
-- **Important release gap:** Google Drive backup export/restore does not yet include the five finance boxes. Existing finance data must not be considered backup-protected until that integration and rollback coverage are implemented.
+- Extended Google Drive backup export, parser, restore, snapshots, and rollback to include all five finance boxes. Legacy backups without finance keys preserve current finance data; partial finance collection sets and invalid posted journal entries are rejected before writes.
 - **Next:** extend Google Drive backup/restore for finance data, then execute the full test suite and static analysis.
 
 ## Phase 0 — Repository audit and safe foundation
@@ -64,12 +64,12 @@ Work branch: `feature/finance-team-promotion`
 - [x] Define initial account, transaction, posting, category, and party persistence models.
 - [x] Add schema migration and default chart-of-accounts seed.
 - [x] Implement initial balanced journal validation and posting service (service-level integrity only; UI workflows pending).
-- [ ] Extend Google Drive backup/restore and rollback to finance boxes.
+- [x] Extend Google Drive backup/restore and rollback to finance boxes (integration tests authored; execution pending).
 - [ ] Implement income, expense, transfer, and adjustment UI workflows.
 - [ ] Add configurable categories and payment methods.
 - [ ] Add transaction search, filtering, sorting, and date ranges.
 - [ ] Add recurring transactions.
-- [ ] Add ledger integrity and balance tests.
+- [x] Add ledger integrity and balance tests (authored; execution pending).
 
 ## Phase 3 — Advanced Finance
 
