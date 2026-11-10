@@ -413,7 +413,19 @@ class FinanceReconciliationService {
         ));
         continue;
       }
-      if (status == 'submitted' || status == 'rejected') continue;
+      if (status == 'submitted' || status == 'rejected') {
+        final unexpectedAccruals = posted.where((tx) =>
+            tx.sourceType == 'employee_reimbursement_accrual' && tx.sourceId == claimId &&
+            !_hasReversal(tx.id, allTransactions)).toList();
+        if (unexpectedAccruals.isNotEmpty) {
+          reimbursementIssues.add(FinanceReconciliationIssue(
+            sourceType: 'employee_reimbursement_accrual',
+            sourceId: claimId,
+            message: 'Submitted/rejected claim has an active accrual journal.',
+          ));
+        }
+        continue;
+      }
       if (status == 'cancelled') {
         final cancelledAccruals = posted.where((tx) =>
             tx.sourceType == 'employee_reimbursement_accrual' && tx.sourceId == claimId).toList();
