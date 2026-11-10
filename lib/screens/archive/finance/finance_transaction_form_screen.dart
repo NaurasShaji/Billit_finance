@@ -58,6 +58,8 @@ class _FinanceTransactionFormScreenState
                     account.accountType == 'liability',
               'receivables' => account.id == 'system:receivables',
               'payables' => account.id == 'system:payables',
+              'cash_accounts' =>
+                account.id == 'system:cash' || account.id == 'system:bank',
               _ => account.accountType == type,
             };
           })
@@ -65,7 +67,8 @@ class _FinanceTransactionFormScreenState
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   String _debitType => switch (_type) {
-        'income' || 'transfer' || 'customer_receipt' => 'asset',
+        'income' || 'transfer' => 'asset',
+        'customer_receipt' => 'cash_accounts',
         'supplier_payment' => 'payables',
         'adjustment' => 'all',
         _ => 'expense',
@@ -75,7 +78,8 @@ class _FinanceTransactionFormScreenState
         'income' => 'income',
         'expense' => 'asset_or_liability',
         'customer_receipt' => 'receivables',
-        'supplier_payment' || 'transfer' => 'asset',
+        'supplier_payment' => 'cash_accounts',
+        'transfer' => 'asset',
         'adjustment' => 'all',
         _ => 'asset',
       };
