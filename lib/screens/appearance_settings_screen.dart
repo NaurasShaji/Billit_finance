@@ -775,7 +775,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: DropdownButtonFormField<String>(
-            initialValue: choices.containsKey(selected) ? selected : 'default',
+            value: choices.containsKey(selected) ? selected : 'default',
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Icon',
