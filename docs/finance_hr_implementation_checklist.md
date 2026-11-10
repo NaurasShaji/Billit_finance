@@ -184,3 +184,8 @@ Work branch: `feature/finance-team-promotion`
 - Every persisted schema change requires migration and backup/restore coverage.
 - UI code must not become the source of truth for calculations.
 - A task is checked only after implementation; tests remain unchecked until actually run and passed.
+
+
+## Overtime payroll update
+
+Employee profiles now allow dated overtime entries with hours and an hourly rate. Payroll generation includes overtime falling within the run period in gross pay and the payslip's allowance total. Entries are stored in the backed-up app-settings collection; restore validates employee references, dates, hours, rate, and amount. A regression test covers the overtime-to-payslip calculation but has not been run. Overtime is currently treated as payroll-eligible when entered; a separate approval/rejection workflow and statutory deduction rules are still outstanding. Existing salary components can represent one-off bonuses by adding an earning component named Bonus, but there is not yet a dedicated bonus workflow.
