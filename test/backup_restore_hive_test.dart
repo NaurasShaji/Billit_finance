@@ -20,6 +20,7 @@ void main() {
   late Box<FinanceCategory> financeCategories;
   late Box<FinanceParty> financeParties;
   late Box<FinanceBudget> financeBudgets;
+  late Box<FinanceRecurringTemplate> recurringTemplates;
   const service = BackupRestoreService();
 
   setUp(() async {
@@ -72,6 +73,9 @@ void main() {
     if (!Hive.isAdapterRegistered(21)) {
       Hive.registerAdapter(FinanceBudgetAdapter());
     }
+    if (!Hive.isAdapterRegistered(22)) {
+      Hive.registerAdapter(FinanceRecurringTemplateAdapter());
+    }
 
     users = await Hive.openBox<User>('users');
     products = await Hive.openBox<Product>('products');
@@ -91,6 +95,9 @@ void main() {
         await Hive.openBox<FinanceParty>(Boxes.financeParties);
     financeBudgets =
         await Hive.openBox<FinanceBudget>(Boxes.financeBudgets);
+    recurringTemplates = await Hive.openBox<FinanceRecurringTemplate>(
+      Boxes.financeRecurringTemplates,
+    );
   });
 
   tearDown(() async {
@@ -117,8 +124,67 @@ void main() {
         financeCategoriesBox: financeCategories,
         financePartiesBox: financeParties,
         financeBudgetsBox: financeBudgets,
+        financeRecurringTemplatesBox: recurringTemplates,
         afterWrite: afterWrite,
       );
+
+  test('restores recurring templates with validated account mappings', () async {
+    await restore({
+      'users': [],
+      'financeAccounts': [
+        {
+          'id': 'cash',
+          'name': 'Cash',
+          'accountType': 'asset',
+          'currencyCode': 'INR',
+          'active': true,
+        },
+        {
+          'id': 'rent-expense',
+          'name': 'Rent',
+          'accountType': 'expense',
+          'currencyCode': 'INR',
+          'active': true,
+        },
+      ],
+      'financeTransactions': [],
+      'financePostings': [],
+      'financeCategories': [
+        {
+          'id': 'rent-category',
+          'name': 'Rent',
+          'kind': 'expense',
+          'accountId': 'rent-expense',
+          'active': true,
+        },
+      ],
+      'financeParties': [],
+      'financeRecurringTemplates': [
+        {
+          'id': 'rent-monthly',
+          'name': 'Monthly rent',
+          'transactionType': 'expense',
+          'debitAccountId': 'rent-expense',
+          'creditAccountId': 'cash',
+          'amountPaise': 250000,
+          'interval': 'monthly',
+          'nextDueDate': '2026-12-01T00:00:00.000',
+          'endDate': null,
+          'categoryId': 'rent-category',
+          'partyId': null,
+          'memo': 'Shop rent',
+          'active': true,
+          'createdAt': '2026-11-01T00:00:00.000',
+        },
+      ],
+    });
+
+    final template = recurringTemplates.get('rent-monthly');
+    expect(template, isNotNull);
+    expect(template!.amountPaise, 250000);
+    expect(template.interval, 'monthly');
+    expect(template.categoryId, 'rent-category');
+  });
 
   test('restores finance budgets with account and category references', () async {
     await restore({
