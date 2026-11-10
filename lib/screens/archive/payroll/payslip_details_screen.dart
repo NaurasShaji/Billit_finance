@@ -46,7 +46,7 @@ class PayslipDetailsScreen extends StatelessWidget {
               pw.Text('Payslip reference: ${slip.id}'),
               pw.SizedBox(height: 22),
               pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey400),
+                border: pw.TableBorder.all(color: pw.PdfColors.grey400),
                 children: [
                   _row('Basic pay', _money(slip.basePaise)),
                   _row('Allowances', _money(slip.allowancesPaise)),
