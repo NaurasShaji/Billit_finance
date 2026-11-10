@@ -19,6 +19,29 @@ class FinanceLedgerScreen extends StatefulWidget {
 
 class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
   FinancePeriod _period = FinancePeriod.month;
+  final TextEditingController _journalSearchController = TextEditingController();
+  String _journalQuery = '';
+  String? _journalType;
+  DateTimeRange? _journalDateRange;
+
+  @override
+  void dispose() {
+    _journalSearchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickJournalDateRange() async {
+    final now = DateTime.now();
+    final selected = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year + 5, 12, 31),
+      initialDateRange: _journalDateRange,
+    );
+    if (selected != null && mounted) {
+      setState(() => _journalDateRange = selected);
+    }
+  }
 
   String _money(int paise) => NumberFormat.simpleCurrency(locale: 'en_IN')
       .format(paise / 100);
@@ -345,72 +368,177 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
     List<FinancePosting> postings,
     Iterable<FinanceTransaction> allTransactions,
   ) {
-    if (transactions.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.receipt_long_outlined, size: 48),
-              const SizedBox(height: 12),
-              const Text('No journal entries yet'),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _newTransaction,
-                icon: const Icon(Icons.add),
-                label: const Text('Record transaction'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final query = _journalQuery.trim().toLowerCase();
+    final filtered = transactions.where((transaction) {
+      if (_journalType != null && transaction.transactionType != _journalType) {
+        return false;
+      }
+      final range = _journalDateRange;
+      if (range != null) {
+        final date = transaction.date;
+        final start = DateTime(range.start.year, range.start.month, range.start.day);
+        final end = DateTime(range.end.year, range.end.month, range.end.day)
+            .add(const Duration(days: 1));
+        if (date.isBefore(start) || !date.isBefore(end)) return false;
+      }
+      if (query.isEmpty) return true;
+      return transaction.transactionNumber.toLowerCase().contains(query) ||
+          transaction.memo.toLowerCase().contains(query) ||
+          transaction.transactionType.toLowerCase().contains(query) ||
+          transaction.reference.toLowerCase().contains(query) ||
+          transaction.sourceId.toLowerCase().contains(query);
+    }).toList();
 
     final currency = DateFormat('dd MMM yyyy');
-    return ListView.separated(
+    final dateRangeLabel = _journalDateRange == null
+        ? 'Any date'
+        : '${DateFormat('dd MMM yyyy').format(_journalDateRange!.start)} – '
+            '${DateFormat('dd MMM yyyy').format(_journalDateRange!.end)}';
+
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: transactions.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final transaction = transactions[index];
-        final amount = FinanceReportingService.transactionAmountPaise(
-          transaction.id,
-          postings,
-        );
-        final hasReversal = allTransactions.any(
-          (item) =>
-              item.transactionType == 'reversal' &&
-              item.sourceType == 'reversal' &&
-              item.sourceId == transaction.id,
-        );
-        return Card(
-          child: ListTile(
-            title: Text(transaction.transactionNumber),
-            subtitle: Text(
-              '${transaction.memo.isEmpty ? transaction.transactionType : transaction.memo}\n'
-              '${currency.format(transaction.date)}'
-              '${hasReversal ? ' • Reversed' : ''}',
-            ),
-            isThreeLine: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _money(amount),
-                  style: themeTextStyle(context),
-                ),
-                if (!hasReversal)
-                  IconButton(
-                    tooltip: 'Reverse transaction',
-                    onPressed: () => _reverse(transaction),
-                    icon: const Icon(Icons.undo),
+      children: [
+        TextField(
+          controller: _journalSearchController,
+          onChanged: (value) => setState(() => _journalQuery = value),
+          decoration: InputDecoration(
+            hintText: 'Search number, memo, type or reference',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _journalQuery.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      _journalSearchController.clear();
+                      setState(() => _journalQuery = '');
+                    },
+                    icon: const Icon(Icons.close),
                   ),
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String?>(
+                value: _journalType,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Transaction type',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: const [
+                  DropdownMenuItem<String?>(value: null, child: Text('All types')),
+                  DropdownMenuItem<String?>(value: 'income', child: Text('Income')),
+                  DropdownMenuItem<String?>(value: 'expense', child: Text('Expense')),
+                  DropdownMenuItem<String?>(value: 'transfer', child: Text('Transfer')),
+                  DropdownMenuItem<String?>(value: 'customer_receipt', child: Text('Customer receipt')),
+                  DropdownMenuItem<String?>(value: 'supplier_payment', child: Text('Supplier payment')),
+                  DropdownMenuItem<String?>(value: 'opening_balance', child: Text('Opening balance')),
+                  DropdownMenuItem<String?>(value: 'adjustment', child: Text('Adjustment')),
+                  DropdownMenuItem<String?>(value: 'reversal', child: Text('Reversal')),
+                ],
+                onChanged: (value) => setState(() => _journalType = value),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: _pickJournalDateRange,
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: const Text('Dates'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${filtered.length} of ${transactions.length} posted entries • $dateRangeLabel',
+                style: Theme.of(context).textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (_journalType != null || _journalDateRange != null || _journalQuery.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  _journalSearchController.clear();
+                  setState(() {
+                    _journalQuery = '';
+                    _journalType = null;
+                    _journalDateRange = null;
+                  });
+                },
+                child: const Text('Clear filters'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 48),
+            child: Column(
+              children: [
+                const Icon(Icons.search_off, size: 42),
+                const SizedBox(height: 12),
+                Text(transactions.isEmpty
+                    ? 'No journal entries yet'
+                    : 'No entries match these filters'),
+                if (transactions.isEmpty) ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: _newTransaction,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Record transaction'),
+                  ),
+                ],
               ],
             ),
-          ),
-        );
-      },
+          )
+        else
+          for (final transaction in filtered) ...[
+            Builder(
+              builder: (context) {
+                final amount = FinanceReportingService.transactionAmountPaise(
+                  transaction.id,
+                  postings,
+                );
+                final hasReversal = allTransactions.any(
+                  (item) =>
+                      item.transactionType == 'reversal' &&
+                      item.sourceType == 'reversal' &&
+                      item.sourceId == transaction.id,
+                );
+                return Card(
+                  child: ListTile(
+                    title: Text(transaction.transactionNumber),
+                    subtitle: Text(
+                      '${transaction.memo.isEmpty ? transaction.transactionType : transaction.memo}\\n'
+                      '${currency.format(transaction.date)}'
+                      '${hasReversal ? ' • Reversed' : ''}',
+                    ),
+                    isThreeLine: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_money(amount), style: themeTextStyle(context)),
+                        if (!hasReversal)
+                          IconButton(
+                            tooltip: 'Reverse transaction',
+                            onPressed: () => _reverse(transaction),
+                            icon: const Icon(Icons.undo),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+      ],
     );
   }
 
