@@ -232,13 +232,32 @@ class FinanceRecurringService {
             processed < maxOccurrencesPerTemplate) {
           final dateKey = _dateKey(due);
           final sourceId = '${template.id}:$dateKey';
-          final existing = transactionsBox.values.any(
-            (transaction) =>
-                transaction.status == 'posted' &&
-                transaction.sourceType == 'recurring_template' &&
-                transaction.sourceId == sourceId,
-          );
-          if (existing) {
+          FinanceTransaction? existing;
+          for (final transaction in transactionsBox.values) {
+            if (transaction.sourceType == 'recurring_template' &&
+                transaction.sourceId == sourceId) {
+              existing = transaction;
+              break;
+            }
+          }
+          if (existing != null) {
+            final existingLines = postingsBox.values
+                .where((line) => line.transactionId == existing!.id)
+                .toList();
+            final debitTotal = existingLines
+                .where((line) => line.accountId == template.debitAccountId)
+                .fold<int>(0, (sum, line) => sum + line.debitPaise);
+            final creditTotal = existingLines
+                .where((line) => line.accountId == template.creditAccountId)
+                .fold<int>(0, (sum, line) => sum + line.creditPaise);
+            if (existing.status != 'posted' ||
+                existingLines.length < 2 ||
+                debitTotal != template.amountPaise ||
+                creditTotal != template.amountPaise) {
+              throw FinanceRecurringException(
+                'Existing occurrence $sourceId is incomplete or does not match its template.',
+              );
+            }
             skippedCount++;
           } else {
             final transactionId =
