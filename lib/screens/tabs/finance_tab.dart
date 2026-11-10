@@ -64,11 +64,19 @@ class _FinanceTabState extends State<FinanceTab> {
                 expenses: expensesBox.values.toList(),
                 span: span,
               );
+              final paymentMappings = Hive.box<dynamic>('app_settings').get(
+                FinanceSourceSyncService.paymentAccountSettingsKey,
+              );
+              final cashAccountIds = <String>{'system:cash', 'system:bank'};
+              if (paymentMappings is Map) {
+                cashAccountIds.addAll(paymentMappings.values.whereType<String>());
+              }
               final accountingSummary = const FinanceReportingService().summarize(
                 accounts: Hive.box<FinanceAccount>(Boxes.financeAccounts).values,
                 transactions: transactionsBox.values,
                 postings: Hive.box<FinancePosting>(Boxes.financePostings).values,
                 span: span,
+                cashAccountIds: cashAccountIds,
               );
               final settings = Hive.box<dynamic>('app_settings');
               final syncIssues = (settings.get(
