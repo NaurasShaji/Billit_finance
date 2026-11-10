@@ -1,4 +1,9 @@
 import '../models/employee.dart';
+import '../models/finance_account.dart';
+import '../models/finance_category.dart';
+import '../models/finance_party.dart';
+import '../models/finance_posting.dart';
+import '../models/finance_transaction.dart';
 import '../models/expense.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
@@ -14,6 +19,12 @@ class BackupRestorePayload {
   final List<Sale> sales;
   final List<Expense> expenses;
   final List<Employee> employees;
+  /// Null means a legacy backup that predates finance-ledger serialization.
+  final List<FinanceAccount>? financeAccounts;
+  final List<FinanceTransaction>? financeTransactions;
+  final List<FinancePosting>? financePostings;
+  final List<FinanceCategory>? financeCategories;
+  final List<FinanceParty>? financeParties;
   final Map<String, dynamic>? appSettings;
 
   const BackupRestorePayload({
@@ -22,6 +33,11 @@ class BackupRestorePayload {
     required this.sales,
     required this.expenses,
     required this.employees,
+    required this.financeAccounts,
+    required this.financeTransactions,
+    required this.financePostings,
+    required this.financeCategories,
+    required this.financeParties,
     required this.appSettings,
   });
 }
@@ -38,6 +54,11 @@ class BackupRestoreService {
     required Box<Expense> expensesBox,
     required Box<Employee> employeesBox,
     required Box<dynamic> appSettingsBox,
+    Box<FinanceAccount>? financeAccountsBox,
+    Box<FinanceTransaction>? financeTransactionsBox,
+    Box<FinancePosting>? financePostingsBox,
+    Box<FinanceCategory>? financeCategoriesBox,
+    Box<FinanceParty>? financePartiesBox,
     Future<void> Function(String stage)? afterWrite,
   }) async {
     final payload = parse(data);
@@ -49,6 +70,11 @@ class BackupRestoreService {
       expensesBox: expensesBox,
       employeesBox: employeesBox,
       appSettingsBox: appSettingsBox,
+      financeAccountsBox: financeAccountsBox,
+      financeTransactionsBox: financeTransactionsBox,
+      financePostingsBox: financePostingsBox,
+      financeCategoriesBox: financeCategoriesBox,
+      financePartiesBox: financePartiesBox,
       afterWrite: afterWrite,
     );
   }
@@ -66,6 +92,30 @@ class BackupRestoreService {
     required Box<dynamic> appSettingsBox,
     Future<void> Function(String stage)? afterWrite,
   }) async {
+    final hasFinancePayload = payload.financeAccounts != null;
+    if (hasFinancePayload &&
+        (financeAccountsBox == null ||
+            financeTransactionsBox == null ||
+            financePostingsBox == null ||
+            financeCategoriesBox == null ||
+            financePartiesBox == null)) {
+      throw const FormatException(
+        'Finance backup data was supplied but finance storage boxes are unavailable.',
+      );
+    }
+
+    final financeAccountsSnapshot =
+        financeAccountsBox == null ? null : Map<dynamic, FinanceAccount>.from(financeAccountsBox.toMap());
+    final financeTransactionsSnapshot = financeTransactionsBox == null
+        ? null
+        : Map<dynamic, FinanceTransaction>.from(financeTransactionsBox.toMap());
+    final financePostingsSnapshot =
+        financePostingsBox == null ? null : Map<dynamic, FinancePosting>.from(financePostingsBox.toMap());
+    final financeCategoriesSnapshot =
+        financeCategoriesBox == null ? null : Map<dynamic, FinanceCategory>.from(financeCategoriesBox.toMap());
+    final financePartiesSnapshot =
+        financePartiesBox == null ? null : Map<dynamic, FinanceParty>.from(financePartiesBox.toMap());
+
     final usersSnapshot = Map<dynamic, User>.from(usersBox.toMap());
     final productsSnapshot = Map<dynamic, Product>.from(productsBox.toMap());
     final salesSnapshot = Map<dynamic, Sale>.from(salesBox.toMap());
@@ -89,6 +139,33 @@ class BackupRestoreService {
       await employeesBox.clear();
       await employeesBox.putAll({for (final item in payload.employees) item.id: item});
       await afterWrite?.call('employees.putAll');
+      if (hasFinancePayload) {
+        await financeAccountsBox!.clear();
+        await financeAccountsBox.putAll({
+          for (final item in payload.financeAccounts!) item.id: item,
+        });
+        await afterWrite?.call('financeAccounts.putAll');
+        await financeTransactionsBox!.clear();
+        await financeTransactionsBox.putAll({
+          for (final item in payload.financeTransactions!) item.id: item,
+        });
+        await afterWrite?.call('financeTransactions.putAll');
+        await financePostingsBox!.clear();
+        await financePostingsBox.putAll({
+          for (final item in payload.financePostings!) item.id: item,
+        });
+        await afterWrite?.call('financePostings.putAll');
+        await financeCategoriesBox!.clear();
+        await financeCategoriesBox.putAll({
+          for (final item in payload.financeCategories!) item.id: item,
+        });
+        await afterWrite?.call('financeCategories.putAll');
+        await financePartiesBox!.clear();
+        await financePartiesBox.putAll({
+          for (final item in payload.financeParties!) item.id: item,
+        });
+        await afterWrite?.call('financeParties.putAll');
+      }
       if (payload.appSettings != null) {
         await appSettingsBox.putAll(payload.appSettings!);
         await afterWrite?.call('appSettings.putAll');
@@ -105,6 +182,26 @@ class BackupRestoreService {
         await expensesBox.putAll(expensesSnapshot);
         await employeesBox.clear();
         await employeesBox.putAll(employeesSnapshot);
+        if (financeAccountsSnapshot != null) {
+          await financeAccountsBox!.clear();
+          await financeAccountsBox.putAll(financeAccountsSnapshot);
+        }
+        if (financeTransactionsSnapshot != null) {
+          await financeTransactionsBox!.clear();
+          await financeTransactionsBox.putAll(financeTransactionsSnapshot);
+        }
+        if (financePostingsSnapshot != null) {
+          await financePostingsBox!.clear();
+          await financePostingsBox.putAll(financePostingsSnapshot);
+        }
+        if (financeCategoriesSnapshot != null) {
+          await financeCategoriesBox!.clear();
+          await financeCategoriesBox.putAll(financeCategoriesSnapshot);
+        }
+        if (financePartiesSnapshot != null) {
+          await financePartiesBox!.clear();
+          await financePartiesBox.putAll(financePartiesSnapshot);
+        }
         await appSettingsBox.clear();
         await appSettingsBox.putAll(settingsSnapshot);
       } catch (rollbackError) {
@@ -127,6 +224,21 @@ class BackupRestoreService {
       sales: _parseRecords(data, 'sales', _parseSale),
       expenses: _parseRecords(data, 'expenses', _parseExpense),
       employees: _parseRecords(data, 'employees', _parseEmployee),
+      financeAccounts: data.containsKey('financeAccounts')
+          ? _parseRecords(data, 'financeAccounts', _parseFinanceAccount)
+          : null,
+      financeTransactions: data.containsKey('financeTransactions')
+          ? _parseRecords(data, 'financeTransactions', _parseFinanceTransaction)
+          : null,
+      financePostings: data.containsKey('financePostings')
+          ? _parseRecords(data, 'financePostings', _parseFinancePosting)
+          : null,
+      financeCategories: data.containsKey('financeCategories')
+          ? _parseRecords(data, 'financeCategories', _parseFinanceCategory)
+          : null,
+      financeParties: data.containsKey('financeParties')
+          ? _parseRecords(data, 'financeParties', _parseFinanceParty)
+          : null,
       appSettings: _parseSettings(data['appSettings']),
     );
   }
@@ -357,6 +469,108 @@ class BackupRestoreService {
       wage: _number(json, 'wage', path),
       attendance: attendanceValue.toInt(),
       salaryPaid: _boolean(json, 'salaryPaid', path),
+    );
+  }
+
+  int _integer(Map<String, dynamic> map, String key, String path,
+      {int? fallback}) {
+    final value = map[key];
+    if (value == null && fallback != null) return fallback;
+    if (value is! int) throw FormatException('$path.$key must be an integer.');
+    return value;
+  }
+
+  FinanceAccount _parseFinanceAccount(Map<String, dynamic> json) {
+    const path = 'financeAccounts';
+    final type = _requiredString(json, 'accountType', path);
+    if (!{'asset', 'liability', 'equity', 'income', 'expense'}.contains(type)) {
+      throw FormatException('$path.accountType is unsupported.');
+    }
+    return FinanceAccount(
+      id: _requiredString(json, 'id', path),
+      name: _requiredString(json, 'name', path),
+      accountType: type,
+      parentId: _nullableString(json, 'parentId', path),
+      currencyCode: _optionalString(json, 'currencyCode', 'INR', path),
+      active: _boolean(json, 'active', path, fallback: true),
+      createdAt: json['createdAt'] == null
+          ? DateTime.now()
+          : _date(json, 'createdAt', path),
+    );
+  }
+
+  FinanceTransaction _parseFinanceTransaction(Map<String, dynamic> json) {
+    const path = 'financeTransactions';
+    final type = _requiredString(json, 'transactionType', path);
+    if (!{'income', 'expense', 'transfer', 'opening_balance', 'adjustment', 'reversal'}.contains(type)) {
+      throw FormatException('$path.transactionType is unsupported.');
+    }
+    final status = _optionalString(json, 'status', 'draft', path);
+    if (!{'draft', 'posted', 'reversed'}.contains(status)) {
+      throw FormatException('$path.status is unsupported.');
+    }
+    return FinanceTransaction(
+      id: _requiredString(json, 'id', path),
+      transactionNumber: _requiredString(json, 'transactionNumber', path),
+      transactionType: type,
+      status: status,
+      date: _date(json, 'date', path),
+      memo: _optionalString(json, 'memo', '', path),
+      reference: _optionalString(json, 'reference', '', path),
+      sourceType: _optionalString(json, 'sourceType', '', path),
+      sourceId: _optionalString(json, 'sourceId', '', path),
+      createdAt: json['createdAt'] == null
+          ? DateTime.now()
+          : _date(json, 'createdAt', path),
+      postedAt: json['postedAt'] == null ? null : _date(json, 'postedAt', path),
+      reversedTransactionId:
+          _nullableString(json, 'reversedTransactionId', path),
+    );
+  }
+
+  FinancePosting _parseFinancePosting(Map<String, dynamic> json) {
+    const path = 'financePostings';
+    return FinancePosting(
+      id: _requiredString(json, 'id', path),
+      transactionId: _requiredString(json, 'transactionId', path),
+      accountId: _requiredString(json, 'accountId', path),
+      debitPaise: _integer(json, 'debitPaise', path, fallback: 0),
+      creditPaise: _integer(json, 'creditPaise', path, fallback: 0),
+      partyId: _nullableString(json, 'partyId', path),
+      categoryId: _nullableString(json, 'categoryId', path),
+      memo: _optionalString(json, 'memo', '', path),
+    );
+  }
+
+  FinanceCategory _parseFinanceCategory(Map<String, dynamic> json) {
+    const path = 'financeCategories';
+    final kind = _requiredString(json, 'kind', path);
+    if (!{'income', 'expense'}.contains(kind)) {
+      throw FormatException('$path.kind is unsupported.');
+    }
+    return FinanceCategory(
+      id: _requiredString(json, 'id', path),
+      name: _requiredString(json, 'name', path),
+      kind: kind,
+      accountId: _requiredString(json, 'accountId', path),
+      active: _boolean(json, 'active', path, fallback: true),
+    );
+  }
+
+  FinanceParty _parseFinanceParty(Map<String, dynamic> json) {
+    const path = 'financeParties';
+    final type = _requiredString(json, 'partyType', path);
+    if (!{'customer', 'supplier', 'employee', 'other'}.contains(type)) {
+      throw FormatException('$path.partyType is unsupported.');
+    }
+    return FinanceParty(
+      id: _requiredString(json, 'id', path),
+      name: _requiredString(json, 'name', path),
+      partyType: type,
+      phone: _optionalString(json, 'phone', '', path),
+      email: _optionalString(json, 'email', '', path),
+      taxIdentifier: _optionalString(json, 'taxIdentifier', '', path),
+      active: _boolean(json, 'active', path, fallback: true),
     );
   }
 
