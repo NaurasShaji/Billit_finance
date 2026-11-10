@@ -117,8 +117,8 @@ class FinanceRecurringService {
         debitAccount.accountType == 'expense' &&
             creditAccount.accountType == 'asset',
       'transfer' =>
-        debitAccount.accountType == 'asset' &&
-            creditAccount.accountType == 'asset',
+        {'system:cash', 'system:bank'}.contains(debitAccount.id) &&
+            {'system:cash', 'system:bank'}.contains(creditAccount.id),
       _ => false,
     };
     if (!validTypes) {
