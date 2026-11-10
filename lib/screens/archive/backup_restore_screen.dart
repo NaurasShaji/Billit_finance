@@ -1037,6 +1037,8 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
         Hive.box<FinanceParty>(Boxes.financeParties);
     final financeBudgetsBox =
         Hive.box<FinanceBudget>(Boxes.financeBudgets);
+    final financeRecurringTemplatesBox =
+        Hive.box<FinanceRecurringTemplate>(Boxes.financeRecurringTemplates);
     final appSettingsBox = Hive.box<dynamic>('app_settings');
 
     return {
@@ -1296,6 +1298,24 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'createdAt': budget.createdAt.toIso8601String(),
               })
           .toList(),
+      'financeRecurringTemplates': financeRecurringTemplatesBox.values
+          .map((template) => {
+                'id': template.id,
+                'name': template.name,
+                'transactionType': template.transactionType,
+                'debitAccountId': template.debitAccountId,
+                'creditAccountId': template.creditAccountId,
+                'amountPaise': template.amountPaise,
+                'interval': template.interval,
+                'nextDueDate': template.nextDueDate.toIso8601String(),
+                'endDate': template.endDate?.toIso8601String(),
+                'categoryId': template.categoryId,
+                'partyId': template.partyId,
+                'memo': template.memo,
+                'active': template.active,
+                'createdAt': template.createdAt.toIso8601String(),
+              })
+          .toList(),
     };
   }
 
@@ -1316,6 +1336,9 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
           Hive.box<FinanceCategory>(Boxes.financeCategories),
       financePartiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
       financeBudgetsBox: Hive.box<FinanceBudget>(Boxes.financeBudgets),
+      financeRecurringTemplatesBox: Hive.box<FinanceRecurringTemplate>(
+        Boxes.financeRecurringTemplates,
+      ),
       hrDepartmentsBox: Hive.box<HrDepartment>(Boxes.hrDepartments),
       employeeAttendanceBox:
           Hive.box<EmployeeAttendance>(Boxes.employeeAttendance),
