@@ -59,8 +59,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
         title: const Text('Add Expense'),
-        backgroundColor: Colors.red.shade600,
-        foregroundColor: Colors.white,
+        backgroundColor: theme.colorScheme.surface,
+        foregroundColor: theme.colorScheme.onSurface,
         elevation: 0,
         centerTitle: true,
       ),
@@ -97,12 +97,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.12),
+                                color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
                                 Icons.add_business_outlined,
-                                color: Colors.red.shade600,
+                                color: theme.colorScheme.error,
                                 size: 24,
                               ),
                             ),
@@ -184,15 +184,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             const SizedBox(width: 12),
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.12),
+                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
                                 borderRadius: BorderRadius.circular(10),
                                 border:
-                                    Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                                    Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4)),
                               ),
                               child: IconButton(
                                 tooltip: 'Add new category',
                                 icon: Icon(Icons.add,
-                                    color: Colors.green.shade700.adaptive(context)),
+                                    color: theme.colorScheme.primary),
                                 onPressed: _addNewCategory,
                               ),
                             ),
@@ -296,8 +296,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _saveExpense,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.shade600,
-                              foregroundColor: Colors.white,
+                              backgroundColor: theme.colorScheme.surface,
+                              foregroundColor: theme.colorScheme.onSurface,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -310,7 +310,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
+                                          theme.colorScheme.onError),
                                     ),
                                   )
                                 : const Row(
@@ -362,12 +362,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withValues(alpha: 0.12),
+                              color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.35),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               Icons.history,
-                              color: Colors.blue.shade600,
+                              color: theme.colorScheme.secondary,
                               size: 20,
                             ),
                           ),
@@ -489,7 +489,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w700,
-                                          color: Colors.red.shade600,
+                                          color: theme.colorScheme.error,
                                         ),
                                       ),
                                     ],
@@ -574,7 +574,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Expense saved successfully!'),
-            backgroundColor: Colors.green.shade600,
+            backgroundColor: theme.colorScheme.primary,
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
