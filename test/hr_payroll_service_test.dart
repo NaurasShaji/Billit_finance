@@ -58,7 +58,7 @@ void main() {
 
     settings = await Hive.openBox<dynamic>('app_settings');
     await SchemaMigrationService(
-      currentVersion: 10,
+      currentVersion: 11,
       migrations: [
         FinanceSchemaMigration.versionOneToTwo,
         FinanceSchemaMigration.versionTwoToThree,
@@ -69,6 +69,7 @@ void main() {
         FinanceSchemaMigration.versionSevenToEight,
         FinanceSchemaMigration.versionEightToNine,
         FinanceSchemaMigration.versionNineToTen,
+        FinanceSchemaMigration.versionTenToEleven,
       ],
     ).run(settings);
 
