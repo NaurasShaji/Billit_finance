@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:excel_community/excel.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
+
+import '../../../widgets/finance_content_frame.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -368,7 +370,7 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                 (sum, row) => sum + row.creditPaise,
               );
 
-              return ListView(
+              return FinanceContentFrame(child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
                   Row(
@@ -560,7 +562,7 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                         ),
                   ),
                 ],
-              );
+              ));
             },
           ),
         ),
