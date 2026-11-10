@@ -82,7 +82,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
 - [x] Add configurable income/expense categories with linked ledger accounts and category-aware manual journal entries.
 - [ ] Add configurable payment methods and account mapping for non-POS workflows.
-- [ ] Add transaction search, filtering, sorting, and date ranges.
+- [x] Add posted-journal search (transaction number, memo, type, reference, and source ID), transaction-type and inclusive date-range filters, and sorting by date, amount, or transaction number. Flutter tests and UI verification remain pending.
 - [x] Add recurring transaction templates with daily/weekly/monthly/quarterly/yearly schedules, idempotent due processing, and month-end cadence handling (tests authored; execution pending).
 - [x] Add ledger integrity and balance tests (authored; execution pending).
 
