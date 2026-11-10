@@ -33,7 +33,7 @@ class _FinanceGeneralLedgerScreenState extends State<FinanceGeneralLedgerScreen>
   }
 
   @override
-  Widget build(BuildContext context) => ScaffolResponsivePage(child: Scaffold((
+  Widget build(BuildContext context) => ResponsivePage(child: Scaffold(
         appBar: AppBar(title: const Text('General ledger')),
         body: ValueListenableBuilder<Box<FinanceAccount>>(
           valueListenable: Hive.box<FinanceAccount>(Boxes.financeAccounts).listenable(),
