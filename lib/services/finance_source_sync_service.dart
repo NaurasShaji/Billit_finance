@@ -253,6 +253,7 @@ class FinanceSourceSyncService {
     required Box<FinanceCategory> categoriesBox,
     required Box<FinanceParty> partiesBox,
     Box<Employee>? employeesBox,
+    String? paymentAccountId,
   }) async {
     final sourceType = 'legacy_expense';
     final sourceId = _sourceId(expense.id, expense.financeRevision);
