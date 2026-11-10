@@ -165,6 +165,18 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       final rawDocuments = rawAppSettings is Map
           ? rawAppSettings['hr_employee_documents']
           : null;
+      final rawHistory = rawAppSettings is Map
+          ? rawAppSettings['hr_employment_history']
+          : null;
+      if (rawHistory == null) {
+        final existingHistory = Hive.box<dynamic>('app_settings')
+            .get('hr_employment_history');
+        if (existingHistory is Map && existingHistory.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates employment history backup. Export a current backup before restoring it, or remove existing employment history explicitly.',
+          );
+        }
+      }
       if (rawDocuments == null) {
         final existingDocuments = Hive.box<dynamic>('app_settings')
             .get('hr_employee_documents');
