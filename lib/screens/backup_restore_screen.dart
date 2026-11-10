@@ -310,11 +310,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       }
       if (rawAdvanceSnapshots != null) {
         if (rawAdvanceSnapshots is! Map) throw const FormatException('Payroll advance deduction backup is malformed.');
-        final payslipIds = (data['payslips'] as List? ?? []).whereType<Map>()
-            .map((item) => item['id']).whereType<String>().toSet();
         for (final entry in rawAdvanceSnapshots.entries) {
-          if (entry.key is! String || !payslipIds.contains(entry.key) || entry.value is! List) {
-            throw const FormatException('Payroll advance deduction references an unknown payslip.');
+          if (entry.key is! String || entry.key.toString().isEmpty || entry.value is! List) {
+            throw const FormatException('Payroll advance deduction record is malformed.');
           }
           for (final item in entry.value as List) {
             if (item is! Map || item['employeeId'] is! String ||
