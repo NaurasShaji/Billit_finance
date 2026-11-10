@@ -50,7 +50,7 @@ class SalaryComponentsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: type,
+                    value: type,
                     decoration: const InputDecoration(labelText: 'Type'),
                     items: const [
                       DropdownMenuItem(value: 'earning', child: Text('Allowance / earning')),
