@@ -248,6 +248,7 @@ class _FinanceTabState extends State<FinanceTab> {
       postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
       categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
       partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      settingsBox: Hive.box<dynamic>('app_settings'),
     );
     final settings = Hive.box<dynamic>('app_settings');
     if (issues.isEmpty) {
