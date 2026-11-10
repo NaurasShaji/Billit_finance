@@ -5,6 +5,7 @@ import '../../../services/boxes.dart';
 import '../../../services/finance_source_sync_service.dart';
 import '../../../models/models.dart';
 import '../../../utils/theme_colors.dart';
+import '../../../widgets/responsive_page.dart';
 
 class ExpensesListScreen extends StatefulWidget {
   const ExpensesListScreen({super.key});
@@ -41,7 +42,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
     final dateFmt = DateFormat('dd MMM yyyy');
     final monthFmt = DateFormat('MMMM yyyy');
 
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       backgroundColor:
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
@@ -502,7 +503,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           );
         },
       ),
-    );
+    ));
   }
 
   Widget _buildSummaryRow(
