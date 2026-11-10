@@ -269,6 +269,24 @@ class HrPayrollService {
       throw const HrPayrollServiceException('Employee Advances or Salaries and Wages account is unavailable or has an invalid type.');
     }
     final transactionId = 'finance:payroll-advance-recovery:$payslipId';
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final postings = Hive.box<FinancePosting>(Boxes.financePostings);
+    final existing = transactions.values.where((item) =>
+      item.sourceType == 'payroll_advance_recovery' && item.sourceId == payslipId).toList();
+    if (existing.isNotEmpty) {
+      if (existing.length != 1 || existing.single.id != transactionId) {
+        throw const HrPayrollServiceException('Conflicting payroll advance recovery journal already exists.');
+      }
+      final lines = postings.values.where((line) => line.transactionId == transactionId).toList();
+      final debit = lines.where((line) => line.accountId == 'system:salary-expense')
+          .fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
+      final credit = lines.where((line) => line.accountId == employeeAdvanceAccountId)
+          .fold<int>(0, (sum, line) => sum + line.creditPaise - line.debitPaise);
+      if (existing.single.status != 'posted' || debit != amountPaise || credit != amountPaise || lines.length != 2) {
+        throw const HrPayrollServiceException('Existing payroll advance recovery journal does not match the pending deduction. Reconcile it manually.');
+      }
+      return;
+    }
     await FinanceLedgerService().postTransaction(
       transaction: FinanceTransaction(
         id: transactionId,
@@ -293,6 +311,31 @@ class HrPayrollService {
       categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
       partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
     );
+  }
+
+  /// Compares the HR advance register with the posted Employee Advances control account.
+  Map<String, int> advanceReconciliation() {
+    final raw = Hive.box<dynamic>('app_settings').get(advanceSettingsKey);
+    var subledgerPaise = 0;
+    if (raw is Map) {
+      for (final employeeAdvances in raw.values) {
+        if (employeeAdvances is! List) continue;
+        for (final item in employeeAdvances.whereType<Map>()) {
+          final outstanding = item['outstandingPaise'];
+          if (outstanding is int && outstanding > 0) subledgerPaise += outstanding;
+        }
+      }
+    }
+    final journalPaise = FinanceLedgerService().balancePaise(
+      accountId: employeeAdvanceAccountId,
+      transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+      postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+    );
+    return {
+      'subledgerPaise': subledgerPaise,
+      'journalPaise': journalPaise,
+      'differencePaise': journalPaise - subledgerPaise,
+    };
   }
 
   Future<void> _settlePayrollAdvanceDeductions(String payslipId) async {
