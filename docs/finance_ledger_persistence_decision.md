@@ -29,7 +29,7 @@ Implemented on this branch with reserved Hive type IDs 10–14. The five models 
 
 Use separate boxes for accounts, transaction headers, posting lines, categories, and parties. Keep posting lines independently queryable by transaction/account/date; do not rely on embedding an unbounded posting list in one transaction object.
 
-Implemented model fields are in `lib/models/finance_*.dart`; generated Hive adapters are checked in alongside them. Schema migration 1→2 creates the five boxes and seeds nine stable default accounts. The journal service validates balanced integer-paise entries and writes postings before marking a transaction posted. Backup export/restore integration and failure-injection coverage for ledger writes remain pending.
+Implemented model fields are in `lib/models/finance_*.dart`; generated Hive adapters are checked in alongside them. Schema migration 1→2 creates the five boxes and seeds nine stable default accounts. The journal service validates balanced integer-paise entries, writes postings before marking a transaction posted, derives balances from posted lines, and creates exact reversal entries without mutating the original transaction. Google Drive backup export/restore now includes all five finance boxes and validates cross-references and posted-entry balance before writes. Tests are authored but still require execution.
 
 ## 3. Posting rules
 
