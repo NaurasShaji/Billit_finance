@@ -39,6 +39,7 @@ class Expense extends HiveObject {
         'amount': amount,
         'description': description,
         if (employeeId != null) 'employeeId': employeeId,
+        'financeRevision': financeRevision,
       };
 
   static Expense fromJson(Map<String, dynamic> json) {
@@ -49,6 +50,7 @@ class Expense extends HiveObject {
       amount: (json['amount'] as num).toDouble(),
       description: json['description'] as String,
       employeeId: json['employeeId'] as String?,
+      financeRevision: json['financeRevision'] as int? ?? 0,
     );
   }
 }
