@@ -1572,6 +1572,10 @@ class _BillingTabState extends State<BillingTab> with TickerProviderStateMixin {
           partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
         );
       } catch (financeError) {
+        await FinanceSourceSyncService.recordIssue(
+          Hive.box<dynamic>('app_settings'),
+          'Sale ${sale.id}: $financeError',
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
