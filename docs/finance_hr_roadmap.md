@@ -61,6 +61,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Trial balance, P&L, and cash-flow reports with PDF and Excel workbook export.
 - [x] Search posted journal entries by transaction number, memo, type, reference, and source ID; filter by transaction type and inclusive date range; sort by date, amount, or transaction number. UI and test validation pending.
 - [x] Account-wise general-ledger detail report with date filtering, opening/closing balances, debit/credit totals, and running balances (implementation added; test/build verification pending).
+- [x] Customer/supplier statement screen with date filtering, opening balance, period movement, closing balance, and journal-linked transaction history (implementation added; test/build verification pending).
 - [ ] Transaction attachments, audit metadata, and approval rules.
 
 ## HR and Team
