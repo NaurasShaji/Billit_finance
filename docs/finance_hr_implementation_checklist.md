@@ -43,6 +43,7 @@ Work branch: `feature/finance-team-promotion`
 - Invoice-level payment allocation is now persisted in the schema-v8 allocation store. The standalone allocation screen supports partial allocations and allocation history; ageing applies explicit allocations before applying any remaining legacy settlement balance FIFO. Backup export, validation, restore, and rollback include allocation records.
 - **Payroll accounting integrity:** a payslip is no longer advanced to partially paid/paid when its source expense cannot be synchronized to the finance journal. The expense is retained with a reconciliation issue so the stable source ID can be retried without creating a duplicate payment.
 - **Leave approval integrity:** approving a leave request now converts any pre-existing manually marked `leave` attendance records in the requested range into request-linked locked records. If attendance or request persistence fails, previously existing attendance records are restored as part of best-effort rollback. Added regression coverage for the manual-leave locking case; tests remain unexecuted.
+- **Attendance time tracking:** daily attendance now exposes check-in/check-out time pickers for present employees. The service rejects checkout without check-in, checkout earlier than check-in, and timestamps outside the attendance date. Regression tests were added; they have not been run.
 - **Allocation workflow update:** customer receipts and supplier payments now expose optional multi-invoice allocation rows in the transaction form. Each row is prevalidated against the invoice balance after existing explicit allocations and legacy FIFO settlements; total allocation cannot exceed the new settlement. Allocation records are batch-validated before persistence. If allocation persistence fails after journal posting, the form attempts an immutable reversal of the settlement. The separate allocation screen remains available for later allocation of advances.
 - Tests, formatting, static analysis, and platform builds remain pending.
 - Added unit tests for partial allocation, multi-invoice settlement splitting, batch over-allocation rejection without partial writes, legacy FIFO balance before new allocation, and reversal-aware allocation history. **Validation remains pending:** no Flutter commands have been run in this environment. The Hive CE workflow must regenerate `pubspec.lock` and adapters, then run formatting, analysis, tests, and Android build.
@@ -126,7 +127,7 @@ Work branch: `feature/finance-team-promotion`
 ## Phase 5 — Attendance and leave
 
 - [x] Daily attendance states and attendance corrections.
-- [ ] Optional check-in/check-out.
+- [x] Optional check-in/check-out controls in daily attendance, including time selection and persisted display. Service validation requires check-in before check-out, enforces chronological order, and keeps both timestamps on the attendance date. Regression tests authored; execution pending.
 - [x] Leave types, requests, and approval/rejection workflow.
 - [ ] Leave balances, policy accrual, and attendance reports.
 
