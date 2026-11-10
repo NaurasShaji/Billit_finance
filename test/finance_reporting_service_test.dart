@@ -119,6 +119,43 @@ void main() {
     );
   });
 
+  test('internal cash and bank transfers do not inflate cash flow', () {
+    final accounts = [
+      FinanceAccount(id: 'system:cash', name: 'Cash', accountType: 'asset'),
+      FinanceAccount(id: 'system:bank', name: 'Bank', accountType: 'asset'),
+    ];
+    final transaction = FinanceTransaction(
+      id: 'transfer-1',
+      transactionNumber: 'TR-1',
+      transactionType: 'transfer',
+      status: 'posted',
+      date: DateTime(2026, 10, 7),
+    );
+    final postings = [
+      FinancePosting(
+        id: 'cash-in',
+        transactionId: transaction.id,
+        accountId: 'system:cash',
+        debitPaise: 5000,
+      ),
+      FinancePosting(
+        id: 'bank-out',
+        transactionId: transaction.id,
+        accountId: 'system:bank',
+        creditPaise: 5000,
+      ),
+    ];
+    final summary = const FinanceReportingService().summarize(
+      accounts: accounts,
+      transactions: [transaction],
+      postings: postings,
+      span: DateSpan(DateTime(2026, 10, 1), DateTime(2026, 11, 1)),
+    );
+    expect(summary.cashInPaise, 0);
+    expect(summary.cashOutPaise, 0);
+    expect(summary.netCashFlowPaise, 0);
+  });
+
   test('draft and out-of-period transactions are excluded', () {
     final account = FinanceAccount(
       id: 'income',
