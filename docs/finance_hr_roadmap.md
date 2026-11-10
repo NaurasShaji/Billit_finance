@@ -175,3 +175,14 @@ The Team tab now links to an operator-facing report showing aggregate HR subledg
 - [ ] Add a controlled historical opening-balance and correction workflow after per-advance legacy journal history can be safely distinguished from current balances.
 
 The reconciliation report remains diagnostic-only. No automatic balancing entry is created. No tests, formatting, analysis, or builds were run.
+
+
+## Legacy employee advance opening balances (2026-11-10)
+
+- [x] Add a controlled opening-balance journal for eligible legacy advances with no repayment or journal history.
+- [x] Debit Employee Advances and credit Opening Balance Equity for the verified outstanding balance; do not invent historical cash/bank movements.
+- [x] Require operator confirmation and an effective date on/after the advance issue date and not in the future.
+- [x] Use a stable source key and reject duplicate advance IDs, linked journal history, invalid accounts, and repayment history.
+- [x] Include opening-balance journals in per-advance reconciliation diagnostics.
+- [x] Author regression tests for successful opening, duplicate retry rejection, and repayment-history rejection (not run).
+- [ ] Build a separate investigation workflow for advances with partial, duplicate, or mismatched journal history; do not auto-correct those records.
