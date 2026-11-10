@@ -123,6 +123,8 @@ class FinanceLedgerService {
     required Box<FinanceAccount> accountsBox,
     required Box<FinanceTransaction> transactionsBox,
     required Box<FinancePosting> postingsBox,
+    Box<FinanceCategory>? categoriesBox,
+    Box<FinanceParty>? partiesBox,
   }) async {
     if (transactionsBox.containsKey(transaction.id)) {
       throw const FinanceLedgerException(
@@ -151,15 +153,49 @@ class FinanceLedgerService {
       );
     }
 
+    final accounts = {
+      for (final account in accountsBox.values) account.id: account,
+    };
     validateJournal(
       transaction: transaction,
       postings: postings,
-      accounts: {
-        for (final account in accountsBox.values) account.id: account,
-      },
+      accounts: accounts,
     );
 
     for (final line in postings) {
+      if (line.categoryId != null) {
+        if (categoriesBox == null) {
+          throw const FinanceLedgerException(
+            'Category storage is required when a posting references a category.',
+          );
+        }
+        final category = categoriesBox.get(line.categoryId);
+        if (category == null || !category.active) {
+          throw FinanceLedgerException(
+            'Posting references an unknown or inactive category: ${line.categoryId}',
+          );
+        }
+        final account = accounts[line.accountId]!;
+        if (category.accountId != line.accountId ||
+            category.kind != account.accountType) {
+          throw FinanceLedgerException(
+            'Category ${category.id} does not match posting account ${line.accountId}.',
+          );
+        }
+      }
+      if (line.partyId != null) {
+        if (partiesBox == null) {
+          throw const FinanceLedgerException(
+            'Party storage is required when a posting references a party.',
+          );
+        }
+        final party = partiesBox.get(line.partyId);
+        if (party == null || !party.active) {
+          throw FinanceLedgerException(
+            'Posting references an unknown or inactive party: ${line.partyId}',
+          );
+        }
+      }
       if (postingsBox.containsKey(line.id)) {
         throw FinanceLedgerException(
           'Posting ID already exists: ${line.id}',
