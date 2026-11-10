@@ -223,6 +223,19 @@ class BackupRestoreService {
   }
 
   BackupRestorePayload parse(Map<String, dynamic> data) {
+    const financeKeys = [
+      'financeAccounts',
+      'financeTransactions',
+      'financePostings',
+      'financeCategories',
+      'financeParties',
+    ];
+    final hasAnyFinanceKey = financeKeys.any(data.containsKey);
+    if (hasAnyFinanceKey && !financeKeys.every(data.containsKey)) {
+      throw const FormatException(
+        'Finance backup is incomplete; all finance collections are required.',
+      );
+    }
     return BackupRestorePayload(
       users: _parseRecords(data, 'users', _parseUser),
       products: _parseRecords(data, 'products', _parseProduct),
