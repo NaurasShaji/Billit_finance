@@ -73,7 +73,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Department management and employee department/designation assignment.
 - [x] Emergency contact field.
 - [x] Dated employee employment history events (joining, designation, department, status, pay changes, and other events) stored per employee in the backed-up app-settings collection.
-- [ ] Employee document storage and access controls.
+- [x] Employee document storage and access controls.
 
 ### Attendance and leave
 - [x] Daily attendance records with present, absent, half-day, leave, and holiday states.
@@ -122,3 +122,8 @@ The Hive CE migration is **in progress, not complete**. pubspec.yaml now declare
 ## Employee document storage update
 
 Employee profiles now support administrator-managed document attachments. The implementation stores PDF, PNG, JPG, DOC, and DOCX files as base64 records in the existing `app_settings` box, with a strict 2 MB per-file limit. Administrators can upload, export, and delete files; worker accounts cannot list or access document bytes. Google Drive backup export includes employee documents, employment history, and leave policies. Restore validates employee references, file extensions, base64 payloads, and size limits before clearing live records. A legacy backup without document data or employment history is rejected when current records would otherwise be orphaned. The backup contains sensitive HR documents and should be stored only in a controlled Drive account. Regression tests were authored but not run.
+
+
+## Employment and pay frequency update
+
+Employee profiles now configure employment classification (permanent, contract, temporary, intern, part-time, casual) and pay frequency (daily, weekly, fortnightly, monthly). The settings are stored in the existing backed-up app-settings collection and restored with validation against employee IDs and allowed values. Monthly-salary payroll calculations use annualized salary rates for daily, weekly, and fortnightly cycles, while monthly frequency retains the full monthly base salary. Daily-wage employees continue to be calculated from payable attendance days. Regression tests cover persistence, invalid values, and weekly salary calculation; they have not been run. Payroll period dates must still be selected to match the employee's configured cycle; the service does not yet enforce period-length alignment.
