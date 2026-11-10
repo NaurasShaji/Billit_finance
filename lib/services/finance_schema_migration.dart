@@ -158,7 +158,6 @@ class FinanceSchemaMigration {
         },
       );
 
-  /// Adds primitive-map storage for immutable invoice payment allocations.
   /// Adds dedicated payroll control accounts for accrual-based payroll.
   static SchemaMigration get versionNineToTen => SchemaMigration(
         fromVersion: 9,
@@ -185,6 +184,7 @@ class FinanceSchemaMigration {
         },
       );
 
+  /// Adds primitive-map storage for immutable invoice payment allocations.
   static SchemaMigration get versionSevenToEight => SchemaMigration(
         fromVersion: 7,
         toVersion: 8,
