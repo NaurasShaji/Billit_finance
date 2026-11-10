@@ -231,4 +231,4 @@ Payroll recovery reconciliation now validates more than the presence of a source
 
 ## Overtime approval workflow
 
-New overtime entries are saved as pending and excluded from payroll until approved. The employee profile provides approve/reject controls; rejection requires a reason. Review decisions record a timestamp and note. Existing overtime entries without a status remain treated as approved to preserve historical payroll behavior. Regression coverage checks pending exclusion, rejection, and prevention of re-approving a rejected entry; tests have not been run.
+New overtime entries are saved as pending and excluded from payroll until approved. The employee profile provides approve/reject controls; rejection requires a reason. Review decisions record a timestamp and note. Overtime entries are locked once a payroll run snapshots their date, preventing retroactive changes to generated payslips. Existing overtime entries without a status remain treated as approved to preserve historical payroll behavior. Regression coverage checks pending exclusion, rejection, and prevention of re-approving a rejected entry; tests have not been run.
