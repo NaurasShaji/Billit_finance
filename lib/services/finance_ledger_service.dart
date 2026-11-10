@@ -24,6 +24,8 @@ class FinanceLedgerService {
     'income',
     'expense',
     'transfer',
+    'customer_receipt',
+    'supplier_payment',
     'opening_balance',
     'adjustment',
     'reversal',
