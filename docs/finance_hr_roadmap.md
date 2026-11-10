@@ -58,7 +58,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Budget creation, period tracking, and actual-versus-budget tracking from posted journal entries (tests authored; execution pending).
 - [x] Recurring income/expense templates with startup/manual due-date processing, stable idempotency keys, and month-end cadence handling (tests authored; execution pending).
 - [x] Trial balance, P&L, and cash-flow reports with PDF and Excel workbook export.
-- [x] Search posted journal entries by transaction number, memo, type, reference, and source ID; filter by transaction type and inclusive date range.
+- [x] Search posted journal entries by transaction number, memo, type, reference, and source ID; filter by transaction type and inclusive date range; sort by date, amount, or transaction number. UI and test validation pending.
 - [ ] General-ledger detail report and date-range filtering.
 - [ ] Transaction attachments, audit metadata, and approval rules.
 
