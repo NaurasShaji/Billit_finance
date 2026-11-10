@@ -355,7 +355,8 @@ class HrPayrollService {
         throw const HrPayrollServiceException('Payroll advance recovery snapshot contains invalid references or amount.');
       }
       final employeeRecords = all[item['employeeId']] as List?;
-      final record = employeeRecords?.whereType<Map>().where((entry) => entry['id'] == item['advanceId']).firstOrNull;
+      final matches = employeeRecords?.whereType<Map>().where((entry) => entry['id'] == item['advanceId']).toList() ?? <Map>[];
+      final record = matches.isEmpty ? null : matches.first;
       if (record == null || record['outstandingPaise'] is! int || amount > (record['outstandingPaise'] as int)) {
         throw const HrPayrollServiceException('Advance balance changed after payroll generation. Reconcile before settlement.');
       }
