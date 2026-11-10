@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:excel_community/excel.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
@@ -147,6 +151,84 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
     );
   }
 
+  Future<void> _exportExcel({
+    required FinanceLedgerSummary summary,
+    required List<_TrialBalanceRow> rows,
+    required DateSpan span,
+    required int debitTotal,
+    required int creditTotal,
+  }) async {
+    final workbook = Excel.createExcel();
+    final summarySheet = workbook['Summary'];
+    summarySheet.appendRow([
+      TextCellValue('Metric'),
+      TextCellValue('Amount (INR)'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Period'),
+      TextCellValue(
+        '${_date(span.start)} – ${_date(span.end.subtract(const Duration(days: 1)))}',
+      ),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Income'),
+      IntCellValue(summary.incomePaise),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Expenses'),
+      IntCellValue(summary.expensePaise),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Net profit'),
+      IntCellValue(summary.netProfitPaise),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Cash received'),
+      IntCellValue(summary.cashInPaise),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Cash paid'),
+      IntCellValue(summary.cashOutPaise),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Net cash flow'),
+      IntCellValue(summary.netCashFlowPaise),
+    ]);
+
+    final trialBalance = workbook['Trial Balance'];
+    trialBalance.appendRow([
+      TextCellValue('Account'),
+      TextCellValue('Type'),
+      TextCellValue('Debit (paise)'),
+      TextCellValue('Credit (paise)'),
+    ]);
+    for (final row in rows) {
+      trialBalance.appendRow([
+        TextCellValue(row.account.name),
+        TextCellValue(row.account.accountType),
+        IntCellValue(row.debitPaise),
+        IntCellValue(row.creditPaise),
+      ]);
+    }
+    trialBalance.appendRow([
+      TextCellValue('TOTAL'),
+      TextCellValue(''),
+      IntCellValue(debitTotal),
+      IntCellValue(creditTotal),
+    ]);
+
+    final bytes = workbook.save();
+    if (bytes == null) {
+      throw StateError('Could not generate the accounting workbook.');
+    }
+    await FileSaver.instance.saveFile(
+      name: 'billit-accounting-report',
+      bytes: Uint8List.fromList(bytes),
+      fileExtension: 'xlsx',
+      mimeType: MimeType.microsoftExcel,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final span = FinanceService.spanFor(_period, DateTime.now());
@@ -282,6 +364,18 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                     ),
                     icon: const Icon(Icons.picture_as_pdf_outlined),
                     label: const Text('Print / export PDF'),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => _exportExcel(
+                      summary: summary,
+                      rows: rows,
+                      span: span,
+                      debitTotal: debitTotal,
+                      creditTotal: creditTotal,
+                    ),
+                    icon: const Icon(Icons.table_view_outlined),
+                    label: const Text('Export Excel workbook'),
                   ),
                   const SizedBox(height: 10),
                   Text(
