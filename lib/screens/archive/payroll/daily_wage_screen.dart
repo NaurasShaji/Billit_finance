@@ -42,7 +42,7 @@ class DailyWageScreen extends StatelessWidget {
             valueListenable: Hive.box<Expense>(Boxes.expenses).listenable(),
             builder: (context, Box<Expense> expBox, __) {
               final dailyEmployees = empBox.values
-                  .where((e) => e.type == 'daily')
+                  .where((e) => e.type == 'daily' && e.employmentStatus == 'active')
                   .toList()
                 ..sort((a, b) => a.name.compareTo(b.name));
 
