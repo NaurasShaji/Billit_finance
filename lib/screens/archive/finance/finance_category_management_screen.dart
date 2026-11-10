@@ -145,6 +145,18 @@ class _FinanceCategoryFormScreenState
     }
 
     final existing = widget.category;
+    final duplicate = categories.values.any((item) =>
+        item.id != existing?.id &&
+        item.kind == _kind &&
+        item.name.trim().toLowerCase() == name.toLowerCase());
+    if (duplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A category with this name and type already exists.'),
+        ),
+      );
+      return;
+    }
     final hasPostings = existing != null &&
         Hive.box<FinancePosting>(Boxes.financePostings)
             .values
