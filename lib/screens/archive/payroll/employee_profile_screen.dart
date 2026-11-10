@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import 'salary_components_screen.dart';
 
 class EmployeeProfileScreen extends StatefulWidget {
   const EmployeeProfileScreen({super.key, required this.employee});
@@ -258,6 +259,18 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                     labelText: 'Internal notes',
                     border: OutlineInputBorder(),
                   ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => SalaryComponentsScreen(
+                        employee: widget.employee,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.payments_outlined),
+                  label: const Text('Manage salary components'),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
