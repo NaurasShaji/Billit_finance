@@ -60,7 +60,7 @@ Future<void> main() async {
 
   // Import legacy POS and expense history into the journal. Stable source keys
   // make this safe to repeat after an interrupted startup or restored backup.
-  await FinanceSourceSyncService().syncAll(
+  final financeSyncIssues = await FinanceSourceSyncService().syncAll(
     salesBox: Hive.box<Sale>(Boxes.sales),
     expensesBox: Hive.box<Expense>(Boxes.expenses),
     employeesBox: Hive.box<Employee>(Boxes.employees),
@@ -70,6 +70,11 @@ Future<void> main() async {
     categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
     partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
   );
+  if (financeSyncIssues.isEmpty) {
+    await settings.delete('finance_sync_errors');
+  } else {
+    await settings.put('finance_sync_errors', financeSyncIssues);
+  }
 
   Future<void> setDefaultSetting(String key, dynamic value) async {
     if (!settings.containsKey(key)) await settings.put(key, value);
