@@ -1,3 +1,5 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
@@ -160,6 +162,88 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     }
     title.dispose();
     notes.dispose();
+  }
+
+  Future<void> _addEmployeeDocument() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'],
+        withData: true,
+        allowMultiple: false,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.single;
+      final bytes = file.bytes;
+      if (bytes == null) {
+        throw StateError('The selected file could not be read.');
+      }
+      await HrService().addEmployeeDocument(
+        employeeId: widget.employee.id,
+        fileName: file.name,
+        bytes: bytes,
+      );
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not add document: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadEmployeeDocument(Map<String, dynamic> document) async {
+    try {
+      final bytes = HrService().employeeDocumentBytes(document);
+      final name = document['name'] as String;
+      final extension = name.contains('.') ? name.split('.').last : '';
+      await FileSaver.instance.saveFile(
+        name: name,
+        bytes: bytes,
+        ext: extension,
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not export document: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteEmployeeDocument(Map<String, dynamic> document) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete employee document?'),
+        content: Text('Delete "${document['name']}" from this employee profile?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await HrService().deleteEmployeeDocument(
+        employeeId: widget.employee.id,
+        documentId: document['id'] as String,
+      );
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete document: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _save() async {
@@ -374,6 +458,49 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                 }),
                 if (HrService().employmentHistory(widget.employee.id).isEmpty)
                   const Text('No employment history recorded.'),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Employee documents',
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                    IconButton(
+                      onPressed: _addEmployeeDocument,
+                      tooltip: 'Add document (administrator only)',
+                      icon: const Icon(Icons.upload_file_outlined),
+                    ),
+                  ],
+                ),
+                const Text(
+                  'PDF, PNG, JPG, DOC, and DOCX · maximum 2 MB per file · administrator access only',
+                ),
+                ...HrService().employeeDocuments(widget.employee.id).map((document) {
+                  final size = (document['sizeBytes'] as num?)?.toInt() ?? 0;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.description_outlined),
+                    title: Text(document['name'] as String? ?? 'Document'),
+                    subtitle: Text('${(size / 1024).toStringAsFixed(1)} KB'),
+                    trailing: Wrap(
+                      spacing: 4,
+                      children: [
+                        IconButton(
+                          tooltip: 'Export document',
+                          onPressed: () => _downloadEmployeeDocument(document),
+                          icon: const Icon(Icons.download_outlined),
+                        ),
+                        IconButton(
+                          tooltip: 'Delete document',
+                          onPressed: () => _deleteEmployeeDocument(document),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                if (HrService().employeeDocuments(widget.employee.id).isEmpty)
+                  const Text('No documents stored.'),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
