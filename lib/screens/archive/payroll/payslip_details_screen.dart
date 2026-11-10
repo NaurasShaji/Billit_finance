@@ -146,6 +146,23 @@ class PayslipDetailsScreen extends StatelessWidget {
     amountController.dispose();
     reasonController.dispose();
   }
+  Future<void> _reverseAdjustment(BuildContext context, String payslipId, String adjustmentId) async {
+    final reason = TextEditingController();
+    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Reverse payroll adjustment'),
+      content: TextField(controller: reason, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Reversal reason (required)')),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () { if (reason.text.trim().isNotEmpty) Navigator.pop(dialogContext, true); }, child: const Text('Reverse adjustment'))],
+    ));
+    if (confirmed == true) {
+      try {
+        await HrPayrollService().reversePayrollAdjustment(payslipId: payslipId, adjustmentId: adjustmentId, reason: reason.text);
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payroll adjustment reversed.')));
+      } catch (error) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not reverse adjustment: $error')));
+      }
+    }
+    reason.dispose();
+  }
   pw.TableRow _row(String label, String value, {bool bold = false}) {
     final style = pw.TextStyle(
       fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
