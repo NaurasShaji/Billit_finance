@@ -46,6 +46,7 @@ Work branch: `feature/finance-team-promotion`
 - **Attendance time tracking:** daily attendance now exposes check-in/check-out time pickers for present employees. The service rejects checkout without check-in, checkout earlier than check-in, and timestamps outside the attendance date. Regression tests were added; they have not been run.
 - **Leave policy and balances:** added configurable annual entitlements for each leave type, monthly accrual, and balance calculation against approved leave requests. The Leave Management screen exposes policy settings and current balances. Policies are stored in the existing app-settings backup payload, so no Hive adapter or schema migration is required. Current rules use calendar days and calendar-year accrual; carry-forward and holiday/weekend exclusions are not implemented. Regression coverage was authored but not run.
 - **Attendance reporting:** added a date-range report linked from the daily attendance screen. It shows period-wide totals and per-employee status counts with payable-day calculations. Report UI and data updates are not yet tested.
+- **Employment history:** employee profiles now support dated joining, designation, department, status, pay-change, and other history events. Entries are stored per employee in app settings, which is included in the existing backup payload. Added service regression coverage; tests remain unexecuted. Employee file/document uploads and access controls are still outstanding.
 - **Allocation workflow update:** customer receipts and supplier payments now expose optional multi-invoice allocation rows in the transaction form. Each row is prevalidated against the invoice balance after existing explicit allocations and legacy FIFO settlements; total allocation cannot exceed the new settlement. Allocation records are batch-validated before persistence. If allocation persistence fails after journal posting, the form attempts an immutable reversal of the settlement. The separate allocation screen remains available for later allocation of advances.
 - Tests, formatting, static analysis, and platform builds remain pending.
 - Added unit tests for partial allocation, multi-invoice settlement splitting, batch over-allocation rejection without partial writes, legacy FIFO balance before new allocation, and reversal-aware allocation history. **Validation remains pending:** no Flutter commands have been run in this environment. The Hive CE workflow must regenerate `pubspec.lock` and adapters, then run formatting, analysis, tests, and Android build.
@@ -122,7 +123,8 @@ Work branch: `feature/finance-team-promotion`
 
 - [x] Expanded employee profiles and employment status.
 - [x] Departments, designations, and employee numbers.
-- [ ] Employment history and employee document storage.
+- [x] Employee employment history events with type, title, effective date, notes, and per-employee persistence in the backed-up app-settings collection.
+- [ ] Employee document storage and access controls.
 - [x] Emergency contact field in employee profiles.
 - [ ] Configurable employment and pay frequencies.
 
