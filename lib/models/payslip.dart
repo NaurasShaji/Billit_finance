@@ -31,7 +31,8 @@ class Payslip extends HiveObject {
 
   int get grossPaise => basePaise + allowancesPaise;
   int get netPaise => grossPaise - deductionsPaise;
-  int get outstandingPaise => (netPaise - paidPaise).clamp(0, netPaise);
+  int get outstandingPaise =>
+      (netPaise - paidPaise).clamp(0, netPaise).toInt();
 
   Payslip({
     required this.id,
