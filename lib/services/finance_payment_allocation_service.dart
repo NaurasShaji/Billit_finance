@@ -229,66 +229,17 @@ class FinanceAllocationDraft {\n  const FinanceAllocationDraft({required this.id
     return records;
   }
   Future<FinancePaymentAllocation> allocate({
-    required String id,
-    required String settlementTransactionId,
-    required String invoiceTransactionId,
-    required String partyId,
-    required int amountPaise,
-    required String partyType,
-    required Iterable<FinanceTransaction> transactions,
-    required Iterable<FinancePosting> postings,
+    required String id, required String settlementTransactionId, required String invoiceTransactionId,
+    required String partyId, required int amountPaise, required String partyType,
+    required Iterable<FinanceTransaction> transactions, required Iterable<FinancePosting> postings,
   }) async {
-    if (id.trim().isEmpty || amountPaise <= 0) {
-      throw const FinanceAllocationException('Allocation ID and positive amount are required.');
-    }
-    if (partyType != 'customer' && partyType != 'supplier') {
-      throw const FinanceAllocationException('Only customer and supplier allocations are supported.');
-    }
-    if (allocations.any((a) => a.id == id)) {
-      throw const FinanceAllocationException('Allocation ID already exists.');
-    }
-    final invoiceAmount = invoiceAmountPaise(
-      invoiceId: invoiceTransactionId,
-      partyId: partyId,
-      partyType: partyType,
-      transactions: transactions,
-      postings: postings,
+    final result = await allocateBatch(
+      settlementTransactionId:settlementTransactionId, partyId:partyId, partyType:partyType,
+      drafts:[FinanceAllocationDraft(id:id, invoiceTransactionId:invoiceTransactionId, amountPaise:amountPaise)],
+      transactions:transactions, postings:postings,
     );
-    final settlementAmount = settlementAmountPaise(
-      settlementId: settlementTransactionId,
-      partyId: partyId,
-      partyType: partyType,
-      transactions: transactions,
-      postings: postings,
-    );
-    final posted = transactions.where((t) => t.status == 'posted').toList();
-    final invoice = posted.firstWhere((t) => t.id == invoiceTransactionId);
-    final settlement = posted.firstWhere((t) => t.id == settlementTransactionId);
-    if (invoice.date.isAfter(settlement.date)) {
-      throw const FinanceAllocationException('A settlement cannot be allocated to a future invoice.');
-    }
-
-    final existingInvoice = allocatedToInvoice(invoiceTransactionId, transactions: transactions);
-    final existingSettlement = allocatedFromSettlement(settlementTransactionId, transactions: transactions);
-    if (existingInvoice + amountPaise > invoiceAmount) {
-      throw const FinanceAllocationException('Allocation exceeds the invoice outstanding amount.');
-    }
-    if (existingSettlement + amountPaise > settlementAmount) {
-      throw const FinanceAllocationException('Allocation exceeds the unallocated settlement amount.');
-    }
-
-    final record = FinancePaymentAllocation(
-      id: id,
-      settlementTransactionId: settlementTransactionId,
-      invoiceTransactionId: invoiceTransactionId,
-      partyId: partyId,
-      amountPaise: amountPaise,
-      createdAt: DateTime.now(),
-    );
-    await _box.put(id, record.toMap());
-    return record;
+    return result.single;
   }
-
   /// Allocations are append-only. Reversing a settlement/invoice makes its
   /// allocations ineffective; the historical records remain available.
 }
