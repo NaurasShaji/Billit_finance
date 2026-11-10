@@ -201,6 +201,7 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
       } else {
         existing
           ..name = name
+          ..accountType = _type
           ..parentId = _parentId
           ..currencyCode = currency
           ..active = _active;
