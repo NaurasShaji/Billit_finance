@@ -1177,6 +1177,50 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'createdAt': request.createdAt.toIso8601String(),
               })
           .toList(),
+      'salaryComponents':
+          Hive.box<SalaryComponent>(Boxes.salaryComponents).values
+              .map((component) => {
+                    'id': component.id,
+                    'employeeId': component.employeeId,
+                    'name': component.name,
+                    'componentType': component.componentType,
+                    'amountPaise': component.amountPaise,
+                    'effectiveFrom': component.effectiveFrom.toIso8601String(),
+                    'effectiveTo': component.effectiveTo?.toIso8601String(),
+                    'active': component.active,
+                  })
+              .toList(),
+      'payrollRuns': Hive.box<PayrollRun>(Boxes.payrollRuns).values
+          .map((run) => {
+                'id': run.id,
+                'periodStart': run.periodStart.toIso8601String(),
+                'periodEnd': run.periodEnd.toIso8601String(),
+                'status': run.status,
+                'createdAt': run.createdAt.toIso8601String(),
+                'approvedAt': run.approvedAt?.toIso8601String(),
+                'paidAt': run.paidAt?.toIso8601String(),
+                'totalGrossPaise': run.totalGrossPaise,
+                'totalDeductionsPaise': run.totalDeductionsPaise,
+                'totalNetPaise': run.totalNetPaise,
+                'memo': run.memo,
+              })
+          .toList(),
+      'payslips': Hive.box<Payslip>(Boxes.payslips).values
+          .map((slip) => {
+                'id': slip.id,
+                'payrollRunId': slip.payrollRunId,
+                'employeeId': slip.employeeId,
+                'payType': slip.payType,
+                'basePaise': slip.basePaise,
+                'allowancesPaise': slip.allowancesPaise,
+                'deductionsPaise': slip.deductionsPaise,
+                'payableDays': slip.payableDays,
+                'paidPaise': slip.paidPaise,
+                'status': slip.status,
+                'generatedAt': slip.generatedAt.toIso8601String(),
+                'paidAt': slip.paidAt?.toIso8601String(),
+              })
+          .toList(),
       'financeAccounts': financeAccountsBox.values
           .map((a) => {
                 'id': a.id,
@@ -1259,6 +1303,10 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
       employeeAttendanceBox:
           Hive.box<EmployeeAttendance>(Boxes.employeeAttendance),
       leaveRequestsBox: Hive.box<LeaveRequest>(Boxes.leaveRequests),
+      salaryComponentsBox:
+          Hive.box<SalaryComponent>(Boxes.salaryComponents),
+      payrollRunsBox: Hive.box<PayrollRun>(Boxes.payrollRuns),
+      payslipsBox: Hive.box<Payslip>(Boxes.payslips),
     );
   }
 }
