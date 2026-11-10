@@ -167,7 +167,7 @@ class FinanceBudgetsScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               LinearProgressIndicator(
-                                value: item.usedRatio.clamp(0.0, 1.0),
+                                value: item.usedRatio.clamp(0.0, 1.0).toDouble(),
                                 minHeight: 8,
                                 color: item.overBudget
                                     ? Theme.of(context).colorScheme.error
