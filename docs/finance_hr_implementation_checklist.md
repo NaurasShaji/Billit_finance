@@ -87,7 +87,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Add unit tests for partial payment and overpayment calculations.
 - [ ] Run Flutter tests and static analysis in a Flutter-enabled environment.
 - [x] Add service regression coverage for partial payments, repeated payments, bank-account selection, and invalid payment-account rejection. Widget-level interaction tests remain part of release validation.
-- [ ] Review daily-wage attendance semantics before broadening payroll calculations.
+- [x] Define daily-wage payable attendance semantics: present = 1 day, half-day = 0.5 day, absent/leave/holiday = 0 payable days. Paid leave and paid-holiday rules are not inferred automatically; shops must configure a separate earning component or approved payroll adjustment when applicable.
 
 ## Phase 2 — Finance core
 
