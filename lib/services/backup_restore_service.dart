@@ -1487,6 +1487,7 @@ class BackupRestoreService {
       postedAt: json['postedAt'] == null ? null : _date(json, 'postedAt', path),
       reversedTransactionId:
           _nullableString(json, 'reversedTransactionId', path),
+      dueDate: json['dueDate'] == null ? null : _date(json, 'dueDate', path),
     );
   }
 
