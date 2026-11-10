@@ -139,15 +139,15 @@ class FinanceSourceSyncService {
       kind: 'expense',
       accountId: accountId,
     );
-    categoriesBox.put(id, category);
+    await categoriesBox.put(id, category);
     return category;
   }
 
-  FinanceParty? _ensureEmployeeParty({
+  Future<FinanceParty?> _ensureEmployeeParty({
     required Expense expense,
     required Box<FinanceParty> partiesBox,
     Box<Employee>? employeesBox,
-  }) {
+  }) async {
     final employeeId = expense.employeeId;
     if (employeeId == null || employeeId.trim().isEmpty) return null;
 
@@ -168,7 +168,7 @@ class FinanceSourceSyncService {
       name: employee?.name ?? 'Employee $employeeId',
       partyType: 'employee',
     );
-    partiesBox.put(partyId, party);
+    await partiesBox.put(partyId, party);
     return party;
   }
 
@@ -203,11 +203,11 @@ class FinanceSourceSyncService {
         'Expense ${expense.id} must have a positive amount.',
       );
     }
-    final category = _ensureExpenseCategory(
+    final category = await _ensureExpenseCategory(
       expense: expense,
       categoriesBox: categoriesBox,
     );
-    final employee = _ensureEmployeeParty(
+    final employee = await _ensureEmployeeParty(
       expense: expense,
       partiesBox: partiesBox,
       employeesBox: employeesBox,
