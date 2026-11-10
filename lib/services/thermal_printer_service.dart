@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:billit/models/sale.dart';
 import 'package:billit/models/product.dart';
 import 'package:billit/services/boxes.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:intl/intl.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
