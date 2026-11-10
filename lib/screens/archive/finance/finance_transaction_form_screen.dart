@@ -7,6 +7,7 @@ import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_ledger_service.dart';
 import '../../../services/finance_payment_allocation_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class FinanceTransactionFormScreen extends StatefulWidget {
   const FinanceTransactionFormScreen({super.key});
@@ -320,7 +321,7 @@ class _FinanceTransactionFormScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(title: const Text('New finance transaction')),
       body: ValueListenableBuilder<Box<FinanceAccount>>(
         valueListenable:
@@ -631,6 +632,6 @@ class _FinanceTransactionFormScreenState
           );
         },
       ),
-    );
+    ));
   }
 }
