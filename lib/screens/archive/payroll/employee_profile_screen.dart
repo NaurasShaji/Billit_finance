@@ -197,11 +197,19 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     try {
       final bytes = HrService().employeeDocumentBytes(document);
       final name = document['name'] as String;
-      final extension = name.contains('.') ? name.split('.').last : '';
+      final extension = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+      final mimeType = extension == 'pdf'
+          ? MimeType.pdf
+          : extension == 'png'
+              ? MimeType.png
+              : extension == 'jpg' || extension == 'jpeg'
+                  ? MimeType.jpeg
+                  : MimeType.other;
       await FileSaver.instance.saveFile(
-        name: name,
+        name: name.contains('.') ? name.substring(0, name.lastIndexOf('.')) : name,
         bytes: bytes,
-        ext: extension,
+        fileExtension: extension,
+        mimeType: mimeType,
       );
     } catch (error) {
       if (mounted) {
