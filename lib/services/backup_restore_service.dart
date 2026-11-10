@@ -522,10 +522,28 @@ class BackupRestoreService {
     final transactionNumbers = <String>{};
     final sourceKeys = <String>{};
     for (final account in accounts) {
-      if (account.parentId != null && !accountIds.contains(account.parentId)) {
-        throw FormatException(
-          'financeAccounts.${account.id} references an unknown parent account.',
-        );
+      if (account.parentId != null) {
+        final parent = accountsById[account.parentId];
+        if (parent == null) {
+          throw FormatException(
+            'financeAccounts.${account.id} references an unknown parent account.',
+          );
+        }
+        if (parent.accountType != account.accountType) {
+          throw FormatException(
+            'financeAccounts.${account.id} has a parent with a different account type.',
+          );
+        }
+      }
+      final ancestors = <String>{account.id};
+      var parentId = account.parentId;
+      while (parentId != null) {
+        if (!ancestors.add(parentId)) {
+          throw FormatException(
+            'financeAccounts.${account.id} belongs to a circular account hierarchy.',
+          );
+        }
+        parentId = accountsById[parentId]?.parentId;
       }
     }
 
