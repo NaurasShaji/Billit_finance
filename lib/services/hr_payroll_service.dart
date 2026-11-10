@@ -1232,6 +1232,7 @@ class HrPayrollService {
       await slipsBox.put(updated.id, updated);
       final updatedRun = _copyRun(run, totalGrossPaise: run.totalGrossPaise + earningDelta, totalDeductionsPaise: run.totalDeductionsPaise + deductionDelta, totalNetPaise: run.totalNetPaise + netDelta);
       await runsBox.put(updatedRun.id, updatedRun);
+      await _refreshRunStatus(updatedRun, slipsBox);
     }
     final latest = settings.get(payrollAdjustmentsKey);
     final latestAll = <String, dynamic>{if (latest is Map) ...Map<String, dynamic>.from(latest)};
