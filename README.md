@@ -41,9 +41,12 @@ Finance includes the existing POS/expense summary plus an accounting ledger:
 - POS gross profit remains separate from journal-based accounting profit.
 - Legacy expense and POS records remain in their existing Hive boxes and continue to drive the operational screens.
 
-Team currently supports daily-wage and monthly-salary employees:
-- Add employees and set their pay type or amount.
-- Record partial salary and wage payments and review outstanding balances.
+Team includes employee profile and HR foundations:
+- Manage employee codes, contact details, departments, designations, joining dates, employment status, and notes.
+- Mark daily attendance as present, absent, half-day, leave, or holiday.
+- Submit leave requests, prevent overlapping requests, and approve or reject them.
+- Approved leave creates locked attendance records.
+- Existing daily-wage/monthly-salary payroll and partial payment tracking remain available.
 - Use built-in expense categories such as rent, utilities, transport, supplies, maintenance, and miscellaneous, or add a category.
 - Browse expense history by day, month, or year; navigate between periods and filter salary expenses separately from other expenses.
 - Add employees as daily-wage or monthly-salary staff, set their pay amount, edit their pay type or amount, and delete employee records.
