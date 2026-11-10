@@ -217,6 +217,25 @@ void main() {
     expect(run.totalGrossPaise, 3300000);
   });
 
+  test('one-off bonus is included only in the payroll period containing its date', () async {
+    await payroll.addBonusEntry(
+      employeeId: 'monthly-1',
+      date: DateTime(2026, 11, 12),
+      amountPaise: 75000,
+      description: 'Performance bonus',
+    );
+    final run = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+    );
+    final slip = payslips.values.singleWhere(
+      (item) => item.employeeId == 'monthly-1',
+    );
+    expect(slip.allowancesPaise, 75000);
+    expect(slip.netPaise, 3075000);
+    expect(run.totalNetPaise, 3075000);
+  });
+
   test('approval and partial payslip payments post salary expenses once',
       () async {
     final start = DateTime(2026, 11, 1);
