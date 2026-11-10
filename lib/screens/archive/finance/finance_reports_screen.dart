@@ -338,9 +338,11 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
                 _ledgerAccountId =
                     accounts.isEmpty ? null : accounts.first.id;
               }
-              final ledgerAccount = accounts
-                  .where((account) => account.id == _ledgerAccountId)
-                  .firstOrNull;
+              final FinanceAccount? ledgerAccount = accounts.isEmpty
+                  ? null
+                  : accounts.firstWhere(
+                      (account) => account.id == _ledgerAccountId,
+                    );
               final ledgerRows = ledgerAccount == null
                   ? <FinanceLedgerLine>[]
                   : const FinanceReportingService().ledgerForAccount(
