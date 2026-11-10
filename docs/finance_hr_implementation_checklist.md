@@ -97,6 +97,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Extend Google Drive backup/restore and rollback to finance boxes (integration tests authored; execution pending).
 - [x] Implement manual income, expense, and transfer journal workflows.
 - [x] Implement balanced journal adjustment entry UI workflow.
+- [x] Add expense correction workflow with immutable revisioning: retain the original payment account, reverse the previous journal revision, and post the corrected snapshot; payroll-generated expenses remain locked to payroll correction controls.
 - [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
 - [x] Add configurable income/expense categories with linked ledger accounts and category-aware manual journal entries.
 - [x] Add configurable POS payment methods and account mapping for cash, card, and UPI. The Finance payment-account screen saves active INR asset-account mappings; startup and retry POS journal sync use them. Existing posted entries remain unchanged.
