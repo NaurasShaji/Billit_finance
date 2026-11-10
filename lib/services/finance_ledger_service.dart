@@ -250,6 +250,8 @@ class FinanceLedgerService {
     required Box<FinanceAccount> accountsBox,
     required Box<FinanceTransaction> transactionsBox,
     required Box<FinancePosting> postingsBox,
+    Box<FinanceCategory>? categoriesBox,
+    Box<FinanceParty>? partiesBox,
     String memo = '',
   }) async {
     final original = transactionsBox.get(originalTransactionId);
@@ -299,6 +301,8 @@ class FinanceLedgerService {
       accountsBox: accountsBox,
       transactionsBox: transactionsBox,
       postingsBox: postingsBox,
+      categoriesBox: categoriesBox,
+      partiesBox: partiesBox,
     );
   }
 
