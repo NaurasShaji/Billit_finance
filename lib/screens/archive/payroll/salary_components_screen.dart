@@ -314,6 +314,83 @@ class SalaryComponentsScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _manageSalaryGrade(BuildContext context) async {
+    final name = TextEditingController();
+    final minimum = TextEditingController();
+    final maximum = TextEditingController();
+    final saved = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Create salary grade band'),
+      content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: name, decoration: const InputDecoration(labelText: 'Grade name')),
+        const SizedBox(height: 8),
+        TextField(controller: minimum, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Minimum base pay (INR)')),
+        const SizedBox(height: 8),
+        TextField(controller: maximum, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Maximum base pay (INR)')),
+      ])),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () {
+          final min = _parsePaise(minimum.text);
+          final max = _parsePaise(maximum.text);
+          if (name.text.trim().isNotEmpty && min != null && max != null && min > 0 && max >= min) Navigator.pop(dialogContext, true);
+        }, child: const Text('Create band')),
+      ],
+    ));
+    if (saved == true) {
+      try {
+        await HrPayrollService().createSalaryGrade(name: name.text, minPaise: _parsePaise(minimum.text)!, maxPaise: _parsePaise(maximum.text)!);
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salary grade created.')));
+      } catch (error) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not create grade: $error')));
+      }
+    }
+    name.dispose(); minimum.dispose(); maximum.dispose();
+  }
+
+  Future<void> _assignSalaryGrade(BuildContext context) async {
+    final grades = HrPayrollService().salaryGrades();
+    if (grades.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Create a salary grade band first.')));
+      return;
+    }
+    String selected = grades.first['id'] as String;
+    DateTime effectiveDate = DateTime.now();
+    final saved = await showDialog<bool>(context: context, builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, setDialogState) => AlertDialog(
+        title: const Text('Assign salary grade'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          DropdownButtonFormField<String>(
+            value: selected,
+            items: [for (final grade in grades) DropdownMenuItem(value: grade['id'] as String, child: Text('${grade['name']} · ${currencyRange(grade)}'))],
+            onChanged: (value) => setDialogState(() => selected = value ?? selected),
+          ),
+          TextButton.icon(
+            onPressed: () async {
+              final picked = await showDatePicker(context: dialogContext, initialDate: effectiveDate, firstDate: DateTime(2000), lastDate: DateTime.now().add(const Duration(days: 3650)));
+              if (picked != null) setDialogState(() => effectiveDate = picked);
+            },
+            icon: const Icon(Icons.calendar_today_outlined),
+            label: Text('Effective ${DateFormat('dd MMM yyyy').format(effectiveDate)}'),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Assign grade')),
+        ],
+      ),
+    ));
+    if (saved == true) {
+      try {
+        await HrPayrollService().assignSalaryGrade(employeeId: employee.id, gradeId: selected, effectiveDate: effectiveDate);
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salary grade assigned.')));
+      } catch (error) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not assign grade: $error')));
+      }
+    }
+  }
+
+  String currencyRange(Map<String, dynamic> grade) =>
+      '₹${((grade['minPaise'] as int) / 100).toStringAsFixed(0)}–₹${((grade['maxPaise'] as int) / 100).toStringAsFixed(0)}';
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.simpleCurrency(locale: 'en_IN');
@@ -345,64 +422,51 @@ class SalaryComponentsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ValueListenableBuilder<Box<SalaryComponent>>(
-        valueListenable:
-            Hive.box<SalaryComponent>(Boxes.salaryComponents).listenable(),
-        builder: (context, box, _) {
-          final components = box.values
-              .where((component) => component.employeeId == employee.id)
-              .toList()
-            ..sort((a, b) => b.effectiveFrom.compareTo(a.effectiveFrom));
-          if (components.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('No allowances or deductions configured.'),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: () => _add(context),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add component'),
-                  ),
-                ],
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: components.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final component = components[index];
-              return Card(
-                child: ListTile(
-                  title: Text(component.name),
-                  subtitle: Text(
-                    '${component.componentType.toUpperCase()} · '
-                    'Effective ${DateFormat('dd MMM yyyy').format(component.effectiveFrom)}'
-                    '${component.active ? '' : ' · ARCHIVED'}',
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(currency.format(component.amountPaise / 100)),
-                      if (component.active)
-                        IconButton(
-                          tooltip: 'Archive component',
-                          onPressed: () async {
-                            await HrPayrollService()
-                                .archiveSalaryComponent(component.id);
-                          },
-                          icon: const Icon(Icons.archive_outlined),
-                        ),
-                    ],
+      body: ValueListenableBuilder<Box<dynamic>>(
+        valueListenable: Hive.box<dynamic>('app_settings').listenable(keys: [HrPayrollService.salaryGradesKey, HrPayrollService.employeeSalaryGradesKey]),
+        builder: (context, settingsBox, _) =>
+            ValueListenableBuilder<Box<SalaryComponent>>(
+          valueListenable: Hive.box<SalaryComponent>(Boxes.salaryComponents).listenable(),
+          builder: (context, box, __) {
+            final components = box.values.where((component) => component.employeeId == employee.id).toList()..sort((a, b) => b.effectiveFrom.compareTo(a.effectiveFrom));
+            final grade = HrPayrollService().salaryGradeFor(employee.id, DateTime.now());
+            final grades = HrPayrollService().salaryGrades();
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Salary grade', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 6),
+                      Text(grade == null ? 'No grade assigned' : '${grade['name']} · ${currencyRange(grade)}'),
+                      const SizedBox(height: 10),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        OutlinedButton.icon(onPressed: () => _assignSalaryGrade(context), icon: const Icon(Icons.assignment_ind_outlined), label: const Text('Assign grade')),
+                        OutlinedButton.icon(onPressed: () => _manageSalaryGrade(context), icon: const Icon(Icons.add), label: const Text('Create grade band')),
+                      ]),
+                      Text('${grades.length} active grade band(s)', style: Theme.of(context).textTheme.bodySmall),
+                    ]),
                   ),
                 ),
-              );
-            },
-          );
-        },
+                if (components.isEmpty)
+                  const Card(child: ListTile(leading: Icon(Icons.info_outline), title: Text('No allowances or deductions configured.'))),
+                for (final component in components)
+                  Card(
+                    child: ListTile(
+                      title: Text(component.name),
+                      subtitle: Text('${component.componentType.toUpperCase()} · Effective ${DateFormat('dd MMM yyyy').format(component.effectiveFrom)}${component.active ? '' : ' · ARCHIVED'}'),
+                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(currency.format(component.amountPaise / 100)),
+                        if (component.active) IconButton(tooltip: 'Archive component', onPressed: () async { await HrPayrollService().archiveSalaryComponent(component.id); }, icon: const Icon(Icons.archive_outlined)),
+                      ]),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _add(context),
