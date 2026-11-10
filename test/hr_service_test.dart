@@ -121,6 +121,39 @@ void main() {
     expect(summary.payableDays, 0.5);
   });
 
+  test('check-out requires same-day check-in and valid time ordering', () async {
+    final service = HrService();
+    final date = DateTime(2026, 11, 20);
+    await expectLater(
+      service.recordAttendance(
+        employeeId: 'employee-1',
+        date: date,
+        status: 'present',
+        checkOut: DateTime(2026, 11, 20, 17),
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+    await expectLater(
+      service.recordAttendance(
+        employeeId: 'employee-1',
+        date: date,
+        status: 'present',
+        checkIn: DateTime(2026, 11, 20, 18),
+        checkOut: DateTime(2026, 11, 20, 17),
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+    await expectLater(
+      service.recordAttendance(
+        employeeId: 'employee-1',
+        date: date,
+        status: 'present',
+        checkIn: DateTime(2026, 11, 19, 9),
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+  });
+
   test('daily wage due is driven by present and half-day attendance', () async {
     final employee = employees.get('employee-1')!;
     final service = HrService();
