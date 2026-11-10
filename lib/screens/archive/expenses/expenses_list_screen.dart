@@ -783,6 +783,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
     final category = TextEditingController(text: expense.category);
     final amount = TextEditingController(text: expense.amount.toStringAsFixed(2));
     final description = TextEditingController(text: expense.description);
+    final reason = TextEditingController();
     try {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -809,6 +810,15 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                   maxLines: 3,
                   decoration: const InputDecoration(labelText: 'Description'),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reason,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Correction reason (required)',
+                    hintText: 'Explain what was incorrect',
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'The original date and payment account are retained. The previous journal entry will be reversed and a new revision posted.',
@@ -826,9 +836,10 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
       if (confirmed != true || !mounted) return;
       final nextCategory = category.text.trim();
       final nextAmount = double.tryParse(amount.text.trim());
-      if (nextCategory.isEmpty || nextAmount == null || !nextAmount.isFinite || nextAmount <= 0) {
+      final correctionReason = reason.text.trim();
+      if (nextCategory.isEmpty || nextAmount == null || !nextAmount.isFinite || nextAmount <= 0 || correctionReason.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter a category and a positive valid amount.')),
+          const SnackBar(content: Text('Enter a category, positive valid amount, and correction reason.')),
         );
         return;
       }
@@ -852,12 +863,41 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
       }
 
       final oldRevision = expense.financeRevision;
+      final oldCategory = expense.category;
+      final oldAmountPaise = (expense.amount * 100).round();
+      final oldDescription = expense.description;
+      final nextRevision = oldRevision + 1;
       expense
         ..category = nextCategory
         ..amount = nextAmount
         ..description = description.text.trim()
-        ..financeRevision = oldRevision + 1;
+        ..financeRevision = nextRevision;
       await Hive.box<Expense>(Boxes.expenses).put(expense.id, expense);
+      final settingsBox = Hive.box<dynamic>('app_settings');
+      final rawHistory = settingsBox.get('finance_expense_corrections');
+      final history = <String, dynamic>{
+        if (rawHistory is Map) ...Map<String, dynamic>.from(rawHistory),
+      };
+      final correctionSourceId = '${expense.id}:$nextRevision';
+      history[correctionSourceId] = {
+        'id': correctionSourceId,
+        'reason': correctionReason,
+        'date': DateTime.now().toIso8601String(),
+        'before': {
+          'revision': oldRevision,
+          'category': oldCategory,
+          'amountPaise': oldAmountPaise,
+          'description': oldDescription,
+        },
+        'after': {
+          'revision': nextRevision,
+          'category': nextCategory,
+          'amountPaise': (nextAmount * 100).round(),
+          'description': description.text.trim(),
+        },
+        'status': 'pending',
+      };
+      await settingsBox.put('finance_expense_corrections', history);
       try {
         await FinanceSourceSyncService().syncExpense(
           expense: expense,
@@ -867,6 +907,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
           partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
           employeesBox: Hive.box<Employee>(Boxes.employees),
+          settingsBox: settingsBox,
           paymentAccountId: paymentAccountId,
         );
       } catch (error) {
@@ -896,6 +937,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
       category.dispose();
       amount.dispose();
       description.dispose();
+      reason.dispose();
     }
   }
 
