@@ -11,3 +11,6 @@ export 'finance_party.dart';
 export 'hr_department.dart';
 export 'employee_attendance.dart';
 export 'leave_request.dart';
+export 'salary_component.dart';
+export 'payroll_run.dart';
+export 'payslip.dart';
