@@ -145,6 +145,19 @@ class FinanceSchemaMigration {
         },
       );
 
+  /// Adds the employee advance asset account without changing existing balances.
+  static SchemaMigration get versionEightToNine => SchemaMigration(
+        fromVersion: 8,
+        toVersion: 9,
+        apply: (_) async {
+          final accounts = await Hive.openBox<FinanceAccount>(Boxes.financeAccounts);
+          if (!accounts.containsKey('system:employee-advances')) {
+            await accounts.put('system:employee-advances', FinanceAccount(
+              id: 'system:employee-advances', name: 'Employee Advances', accountType: 'asset'));
+          }
+        },
+      );
+
   /// Adds primitive-map storage for immutable invoice payment allocations.
   static SchemaMigration get versionSevenToEight => SchemaMigration(
         fromVersion: 7,
