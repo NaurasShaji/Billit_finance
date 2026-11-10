@@ -110,10 +110,14 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
     }
 
     final existing = widget.account;
+    final accountPostings =
+        Hive.box<FinancePosting>(Boxes.financePostings).values;
     final hasPostings = existing != null &&
-        Hive.box<FinancePosting>(Boxes.financePostings)
-            .values
-            .any((line) => line.accountId == existing.id);
+        accountPostings.any((line) => line.accountId == existing.id);
+    final hasActiveChildren = existing != null &&
+        accounts.values.any(
+          (account) => account.parentId == existing.id && account.active,
+        );
     if (existing != null &&
         existing.currencyCode != currency &&
         hasPostings) {
@@ -126,7 +130,7 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
     }
     if (existing != null &&
         existing.accountType != _type &&
-        hasPostings) {
+        (hasPostings || hasActiveChildren)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Account type cannot change after journal postings exist.'),
@@ -258,10 +262,17 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
                   item.id != widget.account?.id)
               .toList()
             ..sort((a, b) => a.name.compareTo(b.name));
+          final accountPostings =
+              Hive.box<FinancePosting>(Boxes.financePostings).values;
           final hasPostings = widget.account != null &&
-              Hive.box<FinancePosting>(Boxes.financePostings)
-                  .values
-                  .any((line) => line.accountId == widget.account!.id);
+              accountPostings.any(
+                (line) => line.accountId == widget.account!.id,
+              );
+          final hasActiveChildren = widget.account != null &&
+              accounts.values.any(
+                (item) =>
+                    item.parentId == widget.account!.id && item.active,
+              );
 
           return Form(
             key: _formKey,
@@ -292,7 +303,8 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
                     DropdownMenuItem(value: 'income', child: Text('Income')),
                     DropdownMenuItem(value: 'expense', child: Text('Expense')),
                   ],
-                  onChanged: _isEditing && hasPostings
+                  onChanged: _isEditing &&
+                          (hasPostings || hasActiveChildren)
                       ? null
                       : (value) => setState(() {
                             _type = value ?? _type;
@@ -357,8 +369,25 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Active account'),
+                  subtitle: hasActiveChildren && _active
+                      ? const Text(
+                          'Move or archive active child accounts before archiving this parent.',
+                        )
+                      : null,
                   value: _active,
-                  onChanged: (value) => setState(() => _active = value),
+                  onChanged: (value) {
+                    if (!value && hasActiveChildren) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Archive or reassign active child accounts first.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    setState(() => _active = value);
+                  },
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
