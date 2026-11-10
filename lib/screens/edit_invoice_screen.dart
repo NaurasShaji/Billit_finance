@@ -238,6 +238,10 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
           partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
         );
       } catch (financeError) {
+        await FinanceSourceSyncService.recordIssue(
+          Hive.box<dynamic>('app_settings'),
+          'Sale ${widget.sale.id}: $financeError',
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
