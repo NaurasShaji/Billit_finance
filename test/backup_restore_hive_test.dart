@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:billit/models/models.dart';
 import 'package:billit/services/backup_restore_service.dart';
+import 'package:billit/services/boxes.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
@@ -13,6 +14,11 @@ void main() {
   late Box<Expense> expenses;
   late Box<Employee> employees;
   late Box<dynamic> settings;
+  late Box<FinanceAccount> financeAccounts;
+  late Box<FinanceTransaction> financeTransactions;
+  late Box<FinancePosting> financePostings;
+  late Box<FinanceCategory> financeCategories;
+  late Box<FinanceParty> financeParties;
   const service = BackupRestoreService();
 
   setUp(() async {
@@ -47,12 +53,38 @@ void main() {
       Hive.registerAdapter(EmployeeAdapter());
     }
 
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(FinanceAccountAdapter());
+    }
+    if (!Hive.isAdapterRegistered(11)) {
+      Hive.registerAdapter(FinanceTransactionAdapter());
+    }
+    if (!Hive.isAdapterRegistered(12)) {
+      Hive.registerAdapter(FinancePostingAdapter());
+    }
+    if (!Hive.isAdapterRegistered(13)) {
+      Hive.registerAdapter(FinanceCategoryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(14)) {
+      Hive.registerAdapter(FinancePartyAdapter());
+    }
+
     users = await Hive.openBox<User>('users');
     products = await Hive.openBox<Product>('products');
     sales = await Hive.openBox<Sale>('sales');
     expenses = await Hive.openBox<Expense>('expenses');
     employees = await Hive.openBox<Employee>('employees');
     settings = await Hive.openBox<dynamic>('app_settings');
+    financeAccounts =
+        await Hive.openBox<FinanceAccount>(Boxes.financeAccounts);
+    financeTransactions =
+        await Hive.openBox<FinanceTransaction>(Boxes.financeTransactions);
+    financePostings =
+        await Hive.openBox<FinancePosting>(Boxes.financePostings);
+    financeCategories =
+        await Hive.openBox<FinanceCategory>(Boxes.financeCategories);
+    financeParties =
+        await Hive.openBox<FinanceParty>(Boxes.financeParties);
   });
 
   tearDown(() async {
@@ -73,6 +105,11 @@ void main() {
         expensesBox: expenses,
         employeesBox: employees,
         appSettingsBox: settings,
+        financeAccountsBox: financeAccounts,
+        financeTransactionsBox: financeTransactions,
+        financePostingsBox: financePostings,
+        financeCategoriesBox: financeCategories,
+        financePartiesBox: financeParties,
         afterWrite: afterWrite,
       );
 
@@ -191,6 +228,14 @@ void main() {
     await expenses.put(oldExpense.id, oldExpense);
     await employees.put(oldEmployee.id, oldEmployee);
     await settings.put('business_name', 'Original business');
+    await financeAccounts.put(
+      'old-account',
+      FinanceAccount(
+        id: 'old-account',
+        name: 'Old account',
+        accountType: 'asset',
+      ),
+    );
 
     var injected = false;
     await expectLater(
@@ -205,6 +250,20 @@ void main() {
             },
           ],
           'appSettings': {'business_name': 'Replacement business'},
+          'financeAccounts': [
+            {
+              'id': 'new-account',
+              'name': 'New account',
+              'accountType': 'asset',
+              'currencyCode': 'INR',
+              'active': true,
+              'createdAt': '2026-01-01T00:00:00.000',
+            },
+          ],
+          'financeTransactions': [],
+          'financePostings': [],
+          'financeCategories': [],
+          'financeParties': [],
         },
         afterWrite: (stage) async {
           if (stage == 'appSettings.putAll' && !injected) {
@@ -227,6 +286,8 @@ void main() {
     expect(expenses.keys, ['old-expense']);
     expect(employees.keys, ['old-employee']);
     expect(settings.get('business_name'), 'Original business');
+    expect(financeAccounts.keys, ['old-account']);
+    expect(financeAccounts.get('old-account')!.name, 'Old account');
     expect(users.get('old-user')!.username, 'old-user');
     expect(products.get('old-product')!.name, 'Existing product');
     expect(sales.get('old-sale')!.totalAmount, 20);
