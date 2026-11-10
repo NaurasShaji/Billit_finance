@@ -54,7 +54,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Opening balance reconciliation and adjustment workflow.
 - [x] Account creation, editing, archiving, and hierarchy management UI.
 - [x] Customer/supplier subledgers and receivables/payables settlements with partial receipts/payments.
-- [x] Persisted invoice-level payment allocation foundation: immutable partial allocations, invoice/settlement over-allocation checks, reversal-aware balances, backup/restore, and an allocation UI. Integration into the receipt/payment entry flow and complete validation remain pending.
+- [x] Persisted invoice-level payment allocations: immutable partial allocations, invoice/settlement over-allocation checks, reversal-aware balances, backup/restore, standalone allocation UI, and multi-invoice allocation during receipt/payment entry. Regression tests are authored; execution remains pending.
 - [x] Optional receivable/payable due dates and ageing report with current, 1–30, 31–60, 61–90, and 90+ day buckets; explicit allocations are applied first and unallocated legacy settlements fall back to FIFO.
 - [x] Budget creation, period tracking, and actual-versus-budget tracking from posted journal entries (tests authored; execution pending).
 - [x] Recurring income/expense templates with startup/manual due-date processing, stable idempotency keys, and month-end cadence handling (tests authored; execution pending).
@@ -91,7 +91,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Salary advances and recovery schedules.
 - [x] Immutable payslip snapshots generated for each payroll run.
 - [x] Payslip PDF/print output.
-- [x] Journal posting for payroll payments with run/payslip references through source-linked expense records.
+- [x] Journal posting for payroll payments with run/payslip references through source-linked expense records. Payslips are no longer marked paid when journal synchronization fails; the saved source expense remains available for idempotent reconciliation/retry.
 - [ ] Payroll accrual journal, payroll liability settlement, and reversal workflow.
 
 ## Release gates
