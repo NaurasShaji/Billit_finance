@@ -1,10 +1,10 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/employee.dart';
-import '../models/expense.dart';
+import '../models/models.dart';
 import 'boxes.dart';
 import 'finance_service.dart';
+import 'finance_source_sync_service.dart';
 
 /// Everything the Team tab shows about payroll for the current day/month.
 class PayrollSummary {
@@ -209,6 +209,27 @@ class PayrollService {
     final payment =
         buildPayment(employee, amount, DateTime.now(), const Uuid().v4());
     await expensesBox.put(payment.id, payment);
+
+    // Keep payroll posting additive; startup reconciliation retries failures.
+    if (Hive.isBoxOpen(Boxes.financeAccounts) &&
+        Hive.isBoxOpen(Boxes.financeTransactions) &&
+        Hive.isBoxOpen(Boxes.financePostings) &&
+        Hive.isBoxOpen(Boxes.financeCategories) &&
+        Hive.isBoxOpen(Boxes.financeParties)) {
+      try {
+        await FinanceSourceSyncService().syncExpense(
+          expense: payment,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+          employeesBox: employeesBox,
+        );
+      } catch (_) {
+        // The legacy payroll expense remains saved and will be retried on startup.
+      }
+    }
     return payment;
   }
 }
