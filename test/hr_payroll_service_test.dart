@@ -4,6 +4,7 @@ import 'package:billit/models/models.dart';
 import 'package:billit/services/boxes.dart';
 import 'package:billit/services/finance_schema_migration.dart';
 import 'package:billit/services/hr_payroll_service.dart';
+import 'package:billit/services/hr_service.dart';
 import 'package:billit/services/schema_migration_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive_ce.dart';
@@ -179,6 +180,22 @@ void main() {
       payroll.generateRun(periodStart: start, periodEnd: end),
       throwsA(isA<HrPayrollServiceException>()),
     );
+  });
+
+  test('monthly salary is prorated by configured weekly pay frequency', () async {
+    await HrService().saveEmployeeWorkTerms(
+      employeeId: 'monthly-1',
+      employmentType: 'permanent',
+      payFrequency: 'weekly',
+    );
+    final run = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 7),
+    );
+    final slip = payslips.values.singleWhere(
+      (item) => item.employeeId == 'monthly-1',
+    );
+    expect(slip.basePaise, (3000000 * 12 / 52).round());
   });
 
   test('approval and partial payslip payments post salary expenses once',
