@@ -44,6 +44,15 @@ void main() {
         Hive.registerAdapter(adapter);
       }
     }
+    await Hive.openBox<User>(Boxes.users);
+    await Hive.openBox<dynamic>('session');
+    final admin = User()
+      ..id = 'admin'
+      ..username = 'admin'
+      ..password = User.hash('admin123')
+      ..userType = UserType.admin;
+    await Hive.box<User>(Boxes.users).put(admin.id, admin);
+    await Hive.box<dynamic>('session').put('user_id', admin.id);
     settings = await Hive.openBox<dynamic>('app_settings');
     await SchemaMigrationService(
       currentVersion: 4,
@@ -174,6 +183,62 @@ void main() {
         eventType: 'unknown',
         title: 'Invalid event',
         effectiveDate: DateTime(2026, 10, 2),
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+  });
+
+  test('employee documents are admin-only and enforce file constraints', () async {
+    final service = HrService();
+    await service.addEmployeeDocument(
+      employeeId: 'employee-1',
+      fileName: 'contract.pdf',
+      bytes: [37, 80, 68, 70],
+    );
+    final document = service.employeeDocuments('employee-1').single;
+    expect(document['name'], 'contract.pdf');
+    expect(service.employeeDocumentBytes(document), [37, 80, 68, 70]);
+
+    await expectLater(
+      service.addEmployeeDocument(
+        employeeId: 'employee-1',
+        fileName: 'contract.exe',
+        bytes: [1, 2, 3],
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+    await expectLater(
+      service.addEmployeeDocument(
+        employeeId: 'employee-1',
+        fileName: 'large.pdf',
+        bytes: List<int>.filled(HrService.maxEmployeeDocumentBytes + 1, 1),
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+
+    await service.deleteEmployeeDocument(
+      employeeId: 'employee-1',
+      documentId: document['id'] as String,
+    );
+    expect(service.employeeDocuments('employee-1'), isEmpty);
+  });
+
+  test('workers cannot read or modify employee documents', () async {
+    final worker = User()
+      ..id = 'worker'
+      ..username = 'worker'
+      ..password = User.hash('worker123')
+      ..userType = UserType.worker;
+    await Hive.box<User>(Boxes.users).put(worker.id, worker);
+    await Hive.box<dynamic>('session').put('user_id', worker.id);
+    final service = HrService();
+
+    expect(service.employeeDocuments('employee-1'), isEmpty);
+    await expectLater(
+      service.addEmployeeDocument(
+        employeeId: 'employee-1',
+        fileName: 'contract.pdf',
+        bytes: [1, 2, 3],
       ),
       throwsA(isA<HrServiceException>()),
     );
