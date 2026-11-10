@@ -209,6 +209,12 @@ void main() {
       hours: 2.5,
       hourlyRatePaise: 120000,
     );
+    final overtime = payroll.overtimeEntries('monthly-1').single;
+    expect(overtime['status'], 'pending');
+    await payroll.approveOvertimeEntry(
+      employeeId: 'monthly-1',
+      entryId: overtime['id'] as String,
+    );
     final run = await payroll.generateRun(
       periodStart: DateTime(2026, 11, 1),
       periodEnd: DateTime(2026, 11, 30),
@@ -219,6 +225,37 @@ void main() {
     expect(slip.allowancesPaise, 300000);
     expect(slip.netPaise, 3300000);
     expect(run.totalGrossPaise, 3300000);
+  });
+
+  test('pending and rejected overtime are excluded from payroll', () async {
+    await payroll.addOvertimeEntry(
+      employeeId: 'monthly-1',
+      date: DateTime(2026, 11, 5),
+      hours: 2,
+      hourlyRatePaise: 100000,
+    );
+    final pending = payroll.overtimeEntries('monthly-1').single;
+    var run = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+    );
+    var slip = payslips.values.singleWhere((item) => item.employeeId == 'monthly-1');
+    expect(slip.allowancesPaise, 0);
+    expect(run.totalGrossPaise, 3000000);
+
+    await payroll.rejectOvertimeEntry(
+      employeeId: 'monthly-1',
+      entryId: pending['id'] as String,
+      reason: 'Not approved by supervisor',
+    );
+    expect(payroll.overtimeEntries('monthly-1').single['status'], 'rejected');
+    expect(
+      () => payroll.approveOvertimeEntry(
+        employeeId: 'monthly-1',
+        entryId: pending['id'] as String,
+      ),
+      throwsA(isA<HrPayrollServiceException>()),
+    );
   });
 
   test('one-off bonus is included only in the payroll period containing its date', () async {
