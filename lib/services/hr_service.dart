@@ -39,17 +39,20 @@ class LeavePolicy {
     required this.accrualEnabled,
     this.carryForwardDays = 0,
     this.excludeWeekends = false,
+    this.excludeHolidays = false,
   });
   final int annualEntitlementDays;
   final bool accrualEnabled;
   final int carryForwardDays;
   final bool excludeWeekends;
+  final bool excludeHolidays;
 
   Map<String, dynamic> toMap() => {
         'annualEntitlementDays': annualEntitlementDays,
         'accrualEnabled': accrualEnabled,
         'carryForwardDays': carryForwardDays,
         'excludeWeekends': excludeWeekends,
+        'excludeHolidays': excludeHolidays,
       };
 
   factory LeavePolicy.fromMap(Map value) => LeavePolicy(
@@ -64,6 +67,9 @@ class LeavePolicy {
             : 0,
         excludeWeekends: value['excludeWeekends'] is bool
             ? value['excludeWeekends'] as bool
+            : false,
+        excludeHolidays: value['excludeHolidays'] is bool
+            ? value['excludeHolidays'] as bool
             : false,
       );
 }
@@ -481,12 +487,18 @@ class HrService {
   bool _isWeekend(DateTime date) =>
       date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
 
+  bool _isHoliday(String employeeId, DateTime date) =>
+      Hive.box<EmployeeAttendance>(Boxes.employeeAttendance)
+          .get(attendanceId(employeeId, date))
+          ?.status == 'holiday';
+
   int _approvedLeaveDays({
     required String employeeId,
     required String leaveType,
     required DateTime start,
     required DateTime end,
     required bool excludeWeekends,
+    required bool excludeHolidays,
   }) {
     if (end.isBefore(start)) return 0;
     return Hive.box<LeaveRequest>(Boxes.leaveRequests).values
@@ -505,7 +517,10 @@ class HrService {
           for (var date = from;
               !date.isAfter(to);
               date = date.add(const Duration(days: 1))) {
-            if (!excludeWeekends || !_isWeekend(date)) count++;
+            if ((!excludeWeekends || !_isWeekend(date)) &&
+                (!excludeHolidays || !_isHoliday(employeeId, date))) {
+              count++;
+            }
           }
           return sum + count;
         });
@@ -572,6 +587,7 @@ class HrService {
         start: DateTime(previousYear, 1, 1),
         end: DateTime(previousYear, 12, 31),
         excludeWeekends: policy.excludeWeekends,
+        excludeHolidays: policy.excludeHolidays,
       );
       carryForward = (previousEntitlement - previousUsed)
           .clamp(0.0, policy.carryForwardDays.toDouble());
@@ -792,7 +808,8 @@ class HrService {
       for (var date = day(request.startDate);
           !date.isAfter(day(request.endDate));
           date = date.add(const Duration(days: 1))) {
-        if (policy?.excludeWeekends == true && _isWeekend(date)) continue;
+        if ((policy?.excludeWeekends == true && _isWeekend(date)) ||
+            (policy?.excludeHolidays == true && _isHoliday(request.employeeId, date))) continue;
         final id = attendanceId(request.employeeId, date);
         final existing = attendance.get(id);
         if (existing != null && existing.status != 'leave') {
@@ -807,7 +824,8 @@ class HrService {
         for (var date = day(request.startDate);
             !date.isAfter(day(request.endDate));
             date = date.add(const Duration(days: 1))) {
-          if (policy?.excludeWeekends == true && _isWeekend(date)) continue;
+          if ((policy?.excludeWeekends == true && _isWeekend(date)) ||
+            (policy?.excludeHolidays == true && _isHoliday(request.employeeId, date))) continue;
           final id = attendanceId(request.employeeId, date);
           final existing = attendance.get(id);
           previousAttendance[id] = existing;
