@@ -60,6 +60,7 @@ class FinanceLedgerService {
     final lineIds = <String>{};
     var totalDebits = 0;
     var totalCredits = 0;
+    String? journalCurrency;
 
     for (final line in postings) {
       if (line.id.trim().isEmpty || !lineIds.add(line.id)) {
@@ -76,6 +77,17 @@ class FinanceLedgerService {
       if (account == null) {
         throw FinanceLedgerException(
           'Posting references an unknown account: ${line.accountId}',
+        );
+      }
+      if (account.currencyCode != 'INR') {
+        throw FinanceLedgerException(
+          'Only INR accounts are supported by the paise ledger: ${line.accountId}',
+        );
+      }
+      journalCurrency ??= account.currencyCode;
+      if (journalCurrency != account.currencyCode) {
+        throw const FinanceLedgerException(
+          'A journal entry cannot mix currencies.',
         );
       }
       if (!account.active && transaction.transactionType != 'reversal') {
