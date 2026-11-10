@@ -47,25 +47,34 @@ class _FinanceTransactionFormScreenState
 
   List<FinanceAccount> _accounts(Box<FinanceAccount> box, String type) =>
       box.values
-          .where((account) => account.active && account.accountType == type)
+          .where((account) =>
+              account.active && (type == 'all' || account.accountType == type))
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-  String _debitType => _type == 'income' || _type == 'transfer'
-      ? 'asset'
-      : 'expense';
+  String _debitType => switch (_type) {
+        'income' || 'transfer' => 'asset',
+        'adjustment' => 'all',
+        _ => 'expense',
+      };
 
-  String _creditType => _type == 'income' ? 'income' : 'asset';
+  String _creditType => switch (_type) {
+        'income' => 'income',
+        'adjustment' => 'all',
+        _ => 'asset',
+      };
 
   String get _debitLabel => switch (_type) {
         'income' => 'Deposit to',
         'transfer' => 'Transfer to',
+        'adjustment' => 'Debit account',
         _ => 'Expense account',
       };
 
   String get _creditLabel => switch (_type) {
         'income' => 'Income account',
         'transfer' => 'Transfer from',
+        'adjustment' => 'Credit account',
         _ => 'Paid from',
       };
 
@@ -80,7 +89,8 @@ class _FinanceTransactionFormScreenState
         amountPaise <= 0) {
       return;
     }
-    if (_type == 'transfer' && debitAccountId == creditAccountId) {
+    if ((_type == 'transfer' || _type == 'adjustment') &&
+        debitAccountId == creditAccountId) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Choose two different accounts.')),
       );
@@ -164,16 +174,23 @@ class _FinanceTransactionFormScreenState
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                SegmentedButton<String>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: 'income', label: Text('Income')),
-                    ButtonSegment(value: 'expense', label: Text('Expense')),
-                    ButtonSegment(value: 'transfer', label: Text('Transfer')),
+                DropdownButtonFormField<String>(
+                  value: _type,
+                  decoration: const InputDecoration(
+                    labelText: 'Transaction type',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'income', child: Text('Income')),
+                    DropdownMenuItem(value: 'expense', child: Text('Expense')),
+                    DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
+                    DropdownMenuItem(
+                      value: 'adjustment',
+                      child: Text('Journal adjustment'),
+                    ),
                   ],
-                  selected: {_type},
-                  onSelectionChanged: (value) => setState(() {
-                    _type = value.first;
+                  onChanged: (value) => setState(() {
+                    _type = value ?? _type;
                     _debitAccountId = null;
                     _creditAccountId = null;
                   }),
@@ -263,7 +280,9 @@ class _FinanceTransactionFormScreenState
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Posted transactions are immutable. Correct mistakes by creating a reversal.',
+                  _type == 'adjustment'
+                      ? 'Use adjustments for corrections between any two accounts. Posted entries are immutable; correct mistakes with a reversal.'
+                      : 'Posted transactions are immutable. Correct mistakes by creating a reversal.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
