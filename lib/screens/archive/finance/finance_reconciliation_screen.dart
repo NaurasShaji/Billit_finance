@@ -87,15 +87,19 @@ class _FinanceReconciliationScreenState
               valueListenable:
                   Hive.box<FinancePosting>(Boxes.financePostings).listenable(),
               builder: (context, postingsBox, ____) {
+                final reimbursementRaw = settingsBox.get(
+                  HrPayrollService.employeeReimbursementsKey,
+                  defaultValue: const <dynamic>[],
+                );
                 final summary = const FinanceReconciliationService().reconcile(
                   sales: salesBox.values,
                   expenses: expensesBox.values,
                   transactions: transactionsBox.values,
                   postings: postingsBox.values,
                   payslips: payslipsBox.values,
-                  reimbursements: (settingsBox.get(HrPayrollService.employeeReimbursementsKey, defaultValue: const <dynamic>[]) as List)
-                      .whereType<Map>()
-                      .map((entry) => Map<String, dynamic>.from(entry)),
+                  reimbursements: reimbursementRaw is List
+                      ? reimbursementRaw.whereType<Map>().map((entry) => Map<String, dynamic>.from(entry))
+                      : const <Map<String, dynamic>>[],
                 );
                 return FinanceContentFrame(child: ListView(
                   padding: const EdgeInsets.all(20),
