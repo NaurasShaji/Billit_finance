@@ -145,7 +145,8 @@ class FinanceSourceSyncService {
     }
 
     final accountId = categoryName == 'Salary-Daily' ||
-            categoryName == 'Salary-Monthly'
+            categoryName == 'Salary-Monthly' ||
+            categoryName == 'Salary-Run'
         ? 'system:salary-expense'
         : 'system:operating-expense';
     final category = FinanceCategory(
