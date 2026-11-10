@@ -211,3 +211,8 @@ Payroll recovery accounting update: when a payslip is fully settled, the system 
 ## Employee advance reconciliation report
 
 Added a Team navigation entry for the employee advance reconciliation screen. The screen displays the aggregate HR subledger balance, posted Employee Advances control-account balance, and difference; it also lists each advance with principal, outstanding balance, issue-journal status, manual repayment-journal coverage, payroll recovery journal count, and repayment history. It flags missing issue/manual-repayment journals as potential legacy or unreconciled records. The screen is read-only by design: reversing a journal without applying a corresponding HR register correction would compound the mismatch. A controlled correction workflow and historical opening-balance migration remain outstanding. No tests, formatting, analysis, or builds were run.
+
+
+## Employee advance reconciliation hardening
+
+The reconciliation screen now handles missing, duplicate, unposted, and structurally mismatched issue journals without relying on a single-result lookup that could throw at runtime. Manual repayment coverage checks validate the linked journal's posted state, two-line structure, amount, and Employee Advances credit. The report separately counts missing and duplicate payroll recovery journals, surfaces malformed register entries, and refreshes when the finance posting box changes. A zero aggregate difference is explicitly distinguished from per-advance journal integrity. The screen remains read-only; no historical opening-balance journal or correction is posted automatically. No tests, formatting, analysis, or builds were run.
