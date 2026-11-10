@@ -1140,7 +1140,10 @@ class HrPayrollService {
     final postingBox = Hive.box<FinancePosting>(Boxes.financePostings);
     final existing = txBox.values.where((tx) => tx.sourceType == 'payroll_payment' && tx.sourceId == sourceId).toList();
     if (existing.isNotEmpty) {
-      if (existing.length != 1 || existing.single.id != id || existing.single.status != 'posted') throw const HrPayrollServiceException('Conflicting payroll payment journal exists.');
+      if (existing.length != 1 || existing.single.id != id || existing.single.status != 'posted' ||
+          txBox.values.any((tx) => tx.transactionType == 'reversal' && tx.reversedTransactionId == id && tx.status == 'posted')) {
+        throw const HrPayrollServiceException('Conflicting or reversed payroll payment journal exists.');
+      }
       final lines = postingBox.values.where((line) => line.transactionId == id).toList();
       final debit = lines.where((line) => line.accountId == payrollPayableAccountId).fold<int>(0, (sum, line) => sum + line.debitPaise);
       final credit = lines.where((line) => line.accountId == cashAccountId).fold<int>(0, (sum, line) => sum + line.creditPaise);
@@ -1199,8 +1202,16 @@ class HrPayrollService {
     }
     if (slip.status != 'approved' && slip.status != 'partially_paid') throw const HrPayrollServiceException('Payslip is not in a payable state.');
     if (amountPaise > slip.outstandingPaise) throw const HrPayrollServiceException('Payment cannot exceed the payslip outstanding amount.');
-    final accrualExists = Hive.box<FinanceTransaction>(Boxes.financeTransactions).values.any((tx) =>
-        tx.sourceType == 'payroll_accrual' && tx.sourceId == slip.id && tx.status == 'posted');
+    final payrollTransactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final accruals = payrollTransactions.values.where((tx) =>
+        tx.sourceType == 'payroll_accrual' && tx.sourceId == slip.id).toList();
+    if (accruals.length > 1 ||
+        (accruals.length == 1 && (accruals.single.status != 'posted' ||
+            payrollTransactions.values.any((tx) => tx.transactionType == 'reversal' &&
+                tx.reversedTransactionId == accruals.single.id && tx.status == 'posted')))) {
+      throw const HrPayrollServiceException('Payroll accrual is conflicting or reversed. Reconcile it before paying this payslip.');
+    }
+    final accrualExists = accruals.length == 1;
     if (!accrualExists) {
       // Compatibility path for payroll runs approved before accrual accounting was introduced.
       final expensesBox = Hive.box<Expense>(Boxes.expenses);
