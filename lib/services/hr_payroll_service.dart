@@ -49,8 +49,6 @@ class HrPayrollService {
     final employeesBox = Hive.box<Employee>(Boxes.employees);
     final componentsBox =
         Hive.box<SalaryComponent>(Boxes.salaryComponents);
-    final attendanceBox =
-        Hive.box<EmployeeAttendance>(Boxes.employeeAttendance);
     final runsBox = Hive.box<PayrollRun>(Boxes.payrollRuns);
     final payslipsBox = Hive.box<Payslip>(Boxes.payslips);
     final runId = _periodId(start, end);
