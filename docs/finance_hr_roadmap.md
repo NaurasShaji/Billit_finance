@@ -133,3 +133,8 @@ Employee profiles now configure employment classification (permanent, contract, 
 ## Overtime payroll update
 
 Employee profiles now allow dated overtime entries with hours and an hourly rate. Payroll generation includes overtime falling within the run period in gross pay and the payslip's allowance total. Entries are stored in the backed-up app-settings collection; restore validates employee references, dates, hours, rate, and amount. A regression test covers the overtime-to-payslip calculation but has not been run. Overtime is currently treated as payroll-eligible when entered; a separate approval/rejection workflow and statutory deduction rules are still outstanding. Existing salary components can represent one-off bonuses by adding an earning component named Bonus, but there is not yet a dedicated bonus workflow.
+
+
+## Bonus payroll update
+
+Employee profiles now support dated one-off bonuses with a description and amount. Payroll includes a bonus only when its effective date falls inside the generated payroll period; the amount is reflected in gross pay and the payslip allowance total. Bonus records are stored in app settings, included in Google Drive backups, and validated during restore. Regression coverage was authored but not run. Reimbursements and a separate overtime approval workflow remain outstanding.
