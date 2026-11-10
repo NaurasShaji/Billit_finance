@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_payment_allocation_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 enum FinanceAgeingBucket { current, days1To30, days31To60, days61To90, over90 }
 
@@ -254,7 +255,7 @@ class _FinanceAgeingScreenState extends State<FinanceAgeingScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => ScaffolResponsivePage(child: Scaffold((
         appBar: AppBar(title: const Text('Receivables / payables ageing')),
         body: ValueListenableBuilder<Box<Map>>(
           valueListenable: Hive.box<Map>(Boxes.financePaymentAllocations).listenable(),
@@ -354,5 +355,5 @@ class _FinanceAgeingScreenState extends State<FinanceAgeingScreen> {
           ),
         ),
       ),
-      );
+      ));
 }
