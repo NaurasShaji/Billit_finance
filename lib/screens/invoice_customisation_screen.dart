@@ -241,7 +241,7 @@ class _InvoiceCustomisationScreenState
           final editor = ListView(padding: const EdgeInsets.all(16), children: [
             section('Paper & template', [
               DropdownButtonFormField<String>(
-                  initialValue: size,
+                  value: size,
                   decoration: const InputDecoration(
                       labelText: 'Default paper size',
                       border: OutlineInputBorder()),
@@ -298,7 +298,7 @@ class _InvoiceCustomisationScreenState
             section('Header', [
               field('headerTitle', 'Invoice heading'),
               DropdownButtonFormField<String>(
-                  initialValue: value['headerAlignment'],
+                  value: value['headerAlignment'],
                   decoration: const InputDecoration(
                       labelText: 'Header alignment',
                       border: OutlineInputBorder()),
@@ -394,7 +394,7 @@ class _InvoiceCustomisationScreenState
               toggle('showQr', 'Show UPI QR when available'),
               if (!compact) toggle('showAmountInWords', 'Show amount in words'),
               DropdownButtonFormField<String>(
-                  initialValue: value['footerAlignment'],
+                  value: value['footerAlignment'],
                   decoration: const InputDecoration(
                       labelText: 'Footer alignment',
                       border: OutlineInputBorder()),
@@ -431,7 +431,7 @@ class _InvoiceCustomisationScreenState
                 const Text(
                     'Thermal printers use native fonts and margins. PDFs use this layout.'),
               DropdownButtonFormField<String>(
-                  initialValue: value['accent'],
+                  value: value['accent'],
                   decoration: const InputDecoration(
                       labelText: 'Accent colour', border: OutlineInputBorder()),
                   items: const [
