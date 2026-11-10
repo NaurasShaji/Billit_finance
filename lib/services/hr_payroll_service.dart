@@ -33,6 +33,145 @@ class HrPayrollService {
     return 'payroll:${key(start)}:${key(end)}';
   }
 
+  static const advanceSettingsKey = 'hr_employee_advances';
+  static const advancePayrollKey = 'hr_advance_payroll_deductions';
+
+  List<Map<String, dynamic>> advances(String employeeId) {
+    final raw = Hive.box<dynamic>('app_settings').get(advanceSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) return const [];
+    return (raw[employeeId] as List).whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .where((e) => e['id'] is String && e['principalPaise'] is int &&
+          e['outstandingPaise'] is int && e['installmentPaise'] is int &&
+          e['issueDate'] is String && e['nextDueDate'] is String &&
+          e['status'] is String).toList()
+      ..sort((a,b) => (a['issueDate'] as String).compareTo(b['issueDate'] as String));
+  }
+
+  Future<void> addEmployeeAdvance({
+    required String employeeId, required int principalPaise,
+    required int installmentPaise, required DateTime issueDate,
+    required DateTime firstDueDate, String description = 'Employee advance',
+  }) async {
+    if (Hive.box<Employee>(Boxes.employees).get(employeeId) == null) {
+      throw const HrPayrollServiceException('Employee was not found.');
+    }
+    if (principalPaise <= 0 || installmentPaise <= 0 || installmentPaise > principalPaise) {
+      throw const HrPayrollServiceException('Advance and instalment amounts must be positive; instalment cannot exceed the advance.');
+    }
+    if (_day(firstDueDate).isBefore(_day(issueDate)) || description.trim().isEmpty) {
+      throw const HrPayrollServiceException('Enter a description and a valid first repayment date.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(advanceSettingsKey);
+    final all = <String,dynamic>{if (raw is Map) ...Map<String,dynamic>.from(raw)};
+    final list = all[employeeId] is List ? List<dynamic>.from(all[employeeId] as List) : <dynamic>[];
+    list.add({
+      'id': const Uuid().v4(), 'description': description.trim(),
+      'principalPaise': principalPaise, 'outstandingPaise': principalPaise,
+      'installmentPaise': installmentPaise,
+      'issueDate': _day(issueDate).toIso8601String(),
+      'nextDueDate': _day(firstDueDate).toIso8601String(),
+      'status': 'active', 'repayments': <Map<String,dynamic>>[],
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    all[employeeId] = list;
+    await settings.put(advanceSettingsKey, all);
+  }
+
+  Future<void> recordAdvanceRepayment({
+    required String employeeId, required String advanceId,
+    required int amountPaise, required DateTime date, String note = '',
+  }) async {
+    if (amountPaise <= 0) throw const HrPayrollServiceException('Repayment must be positive.');
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(advanceSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) throw const HrPayrollServiceException('Advance was not found.');
+    final all = Map<String,dynamic>.from(raw);
+    final list = List<dynamic>.from(all[employeeId] as List);
+    final index = list.indexWhere((e) => e is Map && e['id'] == advanceId);
+    if (index < 0) throw const HrPayrollServiceException('Advance was not found.');
+    final advance = Map<String,dynamic>.from(list[index] as Map);
+    final outstanding = advance['outstandingPaise'] as int;
+    if (amountPaise > outstanding) throw const HrPayrollServiceException('Repayment cannot exceed the outstanding advance balance.');
+    final repayments = (advance['repayments'] as List? ?? []).whereType<Map>()
+        .map((e) => Map<String,dynamic>.from(e)).toList();
+    repayments.add({'id': const Uuid().v4(), 'date': _day(date).toIso8601String(),
+      'amountPaise': amountPaise, 'note': note.trim(), 'source': 'manual',
+      'createdAt': DateTime.now().toIso8601String()});
+    final remaining = outstanding - amountPaise;
+    advance['outstandingPaise'] = remaining;
+    advance['repayments'] = repayments;
+    advance['status'] = remaining == 0 ? 'settled' : 'active';
+    list[index] = advance; all[employeeId] = list;
+    await settings.put(advanceSettingsKey, all);
+  }
+
+  List<Map<String,dynamic>> _advanceDeductionSnapshot(String employeeId, DateTime start, DateTime end) {
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(advancePayrollKey);
+    final reserved = <String>{};
+    if (raw is Map) {
+      for (final entry in raw.entries) {
+        final slip = Hive.box<Payslip>(Boxes.payslips).get(entry.key);
+        if (slip != null && slip.status != 'paid' && entry.value is List) {
+          for (final item in (entry.value as List).whereType<Map>()) {
+            if (item['employeeId'] == employeeId && item['advanceId'] is String) reserved.add(item['advanceId'] as String);
+          }
+        }
+      }
+    }
+    return advances(employeeId).where((a) {
+      final due = _day(DateTime.parse(a['nextDueDate'] as String));
+      return a['status'] == 'active' && !reserved.contains(a['id']) &&
+        !due.isBefore(start) && !due.isAfter(end);
+    }).map((a) => <String,dynamic>{
+      'employeeId': employeeId, 'advanceId': a['id'],
+      'amountPaise': (a['installmentPaise'] as int).clamp(0, a['outstandingPaise'] as int),
+    }).toList();
+  }
+
+  int _advanceDeductionPaise(String employeeId, DateTime start, DateTime end) =>
+    _advanceDeductionSnapshot(employeeId, start, end)
+      .fold<int>(0, (sum, item) => sum + (item['amountPaise'] as int));
+
+  Future<void> _settlePayrollAdvanceDeductions(String payslipId) async {
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(advancePayrollKey);
+    if (raw is! Map || raw[payslipId] is! List) return;
+    final advancesRaw = settings.get(advanceSettingsKey);
+    if (advancesRaw is! Map) return;
+    final all = Map<String,dynamic>.from(advancesRaw);
+    final grouped = <String,List<Map<String,dynamic>>>{};
+    for (final item in (raw[payslipId] as List).whereType<Map>()) {
+      grouped.putIfAbsent(item['employeeId'] as String, () => []).add(Map<String,dynamic>.from(item));
+    }
+    for (final group in grouped.entries) {
+      final list = List<dynamic>.from(all[group.key] as List? ?? []);
+      for (final deduction in group.value) {
+        final index = list.indexWhere((a) => a is Map && a['id'] == deduction['advanceId']);
+        if (index < 0) continue;
+        final advance = Map<String,dynamic>.from(list[index] as Map);
+        final amount = deduction['amountPaise'] as int;
+        final outstanding = advance['outstandingPaise'] as int;
+        if (amount <= 0 || amount > outstanding) throw const HrPayrollServiceException('Advance balance changed after payroll generation. Reconcile before settlement.');
+        final repayments = (advance['repayments'] as List? ?? []).whereType<Map>().map((e) => Map<String,dynamic>.from(e)).toList();
+        repayments.add({'id': 'payroll:$payslipId:${advance['id']}', 'date': DateTime.now().toIso8601String(), 'amountPaise': amount, 'note': 'Payroll recovery', 'source': 'payroll', 'payslipId': payslipId});
+        final remaining = outstanding - amount;
+        final due = DateTime.parse(advance['nextDueDate'] as String);
+        advance['outstandingPaise'] = remaining;
+        advance['repayments'] = repayments;
+        advance['nextDueDate'] = DateTime(due.year, due.month + 1, due.day).toIso8601String();
+        advance['status'] = remaining == 0 ? 'settled' : 'active';
+        list[index] = advance;
+      }
+      all[group.key] = list;
+    }
+    await settings.put(advanceSettingsKey, all);
+    final snapshots = Map<String,dynamic>.from(raw)..remove(payslipId);
+    await settings.put(advancePayrollKey, snapshots);
+  }
+
   static const bonusSettingsKey = 'hr_bonus_entries';
 
   List<Map<String, dynamic>> bonusEntries(String employeeId) {
@@ -233,8 +372,10 @@ class HrPayrollService {
       }
       final overtime = _approvedOvertimePaise(employee.id, start, end);
       final bonus = _bonusPaise(employee.id, start, end);
+      final advanceDeductions = _advanceDeductionPaise(employee.id, start, end);
       final gross = basePaise + allowances + overtime + bonus;
-      final net = gross - deductions;
+      final totalDeductions = deductions + advanceDeductions;
+      final net = gross - totalDeductions;
       if (net < 0) {
         throw HrPayrollServiceException(
           'Deductions exceed gross pay for ${employee.name}.',
@@ -248,12 +389,12 @@ class HrPayrollService {
         payType: payType,
         basePaise: basePaise,
         allowancesPaise: allowances + overtime + bonus,
-        deductionsPaise: deductions,
+        deductionsPaise: totalDeductions,
         payableDays: attendance.payableDays,
       );
       slips.add(slip);
       grossTotal += gross;
-      deductionTotal += deductions;
+      deductionTotal += totalDeductions;
       netTotal += net;
     }
 
@@ -268,11 +409,22 @@ class HrPayrollService {
     );
 
     final insertedSlipIds = <String>[];
+    final advanceSnapshots = <String,dynamic>{};
     try {
       await runsBox.put(run.id, run);
       for (final slip in slips) {
         await payslipsBox.put(slip.id, slip);
         insertedSlipIds.add(slip.id);
+        final snapshot = _advanceDeductionSnapshot(slip.employeeId, start, end);
+        if (snapshot.isNotEmpty) advanceSnapshots[slip.id] = snapshot;
+      }
+      if (advanceSnapshots.isNotEmpty) {
+        final settings = Hive.box<dynamic>('app_settings');
+        final raw = settings.get(advancePayrollKey);
+        await settings.put(advancePayrollKey, <String,dynamic>{
+          if (raw is Map) ...Map<String,dynamic>.from(raw),
+          ...advanceSnapshots,
+        });
       }
     } catch (_) {
       for (final id in insertedSlipIds.reversed) {
@@ -441,6 +593,9 @@ class HrPayrollService {
       paidAt: paidPaise >= slip.netPaise ? DateTime.now() : null,
     );
     await slipsBox.put(updatedSlip.id, updatedSlip);
+    if (updatedSlip.status == 'paid') {
+      await _settlePayrollAdvanceDeductions(updatedSlip.id);
+    }
 
     await _refreshRunStatus(run, slipsBox);
     return updatedSlip;
