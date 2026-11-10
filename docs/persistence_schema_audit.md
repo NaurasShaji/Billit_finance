@@ -45,7 +45,10 @@ Type ID 0 is unused. IDs 1–9 are currently unique. Do not reuse an existing ty
 - `Product`, `SaleItem`, and `Sale` generated readers contain defaults for several newer optional fields. Other fields are read with strict casts and have no migration fallback.
 - `Employee` fields 0–5 are all read as required values. Changing this model needs explicit compatibility handling for older records.
 - Enum values are persisted by numeric index. Do not reorder or remove enum values; append new values only, or implement an explicit migration.
-- Startup currently has no schema-version marker, migration runner, or adapter-registration test. Adapter registration and box opening are direct calls in `main()`.
+- `SchemaMigrationService` now stores the application schema version under `app_settings.schema_version` and runs during startup after existing boxes are opened. Installations without a marker are assigned legacy baseline version 1.
+- The migration runner enforces sequential one-version steps, rejects invalid/future versions and missing/duplicate steps, and advances the stored version only after a migration callback succeeds. Migration callbacks must be idempotent because Hive has no cross-box transaction.
+- No finance-ledger migrations are registered yet; the current application schema remains at version 1. Migration tests have been authored but have not yet been executed.
+- Adapter registration and box opening remain explicit calls in `main()`; adapter uniqueness/registration coverage is still pending.
 - `session` and `app_settings` are dynamic key/value stores and have no typed schema enforcement. Their keys and value formats need a separately maintained migration contract.
 - Google Drive backup uses a manually serialized JSON format, not Hive binary files. Backup compatibility must be maintained separately from Hive adapter compatibility.
 
@@ -55,7 +58,7 @@ The current app has no unified finance ledger or account model. Add the finance 
 
 ## Follow-up work
 
-- Introduce an explicit schema version and ordered migration runner before adding the new finance models.
-- Add adapter registry/type-ID uniqueness tests and migration tests using representative legacy records.
-- Make Google Drive restore validate and stage incoming data before replacing live boxes.
+- Register an explicit schema migration before introducing each new persisted finance schema version.
+- Add adapter registry/type-ID uniqueness tests and run migration tests using representative legacy records.
+- Keep Google Drive restore prevalidation, integration coverage, and best-effort rollback in place; run those tests before release.
 - Centralize dynamic box names and document the keys owned by each module.
