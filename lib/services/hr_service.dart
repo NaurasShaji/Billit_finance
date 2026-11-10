@@ -174,6 +174,58 @@ class HrService {
     }
   }
 
+  static const employeeTermsSettingsKey = 'hr_employee_terms';
+  static const employmentTypes = {
+    'permanent', 'contract', 'temporary', 'intern', 'part_time', 'casual'
+  };
+  static const payFrequencies = {
+    'daily', 'weekly', 'fortnightly', 'monthly'
+  };
+
+  Map<String, String> employeeWorkTerms(Employee employee) {
+    final raw = Hive.box<dynamic>('app_settings')
+        .get(employeeTermsSettingsKey);
+    final terms = raw is Map ? raw[employee.id] : null;
+    final employmentType = terms is Map && employmentTypes.contains(terms['employmentType'])
+        ? terms['employmentType'] as String
+        : 'permanent';
+    final defaultFrequency = employee.type == 'daily' ? 'daily' : 'monthly';
+    final payFrequency = terms is Map && payFrequencies.contains(terms['payFrequency'])
+        ? terms['payFrequency'] as String
+        : defaultFrequency;
+    return {
+      'employmentType': employmentType,
+      'payFrequency': payFrequency,
+    };
+  }
+
+  Future<void> saveEmployeeWorkTerms({
+    required String employeeId,
+    required String employmentType,
+    required String payFrequency,
+  }) async {
+    if (Hive.box<Employee>(Boxes.employees).get(employeeId) == null) {
+      throw const HrServiceException('Employee not found.');
+    }
+    if (!employmentTypes.contains(employmentType)) {
+      throw const HrServiceException('Select a valid employment type.');
+    }
+    if (!payFrequencies.contains(payFrequency)) {
+      throw const HrServiceException('Select a valid pay frequency.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(employeeTermsSettingsKey);
+    final allTerms = <String, dynamic>{
+      if (raw is Map) ...Map<String, dynamic>.from(raw),
+    };
+    allTerms[employeeId] = {
+      'employmentType': employmentType,
+      'payFrequency': payFrequency,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+    await settings.put(employeeTermsSettingsKey, allTerms);
+  }
+
   static const attendanceStatuses = {
     'present',
     'absent',
