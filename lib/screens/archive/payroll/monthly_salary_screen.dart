@@ -6,6 +6,7 @@ import '../../../models/employee.dart';
 import '../../../models/expense.dart';
 import '../../../services/boxes.dart';
 import '../../../utils/theme_colors.dart';
+import '../../../widgets/responsive_page.dart';
 
 class MonthlySalaryScreen extends StatelessWidget {
   const MonthlySalaryScreen({super.key});
@@ -15,7 +16,7 @@ class MonthlySalaryScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final currency = NumberFormat.simpleCurrency(locale: 'en_IN');
 
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       backgroundColor:
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
@@ -403,7 +404,7 @@ class MonthlySalaryScreen extends StatelessWidget {
           );
         },
       ),
-    );
+    ));
   }
 
   Widget _buildSummaryItem(
