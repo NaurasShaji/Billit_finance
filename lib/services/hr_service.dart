@@ -63,7 +63,7 @@ class LeavePolicy {
             ? value['accrualEnabled'] as bool
             : false,
         carryForwardDays: value['carryForwardDays'] is num
-            ? (value['carryForwardDays'] as num).toInt().clamp(0, 365)
+            ? (value['carryForwardDays'] as num).toInt().clamp(0, 365).toInt()
             : 0,
         excludeWeekends: value['excludeWeekends'] is bool
             ? value['excludeWeekends'] as bool
@@ -548,7 +548,8 @@ class HrService {
         : (monthDifference - (cutoff.day < accrualStart.day ? 1 : 0))
             .clamp(0, 12);
     return (policy.annualEntitlementDays * completedMonths / 12)
-        .clamp(0.0, policy.annualEntitlementDays.toDouble());
+        .clamp(0.0, policy.annualEntitlementDays.toDouble())
+        .toDouble();
   }
 
   LeaveBalance leaveBalance({
@@ -590,7 +591,8 @@ class HrService {
         excludeHolidays: policy.excludeHolidays,
       );
       carryForward = (previousEntitlement - previousUsed)
-          .clamp(0.0, policy.carryForwardDays.toDouble());
+          .clamp(0.0, policy.carryForwardDays.toDouble())
+          .toDouble();
     }
     final yearStart = DateTime(date.year, 1, 1);
     final used = _approvedLeaveDays(
