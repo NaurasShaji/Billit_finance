@@ -707,7 +707,10 @@ class HrPayrollService {
   int _approvedOvertimePaise(String employeeId, DateTime start, DateTime end) {
     return overtimeEntries(employeeId).where((entry) {
       final date = _day(DateTime.parse(entry['date'] as String));
-      return !date.isBefore(start) && !date.isAfter(end);
+      // Legacy records without a status remain approved for compatibility.
+      final status = entry['status'] ?? 'approved';
+      return status == 'approved' &&
+          !date.isBefore(start) && !date.isAfter(end);
     }).fold<int>(
       0,
       (total, entry) => total + (entry['amountPaise'] as int),
