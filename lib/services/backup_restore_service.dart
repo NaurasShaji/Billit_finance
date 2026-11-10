@@ -1162,6 +1162,67 @@ class BackupRestoreService {
     }
   }
 
+  void _validateFinanceRecurringTemplates(
+    List<FinanceRecurringTemplate> templates,
+    List<FinanceAccount> accounts,
+    List<FinanceCategory> categories,
+    List<FinanceParty> parties,
+  ) {
+    final accountsById = {for (final item in accounts) item.id: item};
+    final categoriesById = {for (final item in categories) item.id: item};
+    final partiesById = {for (final item in parties) item.id: item};
+    for (final template in templates) {
+      final debit = accountsById[template.debitAccountId];
+      final credit = accountsById[template.creditAccountId];
+      if (template.name.trim().isEmpty ||
+          template.amountPaise <= 0 ||
+          !{'daily', 'weekly', 'monthly', 'quarterly', 'yearly'}
+              .contains(template.interval) ||
+          (template.endDate != null &&
+              template.endDate!.isBefore(template.nextDueDate))) {
+        throw FormatException(
+          'financeRecurringTemplates.${template.id} contains invalid schedule details.',
+        );
+      }
+      final validAccounts = switch (template.transactionType) {
+        'income' =>
+          debit?.accountType == 'asset' && credit?.accountType == 'income',
+        'expense' =>
+          debit?.accountType == 'expense' && credit?.accountType == 'asset',
+        'transfer' =>
+          debit?.accountType == 'asset' && credit?.accountType == 'asset',
+        _ => false,
+      };
+      if (!validAccounts ||
+          debit?.currencyCode != 'INR' ||
+          credit?.currencyCode != 'INR') {
+        throw FormatException(
+          'financeRecurringTemplates.${template.id} references incompatible INR accounts.',
+        );
+      }
+      if (template.categoryId != null) {
+        final category = categoriesById[template.categoryId];
+        final expectedAccountId = template.transactionType == 'income'
+            ? template.creditAccountId
+            : template.debitAccountId;
+        if (template.transactionType == 'transfer' ||
+            category == null ||
+            category.kind != template.transactionType ||
+            category.accountId != expectedAccountId) {
+          throw FormatException(
+            'financeRecurringTemplates.${template.id} references an incompatible category.',
+          );
+        }
+      }
+      if (template.partyId != null &&
+          !partiesById.containsKey(template.partyId)) {
+        throw FormatException(
+          'financeRecurringTemplates.${template.id} references an unknown party.',
+        );
+      }
+    }
+  }
+
   void _validateFinanceBudgets(
     List<FinanceBudget> budgets,
     List<FinanceAccount> accounts,
@@ -1432,6 +1493,34 @@ class BackupRestoreService {
       email: _optionalString(json, 'email', '', path),
       taxIdentifier: _optionalString(json, 'taxIdentifier', '', path),
       active: _boolean(json, 'active', path, fallback: true),
+    );
+  }
+
+  FinanceRecurringTemplate _parseFinanceRecurringTemplate(
+    Map<String, dynamic> json,
+  ) {
+    const path = 'financeRecurringTemplates';
+    final type = _requiredString(json, 'transactionType', path);
+    if (!{'income', 'expense', 'transfer'}.contains(type)) {
+      throw FormatException('$path.transactionType is unsupported.');
+    }
+    return FinanceRecurringTemplate(
+      id: _requiredString(json, 'id', path),
+      name: _requiredString(json, 'name', path),
+      transactionType: type,
+      debitAccountId: _requiredString(json, 'debitAccountId', path),
+      creditAccountId: _requiredString(json, 'creditAccountId', path),
+      amountPaise: _integer(json, 'amountPaise', path),
+      interval: _requiredString(json, 'interval', path),
+      nextDueDate: _date(json, 'nextDueDate', path),
+      endDate: json['endDate'] == null ? null : _date(json, 'endDate', path),
+      categoryId: _nullableString(json, 'categoryId', path),
+      partyId: _nullableString(json, 'partyId', path),
+      memo: _optionalString(json, 'memo', '', path),
+      active: _boolean(json, 'active', path, fallback: true),
+      createdAt: json['createdAt'] == null
+          ? DateTime.now()
+          : _date(json, 'createdAt', path),
     );
   }
 
