@@ -222,3 +222,8 @@ The reconciliation screen now handles missing, duplicate, unposted, and structur
 ## Legacy employee advance opening balances
 
 A controlled opening-balance action is now available for legacy advances that have a positive outstanding balance, no repayment history, and no linked issue/repayment/payroll journal. The operator selects an effective date and explicitly confirms the amount. The service posts a stable-source opening-balance journal: debit Employee Advances and credit Opening Balance Equity. It rejects duplicate register IDs, existing linked journal history, repayment history, invalid account configuration, and dates before the issue date or in the future. It does not recreate historical cash movements or auto-adjust records with partial journal history. The reconciliation report recognizes and validates the opening-balance journal. Regression tests cover successful posting, idempotent rejection, and repayment-history rejection; tests have not been run.
+
+
+## Employee advance payroll journal diagnostics
+
+Payroll recovery reconciliation now validates more than the presence of a source-linked journal. It checks posted status, the two-line journal structure, Salaries and Wages debit, Employee Advances credit, matching debit/credit amounts, and that the combined payslip recovery journal covers the individual advance repayment amount. The report also flags malformed payroll repayment records. A regression test covers a payslip recovering instalments from multiple advances into one combined journal. Tests remain unexecuted.
