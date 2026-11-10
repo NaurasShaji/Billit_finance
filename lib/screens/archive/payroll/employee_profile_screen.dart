@@ -31,6 +31,8 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
   late String _status;
   String? _departmentId;
   DateTime? _joiningDate;
+  String _employmentType = 'permanent';
+  String _payFrequency = 'monthly';
   bool _saving = false;
 
   @override
@@ -48,6 +50,9 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     _status = employee.employmentStatus;
     _departmentId = employee.departmentId;
     _joiningDate = employee.joiningDate;
+    final workTerms = HrService().employeeWorkTerms(employee);
+    _employmentType = workTerms['employmentType']!;
+    _payFrequency = workTerms['payFrequency']!;
   }
 
   @override
@@ -283,6 +288,11 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
         ..address = _address.text.trim()
         ..notes = _notes.text.trim();
       await employee.save();
+      await HrService().saveEmployeeWorkTerms(
+        employeeId: employee.id,
+        employmentType: _employmentType,
+        payFrequency: _payFrequency,
+      );
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) {
@@ -413,6 +423,38 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                   ],
                   onChanged: (value) =>
                       setState(() => _status = value ?? _status),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  value: _employmentType,
+                  decoration: const InputDecoration(
+                    labelText: 'Employment type',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'permanent', child: Text('Permanent')),
+                    DropdownMenuItem(value: 'contract', child: Text('Contract')),
+                    DropdownMenuItem(value: 'temporary', child: Text('Temporary')),
+                    DropdownMenuItem(value: 'intern', child: Text('Intern')),
+                    DropdownMenuItem(value: 'part_time', child: Text('Part-time')),
+                    DropdownMenuItem(value: 'casual', child: Text('Casual')),
+                  ],
+                  onChanged: (value) => setState(() => _employmentType = value ?? _employmentType),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  value: _payFrequency,
+                  decoration: const InputDecoration(
+                    labelText: 'Pay frequency',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                    DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                    DropdownMenuItem(value: 'fortnightly', child: Text('Fortnightly')),
+                    DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                  ],
+                  onChanged: (value) => setState(() => _payFrequency = value ?? _payFrequency),
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
