@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
+import '../../../services/finance_payment_allocation_service.dart';
 
 enum FinanceAgeingBucket { current, days1To30, days31To60, days61To90, over90 }
 
@@ -30,6 +31,7 @@ class FinanceAgeingService {
   DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
   List<FinanceAgeingRow> build({
+    Iterable<FinancePaymentAllocation> allocations = const [],
     required String partyType,
     required DateTime asOf,
     required Iterable<FinanceParty> parties,
@@ -94,6 +96,7 @@ class FinanceAgeingService {
               isCreditSettlement ? line.creditPaise : line.debitPaise;
           if (amount > 0) {
             settlements.add(_AgeingSettlement(
+              transactionId: transaction.id,
               partyId: partyId,
               date: _day(transaction.date),
               amount: amount,
@@ -112,9 +115,41 @@ class FinanceAgeingService {
     });
     settlements.sort((a, b) => a.date.compareTo(b.date));
 
-    // Apply posted receipts/payments to the oldest eligible invoice first.
+    // Apply explicit invoice allocations first. They are immutable records;
+    // a reversal of either linked journal transaction makes them ineffective.
+    final settlementById = {
+      for (final settlement in settlements) settlement.transactionId: settlement,
+    };
+    final invoiceById = {
+      for (final invoice in invoices) invoice.transaction.id: invoice,
+    };
+    final explicitlyAllocated = <String, int>{};
+    for (final allocation in allocations) {
+      final settlement = settlementById[allocation.settlementTransactionId];
+      final invoice = invoiceById[allocation.invoiceTransactionId];
+      if (settlement == null || invoice == null ||
+          settlement.partyId != allocation.partyId ||
+          invoice.party.id != allocation.partyId ||
+          allocation.createdAt.isAfter(cutoff.add(const Duration(days: 1)))) {
+        continue;
+      }
+      final applied = allocation.amountPaise < invoice.remaining
+          ? allocation.amountPaise
+          : invoice.remaining;
+      if (applied <= 0) continue;
+      invoice.remaining -= applied;
+      explicitlyAllocated.update(
+        settlement.transactionId,
+        (value) => value + applied,
+        ifAbsent: () => applied,
+      );
+    }
+
+    // Preserve legacy behaviour for receipts/payments that have not yet been
+    // explicitly allocated: only their unallocated amount is applied FIFO.
     for (final settlement in settlements) {
-      var remaining = settlement.amount;
+      var remaining = settlement.amount -
+          (explicitlyAllocated[settlement.transactionId] ?? 0);
       for (final invoice in invoices) {
         if (remaining == 0) break;
         if (invoice.party.id != settlement.partyId ||
@@ -173,10 +208,12 @@ class _AgeingInvoice {
 
 class _AgeingSettlement {
   const _AgeingSettlement({
+    required this.transactionId,
     required this.partyId,
     required this.date,
     required this.amount,
   });
+  final String transactionId;
   final String partyId;
   final DateTime date;
   final int amount;
@@ -219,7 +256,9 @@ class _FinanceAgeingScreenState extends State<FinanceAgeingScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Receivables / payables ageing')),
-        body: ValueListenableBuilder<Box<FinanceParty>>(
+        body: ValueListenableBuilder<Box<Map>>(
+          valueListenable: Hive.box<Map>(Boxes.financePaymentAllocations).listenable(),
+          builder: (context, allocationBox, _) => ValueListenableBuilder<Box<FinanceParty>>(
           valueListenable:
               Hive.box<FinanceParty>(Boxes.financeParties).listenable(),
           builder: (context, parties, _) =>
@@ -234,6 +273,7 @@ class _FinanceAgeingScreenState extends State<FinanceAgeingScreen> {
               builder: (context, postings, ___) {
                 final rows = const FinanceAgeingService().build(
                   partyType: _type,
+                  allocations: allocationBox.values.map(FinancePaymentAllocation.fromMap),
                   asOf: _asOf,
                   parties: parties.values,
                   transactions: transactions.values,
@@ -304,7 +344,7 @@ class _FinanceAgeingScreenState extends State<FinanceAgeingScreen> {
                       ),
                     const SizedBox(height: 12),
                     Text(
-                      'Receipts and supplier payments are applied oldest-invoice-first (FIFO) for this report. Allocations are calculated, not persisted. Invoices without an explicit due date use their transaction date.',
+                      'Explicit invoice allocations are applied first. Any remaining unallocated receipt/payment balance is applied FIFO for legacy compatibility. Invoices without an explicit due date use their transaction date.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
