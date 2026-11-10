@@ -850,9 +850,6 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
         paymentAccountId = credits.single.accountId;
       }
 
-      final oldCategory = expense.category;
-      final oldAmount = expense.amount;
-      final oldDescription = expense.description;
       final oldRevision = expense.financeRevision;
       expense
         ..category = nextCategory
