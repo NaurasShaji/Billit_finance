@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_service.dart';
+import '../../../services/hr_payroll_service.dart';
 import 'salary_components_screen.dart';
 
 class EmployeeProfileScreen extends StatefulWidget {
@@ -257,6 +258,101 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
         );
       }
     }
+  }
+
+  Future<void> _addOvertimeEntry() async {
+    final hours = TextEditingController();
+    final rate = TextEditingController();
+    DateTime date = DateTime.now();
+    final formKey = GlobalKey<FormState>();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Record overtime'),
+          content: Form(
+            key: formKey,
+            child: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: date,
+                        firstDate: DateTime(1980),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) setDialogState(() => date = picked);
+                    },
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    label: Text(DateFormat('dd MMM yyyy').format(date)),
+                  ),
+                  TextFormField(
+                    controller: hours,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Overtime hours'),
+                    validator: (value) {
+                      final parsed = double.tryParse((value ?? '').trim());
+                      return parsed == null || !parsed.isFinite || parsed <= 0 || parsed > 24
+                          ? 'Enter hours between 0 and 24'
+                          : null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: rate,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Hourly rate', prefixText: '₹ '),
+                    validator: (value) {
+                      final parsed = double.tryParse((value ?? '').trim());
+                      return parsed == null || !parsed.isFinite || parsed <= 0
+                          ? 'Enter a positive hourly rate'
+                          : null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(dialogContext, true);
+                }
+              },
+              child: const Text('Save overtime'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == true) {
+      try {
+        final hourlyRatePaise = (double.parse(rate.text.trim()) * 100).round();
+        await HrPayrollService().addOvertimeEntry(
+          employeeId: widget.employee.id,
+          date: date,
+          hours: double.parse(hours.text.trim()),
+          hourlyRatePaise: hourlyRatePaise,
+        );
+        if (mounted) setState(() {});
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not record overtime: $error')),
+          );
+        }
+      }
+    }
+    hours.dispose();
+    rate.dispose();
   }
 
   Future<void> _save() async {
@@ -552,6 +648,33 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                 if (HrService().employeeDocuments(widget.employee.id).isEmpty)
                   const Text('No documents stored.'),
                 const SizedBox(height: 12),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Overtime records',
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                    IconButton(
+                      onPressed: _addOvertimeEntry,
+                      tooltip: 'Record overtime',
+                      icon: const Icon(Icons.more_time),
+                    ),
+                  ],
+                ),
+                ...HrPayrollService().overtimeEntries(widget.employee.id).map((entry) {
+                  final date = DateTime.parse(entry['date'] as String);
+                  final hours = (entry['hoursMilli'] as int) / 1000;
+                  final amount = (entry['amountPaise'] as int) / 100;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.schedule_outlined),
+                    title: Text('${DateFormat('dd MMM yyyy').format(date)} · $hours hours'),
+                    subtitle: Text('₹${amount.toStringAsFixed(2)}'),
+                  );
+                }),
+                if (HrPayrollService().overtimeEntries(widget.employee.id).isEmpty)
+                  const Text('No overtime recorded. Overtime is included in the payroll period containing its date.'),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
