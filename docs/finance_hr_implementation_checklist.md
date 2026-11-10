@@ -173,6 +173,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Apply adaptive metric grids and centered max-width content frames to Finance dashboard, accounting reports, reconciliation, accounts/journal, account forms, ageing, budgets, categories, general ledger, parties, party statements, payment allocation/settings, recurring templates, and transaction forms.
 - [x] Replace hardcoded dashboard colors with theme color-scheme roles; core Finance ledger/report/reconciliation screens use ThemeData surfaces and text styles.
 - [x] Apply shared max-width responsive page framing across Finance and HR screens; replace hardcoded light-only colors in expense entry/history and key HR screens with theme color-scheme roles; add missing payment-allocation empty states and retain explicit error/retry feedback.
+- [x] Apply centered content frames to accounting reports and source reconciliation; update the legacy monthly payroll payment screen to use theme color-scheme roles.
+- [x] Expose backed-up expense correction history from expense records, including reason, before/after snapshot, date, and posting status.
 
 ## Phase 9 — Regression and release
 
