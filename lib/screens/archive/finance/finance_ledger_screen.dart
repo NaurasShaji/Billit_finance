@@ -23,6 +23,7 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
   String _journalQuery = '';
   String? _journalType;
   DateTimeRange? _journalDateRange;
+  String _journalSort = 'date_desc';
 
   @override
   void dispose() {
@@ -387,7 +388,32 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
           transaction.transactionType.toLowerCase().contains(query) ||
           transaction.reference.toLowerCase().contains(query) ||
           transaction.sourceId.toLowerCase().contains(query);
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        switch (_journalSort) {
+          case 'date_asc':
+            return a.date.compareTo(b.date);
+          case 'amount_desc':
+            return FinanceReportingService.transactionAmountPaise(
+              b.id,
+              postings,
+            ).compareTo(
+              FinanceReportingService.transactionAmountPaise(a.id, postings),
+            );
+          case 'amount_asc':
+            return FinanceReportingService.transactionAmountPaise(
+              a.id,
+              postings,
+            ).compareTo(
+              FinanceReportingService.transactionAmountPaise(b.id, postings),
+            );
+          case 'number_asc':
+            return a.transactionNumber.compareTo(b.transactionNumber);
+          case 'date_desc':
+          default:
+            return b.date.compareTo(a.date);
+        }
+      });
 
     final currency = DateFormat('dd MMM yyyy');
     final dateRangeLabel = _journalDateRange == null
@@ -450,6 +476,24 @@ class _FinanceLedgerScreenState extends State<FinanceLedgerScreen> {
               label: const Text('Dates'),
             ),
           ],
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: _journalSort,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Sort by',
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'date_desc', child: Text('Date: newest first')),
+            DropdownMenuItem(value: 'date_asc', child: Text('Date: oldest first')),
+            DropdownMenuItem(value: 'amount_desc', child: Text('Amount: highest first')),
+            DropdownMenuItem(value: 'amount_asc', child: Text('Amount: lowest first')),
+            DropdownMenuItem(value: 'number_asc', child: Text('Transaction number')),
+          ],
+          onChanged: (value) => setState(() => _journalSort = value ?? 'date_desc'),
         ),
         const SizedBox(height: 6),
         Row(
