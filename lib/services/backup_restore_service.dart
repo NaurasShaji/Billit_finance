@@ -599,6 +599,12 @@ class BackupRestoreService {
     if (!attendanceValue.isFinite || attendanceValue % 1 != 0) {
       throw const FormatException('employees.attendance must be a finite integer.');
     }
+    final employmentStatus =
+        _optionalString(json, 'employmentStatus', 'active', path);
+    if (!{'active', 'inactive', 'on_leave', 'terminated'}
+        .contains(employmentStatus)) {
+      throw const FormatException('employees.employmentStatus is unsupported.');
+    }
     return Employee(
       id: _requiredString(json, 'id', path),
       name: _requiredString(json, 'name', path),
@@ -606,7 +612,143 @@ class BackupRestoreService {
       wage: _number(json, 'wage', path),
       attendance: attendanceValue.toInt(),
       salaryPaid: _boolean(json, 'salaryPaid', path),
+      employeeCode: _optionalString(json, 'employeeCode', '', path),
+      phone: _optionalString(json, 'phone', '', path),
+      email: _optionalString(json, 'email', '', path),
+      departmentId: _nullableString(json, 'departmentId', path),
+      designation: _optionalString(json, 'designation', '', path),
+      joiningDate: json['joiningDate'] == null
+          ? null
+          : _date(json, 'joiningDate', path),
+      employmentStatus: employmentStatus,
+      emergencyContact: _optionalString(json, 'emergencyContact', '', path),
+      address: _optionalString(json, 'address', '', path),
+      notes: _optionalString(json, 'notes', '', path),
     );
+  }
+
+  HrDepartment _parseHrDepartment(Map<String, dynamic> json) {
+    const path = 'hrDepartments';
+    return HrDepartment(
+      id: _requiredString(json, 'id', path),
+      name: _requiredString(json, 'name', path),
+      description: _optionalString(json, 'description', '', path),
+      active: _boolean(json, 'active', path, fallback: true),
+      createdAt: json['createdAt'] == null
+          ? DateTime.now()
+          : _date(json, 'createdAt', path),
+    );
+  }
+
+  EmployeeAttendance _parseEmployeeAttendance(
+      Map<String, dynamic> json) {
+    const path = 'employeeAttendance';
+    final status = _requiredString(json, 'status', path);
+    if (!{'present', 'absent', 'half_day', 'leave', 'holiday'}
+        .contains(status)) {
+      throw FormatException('$path.status is unsupported.');
+    }
+    final checkIn = json['checkIn'] == null
+        ? null
+        : _date(json, 'checkIn', path);
+    final checkOut = json['checkOut'] == null
+        ? null
+        : _date(json, 'checkOut', path);
+    if (checkIn != null && checkOut != null && checkOut.isBefore(checkIn)) {
+      throw FormatException('$path.checkOut cannot be before checkIn.');
+    }
+    return EmployeeAttendance(
+      id: _requiredString(json, 'id', path),
+      employeeId: _requiredString(json, 'employeeId', path),
+      date: _date(json, 'date', path),
+      status: status,
+      checkIn: checkIn,
+      checkOut: checkOut,
+      notes: _optionalString(json, 'notes', '', path),
+      updatedAt: json['updatedAt'] == null
+          ? DateTime.now()
+          : _date(json, 'updatedAt', path),
+    );
+  }
+
+  LeaveRequest _parseLeaveRequest(Map<String, dynamic> json) {
+    const path = 'leaveRequests';
+    final leaveType = _requiredString(json, 'leaveType', path);
+    if (!{'casual', 'sick', 'earned', 'unpaid', 'other'}
+        .contains(leaveType)) {
+      throw FormatException('$path.leaveType is unsupported.');
+    }
+    final status = _optionalString(json, 'status', 'pending', path);
+    if (!{'pending', 'approved', 'rejected', 'cancelled'}.contains(status)) {
+      throw FormatException('$path.status is unsupported.');
+    }
+    final startDate = _date(json, 'startDate', path);
+    final endDate = _date(json, 'endDate', path);
+    if (endDate.isBefore(startDate)) {
+      throw FormatException('$path.endDate cannot be before startDate.');
+    }
+    return LeaveRequest(
+      id: _requiredString(json, 'id', path),
+      employeeId: _requiredString(json, 'employeeId', path),
+      leaveType: leaveType,
+      startDate: startDate,
+      endDate: endDate,
+      reason: _optionalString(json, 'reason', '', path),
+      status: status,
+      reviewedBy: _optionalString(json, 'reviewedBy', '', path),
+      reviewedAt: json['reviewedAt'] == null
+          ? null
+          : _date(json, 'reviewedAt', path),
+      createdAt: json['createdAt'] == null
+          ? DateTime.now()
+          : _date(json, 'createdAt', path),
+    );
+  }
+
+  void _validateHrCollections(
+    List<Employee> employees,
+    List<HrDepartment> departments,
+    List<EmployeeAttendance> attendance,
+    List<LeaveRequest> leaveRequests,
+  ) {
+    final employeeIds = employees.map((item) => item.id).toSet();
+    final departmentIds = departments.map((item) => item.id).toSet();
+    final employeeCodes = <String>{};
+    for (final employee in employees) {
+      if (employee.departmentId != null &&
+          !departmentIds.contains(employee.departmentId)) {
+        throw FormatException(
+          'employees.${employee.id} references an unknown department.',
+        );
+      }
+      if (employee.employeeCode.isNotEmpty &&
+          !employeeCodes.add(employee.employeeCode.toLowerCase())) {
+        throw const FormatException('HR backup contains duplicate employee codes.');
+      }
+    }
+
+    final attendanceKeys = <String>{};
+    for (final record in attendance) {
+      if (!employeeIds.contains(record.employeeId)) {
+        throw FormatException(
+          'employeeAttendance.${record.id} references an unknown employee.',
+        );
+      }
+      final key = '${record.employeeId}:${record.date.year}-'
+          '${record.date.month}-${record.date.day}';
+      if (!attendanceKeys.add(key)) {
+        throw const FormatException(
+          'HR backup contains duplicate attendance records for an employee and date.',
+        );
+      }
+    }
+    for (final request in leaveRequests) {
+      if (!employeeIds.contains(request.employeeId)) {
+        throw FormatException(
+          'leaveRequests.${request.id} references an unknown employee.',
+        );
+      }
+    }
   }
 
   void _validateFinanceCollections(
