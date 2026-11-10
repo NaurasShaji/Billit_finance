@@ -30,6 +30,7 @@ void main() {
     PayrollRunAdapter(),
     PayslipAdapter(),
     FinanceBudgetAdapter(),
+    FinanceRecurringTemplateAdapter(),
   ];
 
   Future<void> initializeHive() async {
@@ -56,7 +57,7 @@ void main() {
   test('all persisted Type IDs remain unique and stable from 1 through 20',
       () {
     final ids = adapters.map((adapter) => adapter.typeId).toList()..sort();
-    expect(ids, List<int>.generate(21, (index) => index + 1));
+    expect(ids, List<int>.generate(22, (index) => index + 1));
   });
 
   test('legacy and finance/HR typed boxes survive close and reopen', () async {
@@ -74,6 +75,8 @@ void main() {
         await Hive.openBox<EmployeeAttendance>(Boxes.employeeAttendance);
     final budgets =
         await Hive.openBox<FinanceBudget>(Boxes.financeBudgets);
+    final recurring =
+        await Hive.openBox<FinanceRecurringTemplate>(Boxes.financeRecurringTemplates);
 
     final sale = Sale()
       ..id = 'legacy-sale-1'
@@ -125,6 +128,16 @@ void main() {
       periodEnd: DateTime(2026, 11, 30),
       budgetPaise: 100000,
     );
+    final recurringTemplate = FinanceRecurringTemplate(
+      id: 'recurring-1',
+      name: 'Monthly rent',
+      transactionType: 'expense',
+      debitAccountId: 'system:operating-expense',
+      creditAccountId: 'system:cash',
+      amountPaise: 100000,
+      interval: 'monthly',
+      nextDueDate: DateTime(2026, 12, 1),
+    );
 
     await sales.put(sale.id, sale);
     await expenses.put(expense.id, expense);
@@ -135,6 +148,7 @@ void main() {
     await departments.put(department.id, department);
     await attendance.put(attendanceRecord.id, attendanceRecord);
     await budgets.put(budget.id, budget);
+    await recurring.put(recurringTemplate.id, recurringTemplate);
     await Hive.close();
 
     await initializeHive();
@@ -153,6 +167,9 @@ void main() {
         await Hive.openBox<EmployeeAttendance>(Boxes.employeeAttendance);
     final reopenedBudgets =
         await Hive.openBox<FinanceBudget>(Boxes.financeBudgets);
+    final reopenedRecurring = await Hive.openBox<FinanceRecurringTemplate>(
+      Boxes.financeRecurringTemplates,
+    );
 
     expect(reopenedSales.get('legacy-sale-1')!.totalAmount, 118);
     expect(reopenedExpenses.get('legacy-expense-1')!.amount, 125.50);
@@ -163,5 +180,9 @@ void main() {
     expect(reopenedDepartments.get('dept-1')!.name, 'Sales');
     expect(reopenedAttendance.get('attendance-1')!.status, 'present');
     expect(reopenedBudgets.get('budget-1')!.budgetPaise, 100000);
+    expect(
+      reopenedRecurring.get('recurring-1')!.amountPaise,
+      100000,
+    );
   });
 }
