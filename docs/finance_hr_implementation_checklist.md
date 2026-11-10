@@ -303,3 +303,10 @@ Release validation and regression tests remain pending and are intentionally own
 - Finance dashboard now displays journal-based accounting net profit separately from the POS gross-profit estimate. Primary dashboard, accounting reports, and reconciliation views use a centered responsive content frame. Finance reconciliation includes payroll and reimbursement control-account balances.
 - Salary grade bands and effective-dated grade assignments are stored in backed-up app settings. Base-pay changes and payroll generation enforce the assigned grade range. Monthly, weekly, fortnightly, daily-frequency, and daily-wage calculations prorate effective-dated base-pay changes within the payroll period.
 - Tests, formatting, static analysis, builds, and CI were intentionally not run. Release validation remains with the repository owner.
+
+## Leave policy completion — 11 November 2026
+
+- Leave policies now support a per-type maximum carry-forward cap. The previous calendar year's unused earned balance is carried into the current year up to that cap; negative balances are not carried.
+- Leave policies now support per-type Saturday/Sunday exclusion. Approved leave balance usage and attendance generation both apply the same setting, while pending request date ranges and overlap protection remain calendar-date based.
+- Existing policy maps remain backward compatible: missing carry-forward and weekend fields default to zero/false. No Hive adapter or schema migration is required because policy data remains in the backed-up app-settings collection.
+- The Leave Management policy dialog exposes annual entitlement, carry-forward cap, and weekend exclusion controls.
