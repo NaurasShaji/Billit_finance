@@ -7,7 +7,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 ## Finance
 
 ### Persistence and accounting integrity
-- [x] Sequential Hive schema migrations (legacy v1 → finance v2/v3 → HR v4/v5 → budgets v6, recurring templates v7).
+- [x] Sequential Hive schema migrations (legacy v1 → finance v2/v3 → HR v4/v5 → budgets v6 → recurring templates v7 → payment allocations v8).
 - [x] Add chart of accounts, transaction headers, postings, categories, and parties.
 - [x] Persist accounting amounts as integer paise.
 - [x] Enforce balanced debit/credit journals and immutable posted transaction snapshots.
@@ -23,7 +23,7 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Regenerate all Hive adapters with hive_ce_generator; manually maintained adapter files are not yet verified against generator output.
 - [ ] Resolve dependencies and refresh/commit pubspec.lock (the current lockfile has not yet been regenerated for Hive CE).
 - [x] Document in-place storage compatibility requirements and real-device validation steps.
-- [ ] Run all persistence tests, including budget and recurring-template models.
+- [ ] Run all persistence tests, including budget, recurring-template, and payment-allocation models.
 - [x] Add journal reporting coverage for reversal of internal transfers in cash-flow totals.
 - [ ] Confirm the refreshed pubspec.lock is committed and dependency resolution is clean.
 - [ ] Verify existing production Hive v2 data opens unchanged with Hive CE on a test device.
@@ -54,8 +54,8 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [ ] Opening balance reconciliation and adjustment workflow.
 - [x] Account creation, editing, archiving, and hierarchy management UI.
 - [x] Customer/supplier subledgers and receivables/payables settlements with partial receipts/payments.
-- [ ] Persisted invoice-level payment allocation (current ageing report calculates FIFO settlement allocation at report time; this is not stored).
-- [x] Optional receivable/payable due dates and ageing report with current, 1–30, 31–60, 61–90, and 90+ day buckets; FIFO settlements are calculated against the oldest eligible invoice.
+- [x] Persisted invoice-level payment allocation foundation: immutable partial allocations, invoice/settlement over-allocation checks, reversal-aware balances, backup/restore, and an allocation UI. Integration into the receipt/payment entry flow and complete validation remain pending.
+- [x] Optional receivable/payable due dates and ageing report with current, 1–30, 31–60, 61–90, and 90+ day buckets; explicit allocations are applied first and unallocated legacy settlements fall back to FIFO.
 - [x] Budget creation, period tracking, and actual-versus-budget tracking from posted journal entries (tests authored; execution pending).
 - [x] Recurring income/expense templates with startup/manual due-date processing, stable idempotency keys, and month-end cadence handling (tests authored; execution pending).
 - [x] Trial balance, P&L, and cash-flow reports with PDF and Excel workbook export.
