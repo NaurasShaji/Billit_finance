@@ -154,6 +154,31 @@ void main() {
     );
   });
 
+  test('employment history persists per employee in app settings', () async {
+    final service = HrService();
+    await service.addEmploymentHistory(
+      employeeId: 'employee-1',
+      eventType: 'designation',
+      title: 'Promoted to Senior Associate',
+      effectiveDate: DateTime(2026, 10, 1),
+      notes: 'Promotion approved by management.',
+    );
+    final history = service.employmentHistory('employee-1');
+    expect(history, hasLength(1));
+    expect(history.single['eventType'], 'designation');
+    expect(history.single['title'], 'Promoted to Senior Associate');
+    expect(service.employmentHistory('unknown-employee'), isEmpty);
+    await expectLater(
+      service.addEmploymentHistory(
+        employeeId: 'employee-1',
+        eventType: 'unknown',
+        title: 'Invalid event',
+        effectiveDate: DateTime(2026, 10, 2),
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+  });
+
   test('leave balance accrues monthly and deducts approved leave', () async {
     final employee = employees.get('employee-1')!;
     employee.joiningDate = DateTime(2026, 1, 15);
