@@ -344,6 +344,15 @@ class HrPayrollService {
     if (outstanding is! int || outstanding <= 0) {
       throw const HrPayrollServiceException('Only an advance with a positive outstanding balance can be opened.');
     }
+    final issueDateValue = advance['issueDate'];
+    final issueDate = issueDateValue is String ? DateTime.tryParse(issueDateValue) : null;
+    final effectiveDate = _day(asOfDate);
+    if (issueDate == null || effectiveDate.isBefore(_day(issueDate)) ||
+        effectiveDate.isAfter(_day(DateTime.now()))) {
+      throw const HrPayrollServiceException(
+        'Opening balance date must be on or after the advance issue date and cannot be in the future.',
+      );
+    }
 
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
     if (advance['repayments'] is! List ||
