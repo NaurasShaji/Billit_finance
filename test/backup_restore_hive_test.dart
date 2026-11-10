@@ -315,6 +315,14 @@ void main() {
           'active': true,
           'createdAt': '2026-01-01T00:00:00.000',
         },
+        {
+          'id': 'expense',
+          'name': 'Operating Expenses',
+          'accountType': 'expense',
+          'currencyCode': 'INR',
+          'active': true,
+          'createdAt': '2026-01-01T00:00:00.000',
+        },
       ],
       'financeTransactions': [
         {
@@ -370,7 +378,7 @@ void main() {
       ],
     });
 
-    expect(financeAccounts.keys, ['cash']);
+    expect(financeAccounts.keys, containsAll(['cash', 'expense']));
     expect(financeTransactions.get('txn')!.status, 'posted');
     expect(financePostings.get('line-debit')!.debitPaise, 12551);
     expect(financeCategories.get('office')!.accountId, 'expense');
