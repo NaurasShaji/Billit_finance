@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 
@@ -209,7 +207,6 @@ class FinanceBankReconciliationService {
     required String transactionId,
     required String postingId,
   }) async {
-    final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
     final postings = Hive.box<FinancePosting>(Boxes.financePostings);
     final stored = lines();
@@ -309,20 +306,23 @@ class FinanceBankReconciliationService {
         .whereType<String>()
         .toSet();
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
-    return Hive.box<FinancePosting>(Boxes.financePostings).values
-        .where((posting) =>
-            posting.accountId == line['accountId'] &&
-            posting.debitPaise - posting.creditPaise == amount &&
-            !matched.contains(posting.id))
-        .map((posting) => (
-              transaction: transactions.get(posting.transactionId),
-              posting: posting,
-            ))
-        .where((pair) =>
-            pair.transaction != null &&
-            pair.transaction!.status == 'posted' &&
-            pair.transaction!.date.difference(date).inDays.abs() <= 5)
-        .toList()
-      ..sort((a, b) => a.transaction!.date.compareTo(b.transaction!.date));
+    final candidates =
+        <({FinanceTransaction transaction, FinancePosting posting})>[];
+    for (final posting in Hive.box<FinancePosting>(Boxes.financePostings).values) {
+      if (posting.accountId != line['accountId'] ||
+          posting.debitPaise - posting.creditPaise != amount ||
+          matched.contains(posting.id)) {
+        continue;
+      }
+      final transaction = transactions.get(posting.transactionId);
+      if (transaction == null ||
+          transaction.status != 'posted' ||
+          transaction.date.difference(date).inDays.abs() > 5) {
+        continue;
+      }
+      candidates.add((transaction: transaction, posting: posting));
+    }
+    return candidates
+      ..sort((a, b) => a.transaction.date.compareTo(b.transaction.date));
   }
 }
