@@ -319,6 +319,37 @@ class BackupRestoreService {
     final financeParties = hasAnyFinanceKey
         ? _parseRecords(data, 'financeParties', _parseFinanceParty)
         : null;
+
+    const hrKeys = [
+      'hrDepartments',
+      'employeeAttendance',
+      'leaveRequests',
+    ];
+    final hasAnyHrKey = hrKeys.any(data.containsKey);
+    if (hasAnyHrKey && !hrKeys.every(data.containsKey)) {
+      throw const FormatException(
+        'HR backup is incomplete; all HR collections are required.',
+      );
+    }
+    final hrDepartments = hasAnyHrKey
+        ? _parseRecords(data, 'hrDepartments', _parseHrDepartment)
+        : null;
+    final employeeAttendance = hasAnyHrKey
+        ? _parseRecords(data, 'employeeAttendance', _parseEmployeeAttendance)
+        : null;
+    final leaveRequests = hasAnyHrKey
+        ? _parseRecords(data, 'leaveRequests', _parseLeaveRequest)
+        : null;
+
+    final employees = _parseRecords(data, 'employees', _parseEmployee);
+    if (hasAnyHrKey) {
+      _validateHrCollections(
+        employees,
+        hrDepartments!,
+        employeeAttendance!,
+        leaveRequests!,
+      );
+    }
     if (hasAnyFinanceKey) {
       _validateFinanceCollections(
         financeAccounts!,
@@ -334,12 +365,15 @@ class BackupRestoreService {
       products: _parseRecords(data, 'products', _parseProduct),
       sales: _parseRecords(data, 'sales', _parseSale),
       expenses: _parseRecords(data, 'expenses', _parseExpense),
-      employees: _parseRecords(data, 'employees', _parseEmployee),
+      employees: employees,
       financeAccounts: financeAccounts,
       financeTransactions: financeTransactions,
       financePostings: financePostings,
       financeCategories: financeCategories,
       financeParties: financeParties,
+      hrDepartments: hrDepartments,
+      employeeAttendance: employeeAttendance,
+      leaveRequests: leaveRequests,
       appSettings: _parseSettings(data['appSettings']),
     );
   }
