@@ -32,6 +32,12 @@ class FinanceReconciliationSummary {
     this.payrollOutstandingPaise = 0,
     this.payrollLiabilityPaise = 0,
     this.payrollIssues = const [],
+    this.reimbursementAccrualCount = 0,
+    this.reimbursementExpensePaise = 0,
+    this.reimbursementJournalExpensePaise = 0,
+    this.reimbursementOutstandingPaise = 0,
+    this.reimbursementLiabilityPaise = 0,
+    this.reimbursementIssues = const [],
   });
 
   final int sourceSaleCount;
@@ -49,6 +55,17 @@ class FinanceReconciliationSummary {
   final int payrollOutstandingPaise;
   final int payrollLiabilityPaise;
   final List<FinanceReconciliationIssue> payrollIssues;
+  final int reimbursementAccrualCount;
+  final int reimbursementExpensePaise;
+  final int reimbursementJournalExpensePaise;
+  final int reimbursementOutstandingPaise;
+  final int reimbursementLiabilityPaise;
+  final List<FinanceReconciliationIssue> reimbursementIssues;
+
+  int get reimbursementExpenseDifferencePaise =>
+      reimbursementExpensePaise - reimbursementJournalExpensePaise;
+  int get reimbursementLiabilityDifferencePaise =>
+      reimbursementOutstandingPaise - reimbursementLiabilityPaise;
 
   int get payrollGrossDifferencePaise =>
       payrollGrossPaise - payrollJournalGrossPaise;
@@ -64,7 +81,10 @@ class FinanceReconciliationSummary {
       expenseDifferencePaise == 0 &&
       payrollIssues.isEmpty &&
       payrollGrossDifferencePaise == 0 &&
-      payrollLiabilityDifferencePaise == 0;
+      payrollLiabilityDifferencePaise == 0 &&
+      reimbursementIssues.isEmpty &&
+      reimbursementExpenseDifferencePaise == 0 &&
+      reimbursementLiabilityDifferencePaise == 0;
 }
 
 class FinanceReconciliationService {
@@ -105,6 +125,7 @@ class FinanceReconciliationService {
     required Iterable<FinanceTransaction> transactions,
     required Iterable<FinancePosting> postings,
     Iterable<Payslip> payslips = const [],
+    Iterable<Map<String, dynamic>> reimbursements = const [],
   }) {
     final saleRecords = sales.toList();
     final expenseRecords = expenses.toList();
@@ -376,6 +397,102 @@ class FinanceReconciliationService {
         posted.any((tx) => tx.id == line.transactionId))
         .fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
 
+    final reimbursementIssues = <FinanceReconciliationIssue>[];
+    final reimbursementRecords = reimbursements.toList();
+    var reimbursementAccrualCount = 0;
+    var reimbursementExpense = 0;
+    var reimbursementJournalExpense = 0;
+    var reimbursementOutstanding = 0;
+    for (final claim in reimbursementRecords) {
+      final claimId = claim['id'];
+      final status = claim['status'];
+      final amount = claim['amountPaise'];
+      final paidAmount = claim['paidPaise'];
+      if (claimId is! String || amount is! int || amount <= 0 ||
+          paidAmount is! int || paidAmount < 0 || paidAmount > amount) {
+        reimbursementIssues.add(FinanceReconciliationIssue(
+          sourceType: 'employee_reimbursement',
+          sourceId: claimId?.toString() ?? 'unknown',
+          message: 'Reimbursement claim contains invalid identity or monetary values.',
+        ));
+        continue;
+      }
+      if (status == 'submitted' || status == 'rejected') continue;
+      if (status != 'approved' && status != 'partially_paid' && status != 'paid') {
+        reimbursementIssues.add(FinanceReconciliationIssue(
+          sourceType: 'employee_reimbursement',
+          sourceId: claimId,
+          message: 'Reimbursement claim has an unsupported status.',
+        ));
+        continue;
+      }
+      final accruals = posted.where((tx) =>
+          tx.sourceType == 'employee_reimbursement_accrual' &&
+          tx.sourceId == claimId).toList();
+      if (accruals.length != 1) {
+        reimbursementIssues.add(FinanceReconciliationIssue(
+          sourceType: 'employee_reimbursement_accrual',
+          sourceId: claimId,
+          message: accruals.isEmpty ? 'Approved claim has no accrual journal.' : 'Multiple accrual journals exist for this claim.',
+        ));
+        continue;
+      }
+      final accrual = accruals.single;
+      final accrualLines = postings.where((line) => line.transactionId == accrual.id).toList();
+      final expenseDebit = accrualLines.where((line) => {
+        'expense': true,
+      }[accountsById[line.accountId]?.accountType] == true)
+          .fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
+      final payableCredit = accrualLines.where((line) =>
+          line.accountId == 'system:employee-reimbursements-payable')
+          .fold<int>(0, (sum, line) => sum + line.creditPaise - line.debitPaise);
+      reimbursementAccrualCount++;
+      reimbursementExpense += amount;
+      reimbursementJournalExpense += expenseDebit;
+      if (_hasReversal(accrual.id, allTransactions) ||
+          expenseDebit != amount || payableCredit != amount) {
+        reimbursementIssues.add(FinanceReconciliationIssue(
+          sourceType: 'employee_reimbursement_accrual',
+          sourceId: claimId,
+          message: 'Accrual journal does not match the approved claim or has been reversed.',
+        ));
+      }
+      final payments = posted.where((tx) =>
+          tx.sourceType == 'employee_reimbursement_payment' &&
+          tx.sourceId.startsWith('$claimId:from:')).toList();
+      var paidFromJournal = 0;
+      for (final payment in payments) {
+        final paymentLines = postings.where((line) => line.transactionId == payment.id).toList();
+        final payableDebit = paymentLines.where((line) =>
+            line.accountId == 'system:employee-reimbursements-payable')
+            .fold<int>(0, (sum, line) => sum + line.debitPaise);
+        final assetCredit = paymentLines.where((line) =>
+            line.accountId != 'system:employee-reimbursements-payable' && line.creditPaise > 0)
+            .fold<int>(0, (sum, line) => sum + line.creditPaise);
+        if (_hasReversal(payment.id, allTransactions) ||
+            paymentLines.length != 2 || payableDebit <= 0 || payableDebit != assetCredit) {
+          reimbursementIssues.add(FinanceReconciliationIssue(
+            sourceType: 'employee_reimbursement_payment',
+            sourceId: payment.sourceId,
+            message: 'Reimbursement settlement journal is malformed or reversed.',
+          ));
+        }
+        paidFromJournal += payableDebit;
+      }
+      if (paidFromJournal != paidAmount) {
+        reimbursementIssues.add(FinanceReconciliationIssue(
+          sourceType: 'employee_reimbursement_payment',
+          sourceId: claimId,
+          message: 'Claim register paid amount does not match settlement journals.',
+        ));
+      }
+      reimbursementOutstanding += amount - paidAmount;
+    }
+    final reimbursementLiability = -postings.where((line) =>
+        line.accountId == 'system:employee-reimbursements-payable' &&
+        posted.any((tx) => tx.id == line.transactionId))
+        .fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
+
     return FinanceReconciliationSummary(
       sourceSaleCount: saleRecords.length,
       journalSaleCount: journalSaleCount,
@@ -385,13 +502,19 @@ class FinanceReconciliationService {
       journalExpenseCount: journalExpenseCount,
       sourceExpenseTotalPaise: sourceExpenseTotal,
       journalExpenseTotalPaise: journalExpenseTotal,
-      issues: [...issues, ...payrollIssues],
+      issues: [...issues, ...payrollIssues, ...reimbursementIssues],
       payrollAccrualCount: payrollAccrualCount,
       payrollGrossPaise: payrollGross,
       payrollJournalGrossPaise: payrollJournalGross,
       payrollOutstandingPaise: payrollOutstanding,
       payrollLiabilityPaise: payrollLiability,
       payrollIssues: payrollIssues,
+      reimbursementAccrualCount: reimbursementAccrualCount,
+      reimbursementExpensePaise: reimbursementExpense,
+      reimbursementJournalExpensePaise: reimbursementJournalExpense,
+      reimbursementOutstandingPaise: reimbursementOutstanding,
+      reimbursementLiabilityPaise: reimbursementLiability,
+      reimbursementIssues: reimbursementIssues,
     );
   }
 }
