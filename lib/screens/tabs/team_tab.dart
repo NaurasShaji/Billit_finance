@@ -18,6 +18,7 @@ import '../archive/payroll/leave_management_screen.dart';
 import '../archive/payroll/department_management_screen.dart';
 import '../archive/payroll/payroll_runs_screen.dart';
 import '../archive/payroll/employee_advance_reconciliation_screen.dart';
+import '../archive/payroll/employee_reimbursements_screen.dart';
 
 /// Top-level Team screen: who works here, who has been paid, who is due.
 class TeamTab extends StatelessWidget {
@@ -141,6 +142,14 @@ class TeamTab extends StatelessWidget {
                           ),
                           icon: const Icon(Icons.account_balance_outlined),
                           label: const Text('Advance reconciliation'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _open(
+                            context,
+                            const EmployeeReimbursementsScreen(),
+                          ),
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          label: const Text('Reimbursements'),
                         ),
                       ],
                     ),
