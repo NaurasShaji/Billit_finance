@@ -28,16 +28,13 @@ void main() {
     if (!Hive.isAdapterRegistered(14)) Hive.registerAdapter(FinancePartyAdapter());
     settings = await Hive.openBox<dynamic>('settings');
     await SchemaMigrationService(
+      currentVersion: 2,
+      migrations: [FinanceSchemaMigration.versionOneToTwo],
+    ).run(settings);
+    await settings.put(SchemaMigrationService.versionKey, 7);
+    await SchemaMigrationService(
       currentVersion: 8,
-      migrations: [
-        FinanceSchemaMigration.versionOneToTwo,
-        FinanceSchemaMigration.versionTwoToThree,
-        FinanceSchemaMigration.versionThreeToFour,
-        FinanceSchemaMigration.versionFourToFive,
-        FinanceSchemaMigration.versionFiveToSix,
-        FinanceSchemaMigration.versionSixToSeven,
-        FinanceSchemaMigration.versionSevenToEight,
-      ],
+      migrations: [FinanceSchemaMigration.versionSevenToEight],
     ).run(settings);
     accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
     transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
