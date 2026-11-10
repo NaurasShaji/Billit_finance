@@ -445,13 +445,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                       Container(
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: Colors.orange.withValues(alpha: 0.12),
+                                          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35),
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
                                         child: Icon(
                                           Icons.receipt_outlined,
-                                          color: Colors.orange.shade600,
+                                          color: theme.colorScheme.tertiary,
                                           size: 20,
                                         ),
                                       ),
