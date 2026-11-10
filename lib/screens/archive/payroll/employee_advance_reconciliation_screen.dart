@@ -97,7 +97,20 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                     final issueJournals = transactionBox.values.where((tx) =>
                         tx.sourceType == 'employee_advance_issue' &&
                         tx.sourceId == advanceId).toList();
+                    final openingJournals = transactionBox.values.where((tx) =>
+                        tx.sourceType == 'employee_advance_opening_balance' &&
+                        tx.sourceId == advanceId).toList();
                     var issueValid = false;
+                    var openingValid = false;
+                    if (openingJournals.length == 1) {
+                      openingValid = _matchesJournal(
+                        transaction: openingJournals.single,
+                        lines: _linesFor(postingBox, openingJournals.single.id),
+                        debitAccountId: _advanceAccountId,
+                        creditAccountId: 'system:opening-equity',
+                        amountPaise: principal,
+                      );
+                    }
                     if (issueJournals.length == 1) {
                       final issueLines = _linesFor(postingBox, issueJournals.single.id);
                       final creditLines = issueLines.where((line) => line.creditPaise > 0).toList();
@@ -152,20 +165,24 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                         payrollJournals.map((tx) => tx.sourceId).toSet().length != payrollJournals.length;
                     final missingPayrollJournals = payrollPayslipIds.length -
                         payrollJournals.map((tx) => tx.sourceId).toSet().length;
-                    final issueProblem = !issueValid;
+                    final issueProblem = !issueValid && !openingValid;
                     final repaymentProblem = missingManual > 0 ||
                         invalidManual > 0 || duplicatePayrollJournals ||
                         missingPayrollJournals > 0;
                     if (issueProblem) issueProblemCount++;
                     if (repaymentProblem) repaymentProblemCount++;
 
-                    final issueLabel = issueJournals.isEmpty
-                        ? 'Missing issue journal'
-                        : issueJournals.length > 1
+                    final issueLabel = issueJournals.isNotEmpty
+                        ? issueJournals.length > 1
                             ? 'Duplicate issue journals (${issueJournals.length})'
                             : issueValid
                                 ? 'Issue journal: ${issueJournals.single.transactionNumber}'
-                                : 'Issue journal is unposted or does not match principal';
+                                : 'Issue journal is unposted or does not match principal'
+                        : openingJournals.length > 1
+                            ? 'Duplicate opening-balance journals'
+                            : openingValid
+                                ? 'Opening balance: ${openingJournals.single.transactionNumber}'
+                                : 'Missing issue/opening-balance journal';
 
                     rows.add(Card(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -202,7 +219,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                               leading: Icon(Icons.warning_amber_rounded),
                               title: Text('Journal coverage requires investigation'),
                             ),
-                          if (issueJournals.isEmpty && repayments.isEmpty && outstanding > 0)
+                          if (issueJournals.isEmpty && openingJournals.isEmpty && repayments.isEmpty && outstanding > 0)
                             Align(
                               alignment: Alignment.centerLeft,
                               child: OutlinedButton.icon(
