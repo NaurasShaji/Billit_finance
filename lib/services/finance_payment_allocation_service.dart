@@ -50,7 +50,19 @@ class FinancePaymentAllocation {
   }
 }
 
-class FinanceAllocationDraft {\n  const FinanceAllocationDraft({required this.id, required this.invoiceTransactionId, required this.amountPaise});\n  final String id;\n  final String invoiceTransactionId;\n  final int amountPaise;\n}\n\nclass FinancePaymentAllocationService {
+class FinanceAllocationDraft {
+  const FinanceAllocationDraft({
+    required this.id,
+    required this.invoiceTransactionId,
+    required this.amountPaise,
+  });
+
+  final String id;
+  final String invoiceTransactionId;
+  final int amountPaise;
+}
+
+class FinancePaymentAllocationService {
   Box<Map> get _box => Hive.box<Map>(Boxes.financePaymentAllocations);
 
   List<FinancePaymentAllocation> get allocations => _box.values
