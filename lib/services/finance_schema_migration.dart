@@ -135,4 +135,13 @@ class FinanceSchemaMigration {
           await Hive.openBox<Payslip>(Boxes.payslips);
         },
       );
+
+  /// Adds budget persistence without changing existing journal or HR boxes.
+  static SchemaMigration get versionFiveToSix => SchemaMigration(
+        fromVersion: 5,
+        toVersion: 6,
+        apply: (_) async {
+          await Hive.openBox<FinanceBudget>(Boxes.financeBudgets);
+        },
+      );
 }
