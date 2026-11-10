@@ -144,6 +144,7 @@ class BackupRestoreService {
     Box<FinanceParty>? financePartiesBox,
     Box<FinanceBudget>? financeBudgetsBox,
     Box<FinanceRecurringTemplate>? financeRecurringTemplatesBox,
+    Box<Map>? financePaymentAllocationsBox,
     Box<HrDepartment>? hrDepartmentsBox,
     Box<EmployeeAttendance>? employeeAttendanceBox,
     Box<LeaveRequest>? leaveRequestsBox,
