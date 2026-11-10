@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_payment_allocation_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class FinancePaymentAllocationScreen extends StatefulWidget {
   const FinancePaymentAllocationScreen({super.key});
@@ -94,7 +95,7 @@ class _FinancePaymentAllocationScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(title: const Text('Allocate payments to invoices')),
       body: ValueListenableBuilder<Box<FinanceParty>>(
         valueListenable: Hive.box<FinanceParty>(Boxes.financeParties).listenable(),
@@ -243,6 +244,6 @@ class _FinancePaymentAllocationScreenState
           ),
         ),
       ),
-    );
+    ));
   }
 }
