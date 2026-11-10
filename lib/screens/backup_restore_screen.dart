@@ -160,6 +160,15 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       final rawDocuments = rawAppSettings is Map
           ? rawAppSettings['hr_employee_documents']
           : null;
+      if (rawDocuments == null) {
+        final existingDocuments = Hive.box<dynamic>('app_settings')
+            .get('hr_employee_documents');
+        if (existingDocuments is Map && existingDocuments.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates employee document storage. Export a current backup before restoring it, or remove the existing employee documents explicitly.',
+          );
+        }
+      }
       if (rawDocuments != null) {
         if (rawDocuments is! Map) {
           throw const FormatException('Employee document backup is malformed.');
