@@ -165,7 +165,11 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                         payrollJournals.map((tx) => tx.sourceId).toSet().length != payrollJournals.length;
                     final missingPayrollJournals = payrollPayslipIds.length -
                         payrollJournals.map((tx) => tx.sourceId).toSet().length;
-                    final issueProblem = !issueValid && !openingValid;
+                    final openingProblem = openingJournals.length > 1 ||
+                        (openingJournals.length == 1 && !openingValid) ||
+                        (issueValid && openingValid);
+                    final issueProblem = issueJournals.length > 1 ||
+                        openingProblem || (!issueValid && !openingValid);
                     final repaymentProblem = missingManual > 0 ||
                         invalidManual > 0 || duplicatePayrollJournals ||
                         missingPayrollJournals > 0;
@@ -201,6 +205,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                           _detail('Status', item['status'] is String ? item['status'] as String : 'unknown'),
                           _detail('Issue date', item['issueDate'] is String ? item['issueDate'] as String : '—'),
                           _detail('Issue journal', issueLabel),
+                          _detail('Opening-balance journal count', openingJournals.length.toString()),
                           _detail('Manual repayment records', manualCount.toString()),
                           _detail('Missing manual journals', missingManual.toString()),
                           _detail('Invalid/duplicate manual journals', invalidManual.toString()),
