@@ -70,10 +70,11 @@ Work branch: `feature/finance-team-promotion`
 
 - [x] Define initial account, transaction, posting, category, and party persistence models.
 - [x] Add schema migration and default chart-of-accounts seed.
-- [x] Implement initial balanced journal validation and posting service (service-level integrity only; UI workflows pending).
+- [x] Implement balanced journal validation, immutable posting/reversal service, manual transaction UI, account management, and opening-balance journal entries.
 - [x] Extend Google Drive backup/restore and rollback to finance boxes (integration tests authored; execution pending).
 - [x] Implement manual income, expense, and transfer journal workflows.
 - [ ] Implement adjustment UI workflow.
+- [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
 - [ ] Add configurable categories and payment methods.
 - [ ] Add transaction search, filtering, sorting, and date ranges.
 - [ ] Add recurring transactions.
@@ -85,7 +86,7 @@ Work branch: `feature/finance-team-promotion`
 - [ ] Receivables and payables with due dates.
 - [ ] Partial payment allocation and outstanding balances.
 - [ ] Budgets and actual-versus-budget reports.
-- [ ] Cash-flow and profit-and-loss reports.
+- [x] Journal-based cash-flow and profit-and-loss summaries.
 - [x] Clearly distinguish POS gross-profit estimate from journal-based accounting profit.
 - [ ] PDF and spreadsheet exports.
 
@@ -93,7 +94,8 @@ Work branch: `feature/finance-team-promotion`
 
 - [x] Expanded employee profiles and employment status.
 - [x] Departments, designations, and employee numbers.
-- [ ] Employment history and employee documents.
+- [ ] Employment history and employee document storage.
+- [x] Emergency contact field in employee profiles.
 - [ ] Configurable employment and pay frequencies.
 
 ## Phase 5 — Attendance and leave
@@ -105,11 +107,13 @@ Work branch: `feature/finance-team-promotion`
 
 ## Phase 6 — Payroll expansion
 
-- [ ] Salary structures with effective dates.
-- [ ] Allowances, overtime, bonuses, deductions, and reimbursements.
+- [x] Salary components with effective dates and earning/deduction types.
+- [x] Allowances and deductions in payroll runs.
+- [ ] Overtime, bonuses, and reimbursements.
 - [ ] Advances and loan repayments.
-- [ ] Immutable payroll runs and approval workflow.
-- [ ] Payslips and payroll history.
+- [x] Payroll runs with draft, approval, partial-payment, and paid states.
+- [x] Payslip generation and payroll history.
+- [x] Payslip PDF/print output.
 - [ ] Reversal/correction workflow.
 
 ## Phase 7 — Finance/HR integration
@@ -122,9 +126,10 @@ Work branch: `feature/finance-team-promotion`
 
 - [x] Add initial Finance ledger overview, accounts, and journal navigation.
 - [ ] Complete Finance dashboard and navigation redesign.
-- [ ] Finance ledger, accounts, receivables, payables, budgets, and reports screens.
-- [ ] HR dashboard, employee directory, and profile redesign.
-- [ ] Attendance, leave, payroll, and payslip screens.
+- [x] Finance ledger, account management, journal, P&L/cash-flow overview, and source reconciliation screens.
+- [ ] Receivables, payables, budgets, and recurring transaction screens.
+- [x] Initial Team dashboard, employee directory, department management, and employee profile screens.
+- [x] Initial attendance, leave, payroll-run, salary-component, and payslip screens.
 - [ ] Responsive phone/tablet/desktop layouts.
 - [ ] Light/dark theme review and consistent empty/error states.
 
