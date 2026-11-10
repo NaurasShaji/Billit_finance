@@ -228,7 +228,8 @@ class _RecurringTemplateDialogState extends State<_RecurringTemplateDialog> {
   String get _creditType => _type == 'income' ? 'income' : 'asset';
 
   List<FinanceAccount> _options(String type) => widget.accounts
-      .where((item) => item.accountType == type)
+      .where((item) =>
+          item.accountType == type && item.id != 'system:receivables')
       .toList()
     ..sort((a, b) => a.name.compareTo(b.name));
 
