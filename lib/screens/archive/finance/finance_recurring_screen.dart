@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_recurring_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class FinanceRecurringScreen extends StatefulWidget {
   const FinanceRecurringScreen({super.key});
@@ -88,7 +89,7 @@ class _FinanceRecurringScreenState extends State<FinanceRecurringScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Recurring transactions'),
         actions: [
@@ -191,7 +192,7 @@ class _FinanceRecurringScreenState extends State<FinanceRecurringScreen> {
           },
         ),
       ),
-    );
+    ));
   }
 }
 
