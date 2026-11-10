@@ -19,6 +19,7 @@ import '../archive/finance/finance_reports_screen.dart';
 import '../archive/finance/finance_parties_screen.dart';
 import '../archive/finance/finance_budgets_screen.dart';
 import '../archive/finance/finance_recurring_screen.dart';
+import '../archive/finance/finance_payment_settings_screen.dart';
 
 /// Top-level Finance screen: what came in, what went out, what is left.
 class FinanceTab extends StatefulWidget {
@@ -160,6 +161,11 @@ class _FinanceTabState extends State<FinanceTab> {
                         onPressed: () => _open(const FinanceRecurringScreen()),
                         icon: const Icon(Icons.event_repeat_outlined),
                         label: const Text('Recurring'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _open(const FinancePaymentSettingsScreen()),
+                        icon: const Icon(Icons.account_balance_wallet_outlined),
+                        label: const Text('Payment accounts'),
                       ),
                     ],
                   ),
