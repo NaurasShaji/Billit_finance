@@ -1185,7 +1185,7 @@ class HrPayrollService {
     final all = <String, dynamic>{if (raw is Map) ...Map<String, dynamic>.from(raw)};
     final history = (all[payslipId] is List ? List<dynamic>.from(all[payslipId] as List) : <dynamic>[]);
     final dateKey = '${date.year.toString().padLeft(4, '0')}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
-    final sourceId = '${slip.id}|$adjustmentType|$amountPaise|$dateKey|${reason.trim()}';
+    final sourceId = '${slip.id}:adjustment:$adjustmentType:$amountPaise:$dateKey:${reason.trim()}';
     final adjustmentId = Uri.encodeComponent(sourceId);
     final existingRecord = history.whereType<Map>().where((item) => item['id'] == adjustmentId).toList();
     if (existingRecord.isNotEmpty && existingRecord.length != 1) throw const HrPayrollServiceException('Duplicate payroll adjustment records require reconciliation.');
