@@ -307,6 +307,6 @@ Release validation and regression tests remain pending and are intentionally own
 ## Leave policy completion — 11 November 2026
 
 - Leave policies now support a per-type maximum carry-forward cap. The previous calendar year's unused earned balance is carried into the current year up to that cap; negative balances are not carried.
-- Leave policies now support per-type Saturday/Sunday exclusion. Approved leave balance usage and attendance generation both apply the same setting, while pending request date ranges and overlap protection remain calendar-date based.
+- Leave policies now support per-type Saturday/Sunday and marked-holiday exclusion. Approved leave balance usage and attendance generation both apply the same settings, while pending request date ranges and overlap protection remain calendar-date based. Holiday exclusion uses the employee's existing attendance record marked as holiday.
 - Existing policy maps remain backward compatible: missing carry-forward and weekend fields default to zero/false. No Hive adapter or schema migration is required because policy data remains in the backed-up app-settings collection.
-- The Leave Management policy dialog exposes annual entitlement, carry-forward cap, and weekend exclusion controls.
+- The Leave Management policy dialog exposes annual entitlement, carry-forward cap, weekend exclusion, and marked-holiday exclusion controls.
