@@ -65,7 +65,7 @@ Type ID 0 is unused. IDs 1–14 are now reserved. Finance models use string-valu
 
 ## Finance implementation constraints
 
-The finance persistence layer now has `FinanceAccount`, `FinanceTransaction`, `FinancePosting`, `FinanceCategory`, and `FinanceParty` models in separate Hive boxes. Type IDs 10–14 are reserved. `FinanceLedgerService` validates balanced integer-paise journal entries and calculates posted-only raw debit-minus-credit account balances. Google Drive backup/restore does not yet cover these boxes. Do not repurpose `Expense`, `Sale`, or payroll payment records as a ledger. Preserve existing boxes and their field IDs. Prefer integer minor units (paise) or a documented decimal representation for accounting source-of-truth amounts rather than binary floating-point.
+The finance persistence layer now has `FinanceAccount`, `FinanceTransaction`, `FinancePosting`, `FinanceCategory`, and `FinanceParty` models in separate Hive boxes. Type IDs 10–14 are reserved. `FinanceLedgerService` validates balanced integer-paise journal entries and calculates posted-only raw debit-minus-credit account balances. Google Drive backup export, parsing, restore snapshots, and rollback now cover these boxes; test execution remains pending. Do not repurpose `Expense`, `Sale`, or payroll payment records as a ledger. Preserve existing boxes and their field IDs. Prefer integer minor units (paise) or a documented decimal representation for accounting source-of-truth amounts rather than binary floating-point.
 
 ## Follow-up work
 
