@@ -900,6 +900,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
   }
 
   Future<void> _deleteExpense(Expense expense) async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -977,8 +978,8 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.surface,
-              foregroundColor: theme.colorScheme.onSurface,
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: theme.colorScheme.onError,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
             ),
@@ -1002,7 +1003,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Row(
+              content: Row(
                 children: [
                   Icon(
                     Icons.check_circle_outline,
@@ -1027,7 +1028,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline,
                     color: Theme.of(context).colorScheme.onPrimary,
                     size: 20,
@@ -1036,7 +1037,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                   Text('Failed to delete expense: $e'),
                 ],
               ),
-              backgroundColor: theme.colorScheme.surface,
+              backgroundColor: theme.colorScheme.error,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
