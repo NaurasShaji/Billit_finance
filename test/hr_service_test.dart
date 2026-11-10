@@ -154,6 +154,47 @@ void main() {
     );
   });
 
+  test('leave balance accrues monthly and deducts approved leave', () async {
+    final employee = employees.get('employee-1')!;
+    employee.joiningDate = DateTime(2026, 1, 15);
+    await employees.put(employee.id, employee);
+    final service = HrService();
+    await service.saveLeavePolicies({
+      for (final type in HrService.leaveTypes)
+        type: LeavePolicy(
+          annualEntitlementDays: type == 'casual' ? 12 : 0,
+          accrualEnabled: type == 'casual',
+        ),
+    });
+
+    final beforeFirstAccrual = service.leaveBalance(
+      employeeId: employee.id,
+      leaveType: 'casual',
+      asOf: DateTime(2026, 2, 14),
+    );
+    expect(beforeFirstAccrual.entitledDays, 0);
+
+    final request = await service.submitLeaveRequest(
+      employeeId: employee.id,
+      leaveType: 'casual',
+      startDate: DateTime(2026, 2, 20),
+      endDate: DateTime(2026, 2, 20),
+    );
+    await service.reviewLeaveRequest(
+      requestId: request.id,
+      decision: 'approved',
+      reviewerId: 'admin',
+    );
+    final balance = service.leaveBalance(
+      employeeId: employee.id,
+      leaveType: 'casual',
+      asOf: DateTime(2026, 3, 15),
+    );
+    expect(balance.entitledDays, 2);
+    expect(balance.usedDays, 1);
+    expect(balance.availableDays, 1);
+  });
+
   test('daily wage due is driven by present and half-day attendance', () async {
     final employee = employees.get('employee-1')!;
     final service = HrService();
