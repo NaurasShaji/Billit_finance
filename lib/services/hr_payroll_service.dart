@@ -845,15 +845,13 @@ class HrPayrollService {
       );
       final workTerms = HrService().employeeWorkTerms(employee);
       final frequency = workTerms['payFrequency'] ?? 'monthly';
-      final monthlyBasePaise = basePayPaiseFor(employee, start);
-      final basePaise = payType == 'daily'
-          ? (monthlyBasePaise * attendance.payableDays).round()
-          : switch (frequency) {
-              'daily' => (monthlyBasePaise * 12 / 365).round(),
-              'weekly' => (monthlyBasePaise * 12 / 52).round(),
-              'fortnightly' => (monthlyBasePaise / 2).round(),
-              _ => monthlyBasePaise,
-            };
+      final basePaise = _basePayPaiseForPeriod(
+        employee: employee,
+        start: start,
+        end: end,
+        frequency: frequency,
+        payType: payType,
+      );
 
       final components = componentsBox.values.where((component) =>
           component.employeeId == employee.id &&
@@ -1336,6 +1334,41 @@ class HrPayrollService {
         : effective.last['basePaise'] as int;
   }
 
+  int _basePayPaiseForPeriod({
+    required Employee employee,
+    required DateTime start,
+    required DateTime end,
+    required String frequency,
+    required String payType,
+  }) {
+    final first = _day(start);
+    final last = _day(end);
+    if (last.isBefore(first)) throw const HrPayrollServiceException('Payroll period end cannot be before its start.');
+    if (payType == 'daily') {
+      final records = Hive.box<EmployeeAttendance>(Boxes.employeeAttendance).values.where((record) =>
+          record.employeeId == employee.id && !record.date.isBefore(first) && !record.date.isAfter(last));
+      var total = 0.0;
+      for (final record in records) {
+        final rate = basePayPaiseFor(employee, record.date);
+        if (record.status == 'present') total += rate;
+        if (record.status == 'half_day') total += rate / 2;
+      }
+      return total.round();
+    }
+    var total = 0.0;
+    for (var day = first; !day.isAfter(last); day = day.add(const Duration(days: 1))) {
+      final base = basePayPaiseFor(employee, day);
+      final daysInMonth = DateTime(day.year, day.month + 1, 0).day;
+      final dailyRate = switch (frequency) {
+        'daily' => base * 12 / 365,
+        'weekly' => base * 12 / 52 / 7,
+        'fortnightly' => base / 2 / 14,
+        _ => base / daysInMonth,
+      };
+      total += dailyRate;
+    }
+    return total.round();
+  }
   Future<void> addBasePayChange({
     required String employeeId,
     required int basePaise,
