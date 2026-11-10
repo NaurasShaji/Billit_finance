@@ -6,6 +6,7 @@ import '../../models/models.dart';
 import '../../services/boxes.dart';
 import '../../services/finance_service.dart';
 import '../../services/finance_source_sync_service.dart';
+import '../../services/finance_reporting_service.dart';
 import '../../services/finance_recurring_service.dart';
 import '../../utils/theme_colors.dart';
 import '../../widgets/app_components.dart';
@@ -49,15 +50,25 @@ class _FinanceTabState extends State<FinanceTab> {
 
     return Scaffold(
       body: SafeArea(
-        child: ValueListenableBuilder<Box<Sale>>(
+        child: ValueListenableBuilder<Box<FinanceTransaction>>(
+          valueListenable: Hive.box<FinanceTransaction>(Boxes.financeTransactions).listenable(),
+          builder: (context, transactionsBox, ___) =>
+              ValueListenableBuilder<Box<Sale>>(
           valueListenable: Hive.box<Sale>(Boxes.sales).listenable(),
           builder: (context, salesBox, _) => ValueListenableBuilder<Box<Expense>>(
             valueListenable: Hive.box<Expense>(Boxes.expenses).listenable(),
             builder: (context, expensesBox, __) {
+              final span = FinanceService.spanFor(_period, DateTime.now());
               final summary = FinanceService.summarize(
                 sales: salesBox.values.toList(),
                 expenses: expensesBox.values.toList(),
-                span: FinanceService.spanFor(_period, DateTime.now()),
+                span: span,
+              );
+              final accountingSummary = const FinanceReportingService().summarize(
+                accounts: Hive.box<FinanceAccount>(Boxes.financeAccounts).values,
+                transactions: transactionsBox.values,
+                postings: Hive.box<FinancePosting>(Boxes.financePostings).values,
+                span: span,
               );
               final settings = Hive.box<dynamic>('app_settings');
               final syncIssues = (settings.get(
@@ -99,9 +110,16 @@ class _FinanceTabState extends State<FinanceTab> {
                   const SizedBox(height: 16),
                   _NetProfitCard(summary: summary, currency: currency),
                   const SizedBox(height: 12),
-                  _metrics(summary, currency),
+                  _AccountingProfitCard(summary: accountingSummary, currency: currency),
+                  const SizedBox(height: 12),
+                  _metrics(summary, accountingSummary, currency),
                   const SizedBox(height: 24),
-                  _sectionTitle(theme, scheme, 'WHERE THE MONEY GOES'),
+                  _sectionTitle(theme, scheme, 'RECORDED EXPENSE CATEGORIES'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Category breakdown is based on expense records. Accrued payroll and other journal-only entries are reflected in Accounting P&L above.',
+                    style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
                   const SizedBox(height: 10),
                   _Breakdown(summary: summary, currency: currency),
                   const SizedBox(height: 24),
@@ -172,6 +190,8 @@ class _FinanceTabState extends State<FinanceTab> {
                 ],
               );
             },
+              ),
+            ),
           ),
         ),
       ),
@@ -311,7 +331,7 @@ class _FinanceTabState extends State<FinanceTab> {
     );
   }
 
-  Widget _metrics(FinanceSummary s, NumberFormat currency) {
+  Widget _metrics(FinanceSummary s, FinanceLedgerSummary accounting, NumberFormat currency) {
     final cards = [
       _MetricTile(
         title: 'POS sales total',
@@ -320,22 +340,22 @@ class _FinanceTabState extends State<FinanceTab> {
         color: Colors.blue,
       ),
       _MetricTile(
-        title: 'POS gross profit',
+        title: 'POS gross profit estimate',
         value: currency.format(s.grossProfit),
         icon: Icons.trending_up_rounded,
         color: Colors.green,
       ),
       _MetricTile(
-        title: 'Salaries & wages',
-        value: currency.format(s.salaryExpenses),
-        icon: Icons.groups_outlined,
-        color: Colors.indigo,
-      ),
-      _MetricTile(
-        title: 'Other expenses',
-        value: currency.format(s.otherExpenses),
+        title: 'Accounting expenses',
+        value: currency.format(accounting.expensePaise / 100),
         icon: Icons.receipt_long_outlined,
         color: Colors.deepOrange,
+      ),
+      _MetricTile(
+        title: 'Net cash flow',
+        value: currency.format(accounting.netCashFlowPaise / 100),
+        icon: Icons.account_balance_wallet_outlined,
+        color: Colors.indigo,
       ),
     ];
     return LayoutBuilder(builder: (context, constraints) {
@@ -463,6 +483,35 @@ class _NetProfitCard extends StatelessWidget {
   }
 }
 
+class _AccountingProfitCard extends StatelessWidget {
+  const _AccountingProfitCard({required this.summary, required this.currency});
+  final FinanceLedgerSummary summary;
+  final NumberFormat currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final positive = summary.netProfitPaise >= 0;
+    final color = positive ? Colors.green : Colors.red;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Accounting net profit', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        Text(currency.format(summary.netProfitPaise / 100), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        Text('Posted journal income minus posted journal expenses. Payroll accruals are included.', style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+      ]),
+    );
+  }
+}
 class _MetricTile extends StatelessWidget {
   const _MetricTile({
     required this.title,
