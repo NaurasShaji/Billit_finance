@@ -243,6 +243,23 @@ class FinanceSourceSyncService {
     return party;
   }
 
+  Future<void> _markExpenseCorrectionPosted({
+    required Box<dynamic>? settingsBox,
+    required String sourceId,
+    required String transactionId,
+  }) async {
+    if (settingsBox == null) return;
+    final raw = settingsBox.get('finance_expense_corrections');
+    if (raw is! Map || raw[sourceId] is! Map) return;
+    final history = <String, dynamic>{...Map<String, dynamic>.from(raw)};
+    final record = <String, dynamic>{...Map<String, dynamic>.from(history[sourceId] as Map)};
+    record['status'] = 'posted';
+    record['journalId'] = transactionId;
+    record['postedAt'] = DateTime.now().toIso8601String();
+    history[sourceId] = record;
+    await settingsBox.put('finance_expense_corrections', history);
+  }
+
   /// Posts one expense snapshot. Repeated calls are safe and do not duplicate it.
   Future<bool> syncExpense({
     required Expense expense,
@@ -257,7 +274,15 @@ class FinanceSourceSyncService {
   }) async {
     final sourceType = 'legacy_expense';
     final sourceId = _sourceId(expense.id, expense.financeRevision);
-    if (_hasSource(transactionsBox, sourceType, sourceId)) return false;
+    final transactionId = 'finance:expense:${expense.id}:r${expense.financeRevision}';
+    if (_hasSource(transactionsBox, sourceType, sourceId)) {
+      await _markExpenseCorrectionPosted(
+        settingsBox: settingsBox,
+        sourceId: sourceId,
+        transactionId: transactionId,
+      );
+      return false;
+    }
 
     await _reversePreviousRevisions(
       sourceType: sourceType,
@@ -339,6 +364,11 @@ class FinanceSourceSyncService {
       postingsBox: postingsBox,
       categoriesBox: categoriesBox,
       partiesBox: partiesBox,
+    );
+    await _markExpenseCorrectionPosted(
+      settingsBox: settingsBox,
+      sourceId: sourceId,
+      transactionId: transactionId,
     );
     return true;
   }
