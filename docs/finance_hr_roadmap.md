@@ -86,7 +86,9 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Partial salary/wage payments with outstanding balance calculations.
 - [x] Payroll expense linked to employee ID.
 - [x] Employee-specific earning/deduction components with effective dates.
-- [ ] Reusable salary structures, grade templates, and effective-dated base pay changes.
+- [x] Reusable salary structures saved in backed-up app settings and applied to employees with effective dates; applying a structure closes prior active components at the preceding day and rolls back partial component writes.
+- [x] Effective-dated employee base-pay history; payroll selects the latest rate effective on the run start date, rejects duplicate effective dates, and blocks changes that would alter a generated payroll period.
+- [ ] Grade templates beyond reusable earning/deduction structures.
 - [x] Payroll periods/runs with draft, approval, and paid states.
 - [ ] Statutory deduction configuration.
 - [x] Dated employee overtime records with hourly rate and hours; payroll includes only approved entries in gross pay and immutable payslip allowance totals. New entries require approval; rejection requires a reason. Entries cannot be added or reviewed after a payroll run snapshots their date. Legacy records without a status remain approved for compatibility. Overtime records are stored in the backed-up app-settings collection. Statutory deduction configuration remains outstanding.
@@ -197,3 +199,8 @@ Payroll recovery reconciliation now validates more than the presence of a source
 ## Overtime approval workflow
 
 New overtime entries are saved as pending and excluded from payroll until approved. The employee profile provides approve/reject controls; rejection requires a reason. Review decisions record a timestamp and note. Overtime entries cannot be added or reviewed once a payroll run snapshots their date, preventing retroactive changes to generated payslips. Existing overtime entries without a status remain treated as approved to preserve historical payroll behavior. Regression coverage checks pending exclusion, rejection, and prevention of re-approving a rejected entry; tests have not been run.
+
+
+## Salary structures and effective-dated base pay (2026-11-10)
+
+Employee salary-component management now supports saving active earning/deduction components as reusable named structures and applying a saved structure to another employee from a selected effective date. Applying a structure closes currently active components for that employee on the preceding day, then adds the new components; partial writes trigger best-effort restoration of the previous component records. Base-pay changes are stored as dated history in the backed-up app-settings collection, shown in employment history, and selected during payroll generation using the latest rate effective on the payroll period start date. Duplicate effective dates and changes that overlap an existing payroll snapshot are rejected. Regression tests were authored for future effective pay changes and structure replacement; they have not been run. Grade-based salary bands and mid-period base-pay proration remain outstanding.
