@@ -124,7 +124,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Expanded employee profiles and employment status.
 - [x] Departments, designations, and employee numbers.
 - [x] Employee employment history events with type, title, effective date, notes, and per-employee persistence in the backed-up app-settings collection.
-- [ ] Employee document storage and access controls.
+- [x] Employee document storage with PDF/PNG/JPG/DOC/DOCX allowlisting, a 2 MB per-file limit, administrator-only listing/download/upload/delete, and Google Drive backup/restore validation. Legacy backups that omit existing employee documents are rejected to prevent silent orphaning. Document data is stored as base64 in app settings; cloud backups therefore contain sensitive employee files and must be protected accordingly.
 - [x] Emergency contact field in employee profiles.
 - [ ] Configurable employment and pay frequencies.
 
