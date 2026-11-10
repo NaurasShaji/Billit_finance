@@ -652,6 +652,19 @@ class HrPayrollService {
       throw const HrPayrollServiceException('Overtime entry must exist exactly once.');
     }
     final entry = Map<String, dynamic>.from(matches.single as Map);
+    final entryDateValue = entry['date'];
+    final entryDate = entryDateValue is String ? DateTime.tryParse(entryDateValue) : null;
+    if (entryDate == null) {
+      throw const HrPayrollServiceException('Overtime entry has an invalid date.');
+    }
+    final hasPayrollSnapshot = Hive.box<PayrollRun>(Boxes.payrollRuns).values.any((run) =>
+        !_day(run.periodEnd).isBefore(_day(entryDate)) &&
+        !_day(run.periodStart).isAfter(_day(entryDate)));
+    if (hasPayrollSnapshot) {
+      throw const HrPayrollServiceException(
+        'A payroll run already contains this date. Do not change overtime after payslip generation; correct it through an approved payroll adjustment.',
+      );
+    }
     // Missing status is treated as approved for records created before this workflow.
     if ((entry['status'] ?? 'approved') != 'pending') {
       throw const HrPayrollServiceException('Only pending overtime entries can be reviewed.');
