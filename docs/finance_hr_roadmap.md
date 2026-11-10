@@ -88,7 +88,8 @@ This roadmap tracks implementation state. A checked implementation item is not a
 - [x] Employee-specific earning/deduction components with effective dates.
 - [ ] Reusable salary structures, grade templates, and effective-dated base pay changes.
 - [x] Payroll periods/runs with draft, approval, and paid states.
-- [ ] Overtime and statutory deduction configuration.
+- [ ] Statutory deduction configuration.
+- [x] Dated employee overtime records with hourly rate and hours; payroll includes overtime in gross pay and immutable payslip allowance totals. Overtime records are included in Google Drive backup/restore validation. Overtime approval workflow and statutory deduction configuration remain outstanding.
 - [ ] Salary advances and recovery schedules.
 - [x] Immutable payslip snapshots generated for each payroll run.
 - [x] Payslip PDF/print output.
@@ -127,3 +128,8 @@ Employee profiles now support administrator-managed document attachments. The im
 ## Employment and pay frequency update
 
 Employee profiles now configure employment classification (permanent, contract, temporary, intern, part-time, casual) and pay frequency (daily, weekly, fortnightly, monthly). The settings are stored in the existing backed-up app-settings collection and restored with validation against employee IDs and allowed values. Monthly-salary payroll calculations use annualized salary rates for daily, weekly, and fortnightly cycles, while monthly frequency retains the full monthly base salary. Daily-wage employees continue to be calculated from payable attendance days. Regression tests cover persistence, invalid values, and weekly salary calculation; they have not been run. Payroll period dates must still be selected to match the employee's configured cycle; the service does not yet enforce period-length alignment.
+
+
+## Overtime payroll update
+
+Employee profiles now allow dated overtime entries with hours and an hourly rate. Payroll generation includes overtime falling within the run period in gross pay and the payslip's allowance total. Entries are stored in the backed-up app-settings collection; restore validates employee references, dates, hours, rate, and amount. A regression test covers the overtime-to-payslip calculation but has not been run. Overtime is currently treated as payroll-eligible when entered; a separate approval/rejection workflow and statutory deduction rules are still outstanding. Existing salary components can represent one-off bonuses by adding an earning component named Bonus, but there is not yet a dedicated bonus workflow.
