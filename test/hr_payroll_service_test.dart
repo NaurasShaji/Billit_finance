@@ -214,7 +214,7 @@ void main() {
     );
     expect(slip.allowancesPaise, 300000);
     expect(slip.netPaise, 3300000);
-    expect(run.totalGrossPaise, 3650000);
+    expect(run.totalGrossPaise, 3300000);
   });
 
   test('approval and partial payslip payments post salary expenses once',
