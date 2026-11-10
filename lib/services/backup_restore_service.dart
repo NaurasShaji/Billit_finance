@@ -1214,11 +1214,25 @@ class BackupRestoreService {
           );
         }
       }
-      if (template.partyId != null &&
-          !partiesById.containsKey(template.partyId)) {
+      final requiresParty =
+          (template.transactionType == 'income' &&
+              template.debitAccountId == 'system:receivables') ||
+          (template.transactionType == 'expense' &&
+              template.creditAccountId == 'system:payables');
+      if (requiresParty && template.partyId == null) {
         throw FormatException(
-          'financeRecurringTemplates.${template.id} references an unknown party.',
+          'financeRecurringTemplates.${template.id} requires a customer or supplier party.',
         );
+      }
+      if (template.partyId != null) {
+        final party = partiesById[template.partyId];
+        final expectedPartyType =
+            template.transactionType == 'income' ? 'customer' : 'supplier';
+        if (party == null || party.partyType != expectedPartyType) {
+          throw FormatException(
+            'financeRecurringTemplates.${template.id} references an invalid party.',
+          );
+        }
       }
     }
   }
