@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_payroll_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class PayslipDetailsScreen extends StatelessWidget {
   const PayslipDetailsScreen({super.key, required this.payslipId});
@@ -192,23 +193,23 @@ class PayslipDetailsScreen extends StatelessWidget {
       builder: (context, box, _) {
         final slip = box.get(payslipId);
         if (slip == null) {
-          return Scaffold(
+          return ResponsivePage(child: Scaffold(
             appBar: AppBar(title: const Text('Payslip')),
             body: const Center(child: Text('Payslip not found.')),
-          );
+          ));
         }
         final employee = Hive.box<Employee>(Boxes.employees).get(slip.employeeId);
         final run = Hive.box<PayrollRun>(Boxes.payrollRuns).get(slip.payrollRunId);
         if (employee == null || run == null) {
-          return Scaffold(
+          return ResponsivePage(child: Scaffold(
             appBar: AppBar(title: const Text('Payslip')),
             body: const Center(
               child: Text('Employee or payroll period is missing.'),
             ),
-          );
+          ));
         }
         final dateFormat = DateFormat('dd MMM yyyy');
-        return Scaffold(
+        return ResponsivePage(child: Scaffold(
           appBar: AppBar(
             title: const Text('Payslip'),
             actions: [
@@ -274,7 +275,7 @@ class PayslipDetailsScreen extends StatelessWidget {
               ),
             ],
           ),
-        );
+        ));
       },
     );
   }
