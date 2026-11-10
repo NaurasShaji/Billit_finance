@@ -79,6 +79,28 @@ class EmployeeReimbursementsScreen extends StatelessWidget {
     reason.dispose();
   }
 
+  Future<void> _cancelClaim(BuildContext context, Map claim) async {
+    final reason = TextEditingController();
+    final hasPayment = (claim['paidPaise'] is int ? claim['paidPaise'] as int : 0) > 0;
+    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Cancel / reverse reimbursement'),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (hasPayment) const Text('This reverses the settlement journals and records the funds as returned to the original cash/bank accounts. Only continue if the payment was refunded or was erroneous.'),
+        const SizedBox(height: 10),
+        TextField(controller: reason, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Reason (required)')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Keep claim')), FilledButton(onPressed: () { if (reason.text.trim().isNotEmpty) Navigator.pop(dialogContext, true); }, child: const Text('Reverse claim'))],
+    ));
+    if (confirmed == true) {
+      try {
+        await HrPayrollService().reverseReimbursementClaim(claimId: claim['id'] as String, reason: reason.text);
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reimbursement claim reversed.')));
+      } catch (error) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not reverse reimbursement: $error')));
+      }
+    }
+    reason.dispose();
+  }
   Future<void> _pay(BuildContext context, Map claim) async {
     final amount = TextEditingController(text: (((claim['amountPaise'] as int) - (claim['paidPaise'] as int)) / 100).toStringAsFixed(2));
     final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts).values.where((a) => a.active && a.accountType == 'asset' && a.currencyCode == 'INR').toList();
@@ -133,6 +155,8 @@ class EmployeeReimbursementsScreen extends StatelessWidget {
                     if (claim['status'] == 'submitted') OutlinedButton(onPressed: () => _review(context, claim, 'approved'), child: const Text('Approve')),
                     if (claim['status'] == 'submitted') OutlinedButton(onPressed: () => _review(context, claim, 'rejected'), child: const Text('Reject')),
                     if (claim['status'] == 'approved' || claim['status'] == 'partially_paid') FilledButton.icon(onPressed: () => _pay(context, claim), icon: const Icon(Icons.payments_outlined), label: const Text('Pay / settle')),
+                    if (claim['status'] == 'approved' || claim['status'] == 'partially_paid' || claim['status'] == 'paid')
+                      OutlinedButton.icon(onPressed: () => _cancelClaim(context, claim), icon: const Icon(Icons.undo_outlined), label: const Text('Cancel / reverse')),
                   ]),
                 ],
               )),
