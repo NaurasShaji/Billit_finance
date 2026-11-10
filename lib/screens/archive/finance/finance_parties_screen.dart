@@ -8,6 +8,7 @@ import '../../../services/finance_party_service.dart';
 import 'finance_ageing_screen.dart';
 import 'finance_party_statement_screen.dart';
 import 'finance_payment_allocation_screen.dart';
+import '../../../widgets/responsive_page.dart';
 
 class FinancePartiesScreen extends StatefulWidget {
   const FinancePartiesScreen({super.key});
@@ -80,7 +81,7 @@ class _FinancePartiesScreenState extends State<FinancePartiesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Customers & suppliers'),
         actions: [
@@ -258,7 +259,7 @@ class _FinancePartiesScreenState extends State<FinancePartiesScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -330,7 +331,7 @@ class _FinancePartyFormScreenState extends State<FinancePartyFormScreen> {
         Hive.box<FinancePosting>(Boxes.financePostings)
             .values
             .any((line) => line.partyId == widget.party!.id);
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: Text(widget.party == null ? 'New party' : 'Edit party'),
       ),
@@ -399,6 +400,6 @@ class _FinancePartyFormScreenState extends State<FinancePartyFormScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
