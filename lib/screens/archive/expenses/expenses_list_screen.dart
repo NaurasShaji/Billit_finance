@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../services/boxes.dart';
-import '../../../models/expense.dart';
+import '../../../services/finance_source_sync_service.dart';
+import '../../../models/models.dart';
 import '../../../utils/theme_colors.dart';
 
 class ExpensesListScreen extends StatefulWidget {
@@ -856,6 +857,14 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
 
     if (confirmed == true) {
       try {
+        await FinanceSourceSyncService().reverseExpense(
+          expense: expense,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+        );
         await expense.delete();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
