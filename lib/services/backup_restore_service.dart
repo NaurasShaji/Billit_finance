@@ -507,25 +507,90 @@ class BackupRestoreService {
       throw const FormatException('Payment allocations cannot be restored without finance collections.');
     }
     if (financePaymentAllocations != null) {
-      final transactionIds = financeTransactions!.map((t) => t.id).toSet();
-      final partyIds = financeParties!.map((p) => p.id).toSet();
-      final seenPairs = <String>{};
+      final transactionsById = {
+        for (final transaction in financeTransactions!) transaction.id: transaction,
+      };
+      final partiesById = {
+        for (final party in financeParties!) party.id: party,
+      };
+      final postingsByTransaction = <String, List<FinancePosting>>{};
+      for (final posting in financePostings!) {
+        postingsByTransaction.putIfAbsent(posting.transactionId, () => []).add(posting);
+      }
+      final settlementTotals = <String, int>{};
+      final invoiceTotals = <String, int>{};
       for (final allocation in financePaymentAllocations) {
         final settlementId = allocation['settlementTransactionId'];
         final invoiceId = allocation['invoiceTransactionId'];
         final partyId = allocation['partyId'];
         final amount = allocation['amountPaise'];
         final createdAt = allocation['createdAt'];
-        if (settlementId is! String || !transactionIds.contains(settlementId) ||
-            invoiceId is! String || !transactionIds.contains(invoiceId) ||
-            partyId is! String || !partyIds.contains(partyId) ||
+        final settlement = settlementId is String ? transactionsById[settlementId] : null;
+        final invoice = invoiceId is String ? transactionsById[invoiceId] : null;
+        final party = partyId is String ? partiesById[partyId] : null;
+        if (settlement == null || invoice == null || party == null ||
+            settlement.status != 'posted' || invoice.status != 'posted' ||
             amount is! int || amount <= 0 || createdAt is! String ||
             DateTime.tryParse(createdAt) == null) {
           throw const FormatException('Finance payment allocation contains invalid references or values.');
         }
-        final pair = '$settlementId::$invoiceId';
-        if (!seenPairs.add(pair)) {
-          throw const FormatException('Duplicate invoice allocation pair in backup.');
+        final customer = party.partyType == 'customer';
+        final supplier = party.partyType == 'supplier';
+        if ((!customer && !supplier) ||
+            settlement.transactionType != (customer ? 'customer_receipt' : 'supplier_payment') ||
+            invoice.transactionType != (customer ? 'income' : 'expense')) {
+          throw const FormatException('Finance payment allocation links incompatible transaction types.');
+        }
+        final accountId = customer ? 'system:receivables' : 'system:payables';
+        final invoiceValue = postingsByTransaction[invoice.id]
+                ?.where((line) => line.accountId == accountId && line.partyId == party.id)
+                .fold<int>(0, (sum, line) => sum + (customer
+                    ? line.debitPaise - line.creditPaise
+                    : line.creditPaise - line.debitPaise)) ?? 0;
+        final settlementValue = postingsByTransaction[settlement.id]
+                ?.where((line) => line.accountId == accountId && line.partyId == party.id)
+                .fold<int>(0, (sum, line) => sum + (customer
+                    ? line.creditPaise - line.debitPaise
+                    : line.debitPaise - line.creditPaise)) ?? 0;
+        if (invoiceValue <= 0 || settlementValue <= 0 ||
+            invoice.date.isAfter(settlement.date)) {
+          throw const FormatException('Finance payment allocation does not match the linked invoice or settlement.');
+        }
+        settlementTotals.update(settlement.id, (value) => value + amount, ifAbsent: () => amount);
+        invoiceTotals.update(invoice.id, (value) => value + amount, ifAbsent: () => amount);
+      }
+      for (final entry in settlementTotals.entries) {
+        final settlement = transactionsById[entry.key]!;
+        final party = financeParties!.firstWhere((p) =>
+            p.partyType == (settlement.transactionType == 'customer_receipt' ? 'customer' : 'supplier') &&
+            (postingsByTransaction[settlement.id] ?? []).any((line) =>
+                line.partyId == p.id &&
+                line.accountId == (p.partyType == 'customer' ? 'system:receivables' : 'system:payables')));
+        final customer = party.partyType == 'customer';
+        final amount = (postingsByTransaction[settlement.id] ?? [])
+            .where((line) => line.partyId == party.id &&
+                line.accountId == (customer ? 'system:receivables' : 'system:payables'))
+            .fold<int>(0, (sum, line) => sum + (customer
+                ? line.creditPaise - line.debitPaise
+                : line.debitPaise - line.creditPaise));
+        if (entry.value > amount) {
+          throw const FormatException('Finance payment allocations exceed a settlement amount.');
+        }
+      }
+      for (final entry in invoiceTotals.entries) {
+        final invoice = transactionsById[entry.key]!;
+        final customer = invoice.transactionType == 'income';
+        final partyId = (postingsByTransaction[invoice.id] ?? [])
+            .firstWhere((line) => line.accountId ==
+                (customer ? 'system:receivables' : 'system:payables')).partyId;
+        final amount = (postingsByTransaction[invoice.id] ?? [])
+            .where((line) => line.partyId == partyId &&
+                line.accountId == (customer ? 'system:receivables' : 'system:payables'))
+            .fold<int>(0, (sum, line) => sum + (customer
+                ? line.debitPaise - line.creditPaise
+                : line.creditPaise - line.debitPaise));
+        if (entry.value > amount) {
+          throw const FormatException('Finance payment allocations exceed an invoice amount.');
         }
       }
     }
