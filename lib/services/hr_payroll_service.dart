@@ -772,10 +772,7 @@ class HrPayrollService {
       );
       final workTerms = HrService().employeeWorkTerms(employee);
       final frequency = workTerms['payFrequency'] ?? 'monthly';
-      final monthlyBasePaise = _rupeesToPaise(
-        employee.wage,
-        payType == 'daily' ? 'Daily wage' : 'Monthly salary',
-      );
+      final monthlyBasePaise = basePayPaiseFor(employee, start);
       final basePaise = payType == 'daily'
           ? (monthlyBasePaise * attendance.payableDays).round()
           : switch (frequency) {
@@ -1056,6 +1053,88 @@ class HrPayrollService {
         ),
       );
     }
+  }
+
+  static const salaryHistoryKey = 'hr_salary_history';
+
+  List<Map<String, dynamic>> salaryHistory(String employeeId) {
+    final raw = Hive.box<dynamic>('app_settings').get(salaryHistoryKey);
+    if (raw is! Map || raw[employeeId] is! List) return const [];
+    return (raw[employeeId] as List)
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
+        .where((entry) =>
+            entry['effectiveDate'] is String &&
+            entry['basePaise'] is int &&
+            (entry['basePaise'] as int) > 0)
+        .toList()
+      ..sort((a, b) => DateTime.parse(a['effectiveDate'] as String)
+          .compareTo(DateTime.parse(b['effectiveDate'] as String)));
+  }
+
+  int basePayPaiseFor(Employee employee, DateTime date) {
+    final effective = salaryHistory(employee.id)
+        .where((entry) => !_day(DateTime.parse(entry['effectiveDate'] as String))
+            .isAfter(_day(date)))
+        .toList();
+    return effective.isEmpty
+        ? _rupeesToPaise(employee.wage, 'Base salary')
+        : effective.last['basePaise'] as int;
+  }
+
+  Future<void> addBasePayChange({
+    required String employeeId,
+    required int basePaise,
+    required DateTime effectiveDate,
+    String note = '',
+  }) async {
+    if (basePaise <= 0) {
+      throw const HrPayrollServiceException('Base pay must be positive.');
+    }
+    if (Hive.box<Employee>(Boxes.employees).get(employeeId) == null) {
+      throw const HrPayrollServiceException('Employee was not found.');
+    }
+    final date = _day(effectiveDate);
+    final hasSnapshot = Hive.box<PayrollRun>(Boxes.payrollRuns).values.any(
+      (run) => !_day(run.periodEnd).isBefore(date),
+    );
+    if (hasSnapshot) {
+      throw const HrPayrollServiceException(
+        'A payroll run already covers this effective date. Use a payroll adjustment instead of changing historical base pay.',
+      );
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(salaryHistoryKey);
+    final all = <String, dynamic>{
+      if (raw is Map) ...Map<String, dynamic>.from(raw),
+    };
+    final entries = all[employeeId] is List
+        ? List<dynamic>.from(all[employeeId] as List)
+        : <dynamic>[];
+    if (entries.any((entry) =>
+        entry is Map &&
+        entry['effectiveDate'] is String &&
+        _day(DateTime.parse(entry['effectiveDate'] as String)) == date)) {
+      throw const HrPayrollServiceException(
+        'A base-pay change already exists for this effective date.',
+      );
+    }
+    entries.add({
+      'id': const Uuid().v4(),
+      'effectiveDate': date.toIso8601String(),
+      'basePaise': basePaise,
+      'note': note.trim(),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    all[employeeId] = entries;
+    await settings.put(salaryHistoryKey, all);
+    await HrService().addEmploymentHistory(
+      employeeId: employeeId,
+      eventType: 'pay_change',
+      title: 'Base pay changed to ₹${(basePaise / 100).toStringAsFixed(2)}',
+      effectiveDate: date,
+      notes: note,
+    );
   }
 
   Future<SalaryComponent> addSalaryComponent({
