@@ -4,7 +4,7 @@ Status: approved implementation direction for `feature/finance-team-promotion`
 
 ## 1. Decision
 
-Build the finance module as an offline-first, append-only accounting journal backed by Hive. Do not use a mutable account balance or a single signed transaction amount as the accounting source of truth.
+Build the finance module as an offline-first, append-only accounting journal backed by Hive CE. Do not use a mutable account balance or a single signed transaction amount as the accounting source of truth.
 
 Use:
 - Account records for the chart of accounts and account metadata.
@@ -29,7 +29,7 @@ Implemented on this branch with reserved Hive type IDs 10–14. The five models 
 
 Use separate boxes for accounts, transaction headers, posting lines, categories, and parties. Keep posting lines independently queryable by transaction/account/date; do not rely on embedding an unbounded posting list in one transaction object.
 
-Implemented model fields are in `lib/models/finance_*.dart`; Hive adapter implementations are checked in alongside them; their output must be regenerated or verified with build_runner in a Flutter-enabled environment. Schema migration 1→2 creates the five boxes and seeds nine stable default accounts; migration 2→3 adds GST Payable and Salaries and Wages accounts. The journal service validates balanced integer-paise entries, writes postings before marking a transaction posted, derives balances from posted lines, and creates exact reversal entries without mutating the original transaction. Google Drive backup export/restore now includes all five finance boxes and validates cross-references, parent accounts, category/account types, reversal targets, and posted-entry balance before writes. `FinanceSourceSyncService` imports legacy POS sales, general expenses, and payroll expenses using integer-paise conversion, stable source keys, revision snapshots, and reversal entries on invoice edits/deletes. GST collected is posted to a liability account; payroll expense categories map to a dedicated salary account and employee party. Manual income, expense, and transfer entry plus journal, account-balance, P&L, and cash-flow screens are now present. Tests are authored but still require execution.
+Implemented model fields are in `lib/models/finance_*.dart`; Hive CE adapter implementations are checked in alongside them; their output must be regenerated or verified with build_runner in a Flutter-enabled environment. Schema migration 1→2 creates the five boxes and seeds nine stable default accounts; migration 2→3 adds GST Payable and Salaries and Wages accounts. The journal service validates balanced integer-paise entries, writes postings before marking a transaction posted, derives balances from posted lines, and creates exact reversal entries without mutating the original transaction. Google Drive backup export/restore now includes all five finance boxes and validates cross-references, parent accounts, category/account types, reversal targets, and posted-entry balance before writes. `FinanceSourceSyncService` imports legacy POS sales, general expenses, and payroll expenses using integer-paise conversion, stable source keys, revision snapshots, and reversal entries on invoice edits/deletes. GST collected is posted to a liability account; payroll expense categories map to a dedicated salary account and employee party. Manual income, expense, and transfer entry plus journal, account-balance, P&L, and cash-flow screens are now present. Tests are authored but still require execution.
 
 ## 3. Posting rules
 
@@ -73,7 +73,7 @@ Do not repurpose or remove existing `Sale`, `Expense`, `Employee`, or payroll pa
 ## 7. Migration and rollout sequence
 
 1. [x] Add schema versioning and a migration runner without changing existing boxes. The runner is integrated into startup; legacy installations receive schema version 1.
-2. [x] Add five finance models, Hive adapters, boxes, and schema migration 1→2 with default accounts. Persistence and migration tests are authored but still require execution.
+2. [x] Add five finance models, Hive CE adapters, boxes, and schema migration 1→2 with default accounts. Persistence and migration tests are authored but still require execution.
 3. [x] Seed the default chart of accounts, including GST and payroll accounts. Opening balances still require an explicit setup workflow.
 4. [x] Import legacy expenses and payroll expenses with deterministic source keys; reconciliation tests are authored but not yet executed.
 5. [x] Add POS sale posting with duplicate protection, GST split, revision tracking, and reversal on edit/delete; reconciliation tests are authored but not yet executed.
