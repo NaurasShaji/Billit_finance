@@ -74,7 +74,10 @@ class _FinanceReconciliationScreenState
               Boxes.financeTransactions,
             ).listenable(),
             builder: (context, transactionsBox, ___) =>
-                ValueListenableBuilder<Box<FinancePosting>>(
+                ValueListenableBuilder<Box<Payslip>>(
+              valueListenable: Hive.box<Payslip>(Boxes.payslips).listenable(),
+              builder: (context, payslipsBox, ____) =>
+                  ValueListenableBuilder<Box<FinancePosting>>(
               valueListenable:
                   Hive.box<FinancePosting>(Boxes.financePostings).listenable(),
               builder: (context, postingsBox, ____) {
@@ -83,6 +86,7 @@ class _FinanceReconciliationScreenState
                   expenses: expensesBox.values,
                   transactions: transactionsBox.values,
                   postings: postingsBox.values,
+                  payslips: payslipsBox.values,
                 );
                 return ListView(
                   padding: const EdgeInsets.all(20),
@@ -105,6 +109,38 @@ class _FinanceReconciliationScreenState
                       sourceTotal: summary.sourceExpenseTotalPaise,
                       journalTotal: summary.journalExpenseTotalPaise,
                       difference: summary.expenseDifferencePaise,
+                    ),
+                    const SizedBox(height: 12),
+                    _section(
+                      'Payroll accruals',
+                      sourceCount: summary.payrollAccrualCount,
+                      journalCount: summary.payrollAccrualCount,
+                      sourceTotal: summary.payrollGrossPaise,
+                      journalTotal: summary.payrollJournalGrossPaise,
+                      difference: summary.payrollGrossDifferencePaise,
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Payroll payable control', style: Theme.of(context).textTheme.titleMedium),
+                            const SizedBox(height: 10),
+                            _row('Payslip outstanding', _money(summary.payrollOutstandingPaise)),
+                            _row('Ledger liability', _money(summary.payrollLiabilityPaise)),
+                            const Divider(height: 20),
+                            _row(
+                              'Difference',
+                              _money(summary.payrollLiabilityDifferencePaise),
+                              valueColor: summary.payrollLiabilityDifferencePaise == 0
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.error,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     FilledButton.icon(
@@ -156,6 +192,10 @@ class _FinanceReconciliationScreenState
                   ],
                 );
               },
+            ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
