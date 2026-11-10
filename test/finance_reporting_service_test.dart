@@ -156,6 +156,64 @@ void main() {
     expect(summary.netCashFlowPaise, 0);
   });
 
+  test('reversals of internal transfers do not inflate cash flow', () {
+    final accounts = [
+      FinanceAccount(id: 'system:cash', name: 'Cash', accountType: 'asset'),
+      FinanceAccount(id: 'system:bank', name: 'Bank', accountType: 'asset'),
+    ];
+    final transfer = FinanceTransaction(
+      id: 'transfer-original',
+      transactionNumber: 'TR-ORIGINAL',
+      transactionType: 'transfer',
+      status: 'posted',
+      date: DateTime(2026, 10, 7),
+    );
+    final reversal = FinanceTransaction(
+      id: 'transfer-reversal',
+      transactionNumber: 'REV-TR-ORIGINAL',
+      transactionType: 'reversal',
+      status: 'posted',
+      date: DateTime(2026, 10, 8),
+      reversedTransactionId: transfer.id,
+    );
+    final postings = [
+      FinancePosting(
+        id: 'original-cash-debit',
+        transactionId: transfer.id,
+        accountId: 'system:cash',
+        debitPaise: 5000,
+      ),
+      FinancePosting(
+        id: 'original-bank-credit',
+        transactionId: transfer.id,
+        accountId: 'system:bank',
+        creditPaise: 5000,
+      ),
+      FinancePosting(
+        id: 'reversal-cash-credit',
+        transactionId: reversal.id,
+        accountId: 'system:cash',
+        creditPaise: 5000,
+      ),
+      FinancePosting(
+        id: 'reversal-bank-debit',
+        transactionId: reversal.id,
+        accountId: 'system:bank',
+        debitPaise: 5000,
+      ),
+    ];
+
+    final summary = const FinanceReportingService().summarize(
+      accounts: accounts,
+      transactions: [transfer, reversal],
+      postings: postings,
+      span: DateSpan(DateTime(2026, 10, 1), DateTime(2026, 11, 1)),
+    );
+    expect(summary.cashInPaise, 0);
+    expect(summary.cashOutPaise, 0);
+    expect(summary.netCashFlowPaise, 0);
+  });
+
   test('draft and out-of-period transactions are excluded', () {
     final account = FinanceAccount(
       id: 'income',
