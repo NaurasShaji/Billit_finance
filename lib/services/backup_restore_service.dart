@@ -466,7 +466,8 @@ class BackupRestoreService {
       ..igstAmount = _number(json, 'igstAmount', path, fallback: 0)
       ..customerGstin = _optionalString(json, 'customerGstin', '', path)
       ..interstateSale = _boolean(json, 'interstateSale', path)
-      ..gstInclusive = _boolean(json, 'gstInclusive', path);
+      ..gstInclusive = _boolean(json, 'gstInclusive', path)
+      ..financeRevision = _integer(json, 'financeRevision', path, fallback: 0);
   }
 
   Expense _parseExpense(Map<String, dynamic> json) {
@@ -482,6 +483,7 @@ class BackupRestoreService {
       amount: _number(json, 'amount', path),
       description: _optionalString(json, 'description', '', path),
       employeeId: employeeId as String?,
+      financeRevision: _integer(json, 'financeRevision', path, fallback: 0),
     );
   }
 
@@ -513,12 +515,27 @@ class BackupRestoreService {
     List<FinanceParty> parties,
   ) {
     final accountIds = accounts.map((item) => item.id).toSet();
+    final accountsById = {for (final item in accounts) item.id: item};
     final transactionById = {
       for (final item in transactions) item.id: item,
     };
     final transactionNumbers = <String>{};
     final sourceKeys = <String>{};
+    for (final account in accounts) {
+      if (account.parentId != null && !accountIds.contains(account.parentId)) {
+        throw FormatException(
+          'financeAccounts.${account.id} references an unknown parent account.',
+        );
+      }
+    }
+
     for (final transaction in transactions) {
+      if (transaction.reversedTransactionId != null &&
+          !transactionById.containsKey(transaction.reversedTransactionId)) {
+        throw FormatException(
+          'financeTransactions.${transaction.id} references an unknown reversal target.',
+        );
+      }
       if (!transactionNumbers.add(transaction.transactionNumber)) {
         throw const FormatException(
           'Finance backup contains duplicate transaction numbers.',
@@ -538,9 +555,15 @@ class BackupRestoreService {
     final postingsByTransaction = <String, List<FinancePosting>>{};
 
     for (final category in categories) {
-      if (!accountIds.contains(category.accountId)) {
+      final categoryAccount = accountsById[category.accountId];
+      if (categoryAccount == null) {
         throw FormatException(
           'financeCategories.${category.id} references an unknown account.',
+        );
+      }
+      if (category.kind != categoryAccount.accountType) {
+        throw FormatException(
+          'financeCategories.${category.id} kind does not match its account type.',
         );
       }
     }
