@@ -314,7 +314,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
                               leading: Icon(Icons.warning_amber_rounded),
                               title: Text('Journal coverage requires investigation'),
                             ),
-                          if (issueJournals.isEmpty && openingJournals.isEmpty && repayments.isEmpty && outstanding > 0)
+                          if (issueJournals.isEmpty && openingJournals.isEmpty && repayments.isEmpty && corrections.isEmpty && outstanding > 0)
                             Align(
                               alignment: Alignment.centerLeft,
                               child: OutlinedButton.icon(
