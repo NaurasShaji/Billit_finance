@@ -173,7 +173,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _isLoading ? null : _addEmployee,
                             icon: _isLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
@@ -568,7 +568,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
               onPressed: () => Navigator.of(ctx).pop(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                foregroundColor: Theme.of(context).colorScheme.onError,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
               ),
