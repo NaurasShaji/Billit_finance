@@ -273,3 +273,18 @@ This checklist records implementation only when code exists; validation items re
 - [x] Pass the selected destination account to the payroll finance journal and reject a mismatch before marking the payslip paid. `FinanceSourceSyncService.syncExpense` now accepts and validates the selected active INR asset account, so payroll payments post to the chosen cash/bank/wallet account rather than always crediting cash.
 - [x] Cover bank posting and invalid expense-account rejection in payroll service regression tests (execution pending).
 - [ ] Payroll liability accrual and settlement remain separate from the existing immediate salary-expense payment flow.
+
+
+## Payroll liability implementation gate — 10 November 2026
+
+The payroll liability item remains intentionally open. The current payment path creates a `Salary-Run` expense for each partial payment and syncs it as Dr Salaries and Wages / Cr selected cash or bank. The advance-recovery path separately debits Salaries and Wages and credits Employee Advances when the payslip is fully settled. This is internally consistent for the existing cash-basis model, but it cannot be converted to accrual accounting by merely adding a Payroll Payable credit at approval: that would double-count salary expense and leave arbitrary salary deductions without corresponding liability/control accounts.
+
+Required design before implementation:
+
+1. At approval, snapshot and post gross salary expense once, with explicit credit lines for net payroll payable and each supported deduction/control account. Do not infer deduction accounts from free-text component names.
+2. At each partial/final payment, post Dr Payroll Payable / Cr the operator-selected active INR asset account. Payment identity must be stable per payment, not derived only from the current cumulative paid amount.
+3. Keep employee-advance recovery as a separate Dr Employee Advances / Cr the appropriate payroll deduction clearing account (or explicitly model it as a net-pay reduction at accrual); do not retain the current gross-up journal unchanged after introducing accrual posting.
+4. Prevent payroll payment Expense records from being imported as ordinary operating expenses. Existing installations need a compatibility strategy so historical cash-basis payroll journals are not silently duplicated or reclassified.
+5. Reconcile approved net payable, cumulative settlement journals, outstanding payslip balance, and payroll control-account balance. Include retries, partial payments, zero-net slips, approval rollback, and legacy paid runs in regression tests.
+
+Until these rules are implemented together, retain the existing cash-basis posting path. A partial liability implementation would produce misleading P&L and balance-sheet balances.
