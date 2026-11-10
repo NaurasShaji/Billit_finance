@@ -218,7 +218,6 @@ class FinanceSourceSyncService {
     required Expense expense,
     required Box<FinanceParty> partiesBox,
     Box<Employee>? employeesBox,
-    String? paymentAccountId,
   }) async {
     final employeeId = expense.employeeId;
     if (employeeId == null || employeeId.trim().isEmpty) return null;
