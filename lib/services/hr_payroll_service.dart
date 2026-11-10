@@ -1009,6 +1009,7 @@ class HrPayrollService {
         categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
         partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
         employeesBox: Hive.box<Employee>(Boxes.employees),
+        paymentAccountId: cashAccountId,
       );
       // Ensure this payroll payment was journalled to the account the operator
       // selected. The source-sync journal remains immutable and retry-safe.
