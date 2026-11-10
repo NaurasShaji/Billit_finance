@@ -347,26 +347,34 @@ class HrPayrollService {
     final all = Map<String,dynamic>.from(advancesRaw);
     final slip = Hive.box<Payslip>(Boxes.payslips).get(payslipId);
     if (slip == null) throw const HrPayrollServiceException('Payslip was not found for advance recovery.');
-    final deductions = (raw[payslipId] as List).whereType<Map>().toList();
+    final deductions = (raw[payslipId] as List).whereType<Map>()
+        .map((item) => Map<String,dynamic>.from(item)).toList();
     final recoveryTotal = deductions.fold<int>(0, (sum, item) {
       final amount = item['amountPaise'];
-      if (amount is! int || amount <= 0) throw const HrPayrollServiceException('Payroll advance recovery snapshot contains an invalid amount.');
+      if (amount is! int || amount <= 0 || item['employeeId'] is! String || item['advanceId'] is! String) {
+        throw const HrPayrollServiceException('Payroll advance recovery snapshot contains invalid references or amount.');
+      }
+      final employeeRecords = all[item['employeeId']] as List?;
+      final record = employeeRecords?.whereType<Map>().where((entry) => entry['id'] == item['advanceId']).firstOrNull;
+      if (record == null || record['outstandingPaise'] is! int || amount > (record['outstandingPaise'] as int)) {
+        throw const HrPayrollServiceException('Advance balance changed after payroll generation. Reconcile before settlement.');
+      }
       return sum + amount;
     });
+    final grouped = <String,List<Map<String,dynamic>>>{};
+    for (final item in deductions) {
+      grouped.putIfAbsent(item['employeeId'] as String, () => []).add(item);
+    }
     await _postPayrollAdvanceRecoveryJournal(
       payslipId: payslipId,
       date: slip.paidAt ?? DateTime.now(),
       amountPaise: recoveryTotal,
     );
-    final grouped = <String,List<Map<String,dynamic>>>{};
-    for (final item in (raw[payslipId] as List).whereType<Map>()) {
-      grouped.putIfAbsent(item['employeeId'] as String, () => []).add(Map<String,dynamic>.from(item));
-    }
     for (final group in grouped.entries) {
       final list = List<dynamic>.from(all[group.key] as List? ?? []);
       for (final deduction in group.value) {
         final index = list.indexWhere((a) => a is Map && a['id'] == deduction['advanceId']);
-        if (index < 0) continue;
+        if (index < 0) throw const HrPayrollServiceException('Advance record disappeared before payroll recovery settlement.');
         final advance = Map<String,dynamic>.from(list[index] as Map);
         final amount = deduction['amountPaise'] as int;
         final outstanding = advance['outstandingPaise'] as int;
