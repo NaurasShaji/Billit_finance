@@ -1,4 +1,4 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 part 'finance_posting.g.dart';
 
 /// Monetary values are integer minor units (paise).
