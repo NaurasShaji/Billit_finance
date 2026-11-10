@@ -3,6 +3,7 @@ import 'package:hive_ce/hive_ce.dart';
 import '../models/models.dart';
 import 'boxes.dart';
 import 'finance_source_sync_service.dart';
+import 'finance_ledger_service.dart';
 import 'hr_service.dart';
 import 'payroll_service.dart';
 
@@ -36,6 +37,56 @@ class HrPayrollService {
   static const advanceSettingsKey = 'hr_employee_advances';
   static const advancePayrollKey = 'hr_advance_payroll_deductions';
 
+  static const employeeAdvanceAccountId = 'system:employee-advances';
+
+  FinanceAccount _requireAdvanceCashAccount(String accountId) {
+    final account = Hive.box<FinanceAccount>(Boxes.financeAccounts).get(accountId);
+    if (account == null || !account.active || account.accountType != 'asset' || account.currencyCode != 'INR') {
+      throw const HrPayrollServiceException('Select an active INR cash or bank asset account.');
+    }
+    return account;
+  }
+
+  Future<void> _postAdvanceJournal({
+    required String transactionId,
+    required String transactionNumber,
+    required String sourceType,
+    required String sourceId,
+    required DateTime date,
+    required String memo,
+    required String debitAccountId,
+    required String creditAccountId,
+    required int amountPaise,
+  }) async {
+    if (amountPaise <= 0) throw const HrPayrollServiceException('Journal amount must be positive.');
+    _requireAdvanceCashAccount(debitAccountId == employeeAdvanceAccountId ? creditAccountId : debitAccountId);
+    final accounts = Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    final advanceAccount = accounts.get(employeeAdvanceAccountId);
+    if (advanceAccount == null || !advanceAccount.active || advanceAccount.accountType != 'asset') {
+      throw const HrPayrollServiceException('Employee Advances asset account is unavailable.');
+    }
+    await FinanceLedgerService().postTransaction(
+      transaction: FinanceTransaction(
+        id: transactionId,
+        transactionNumber: transactionNumber,
+        transactionType: 'adjustment',
+        date: date,
+        memo: memo,
+        sourceType: sourceType,
+        sourceId: sourceId,
+      ),
+      postings: [
+        FinancePosting(id: '$transactionId:debit', transactionId: transactionId, accountId: debitAccountId, debitPaise: amountPaise, memo: memo),
+        FinancePosting(id: '$transactionId:credit', transactionId: transactionId, accountId: creditAccountId, creditPaise: amountPaise, memo: memo),
+      ],
+      accountsBox: accounts,
+      transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+      postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+      categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+      partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+    );
+  }
+
   List<Map<String, dynamic>> advances(String employeeId) {
     final raw = Hive.box<dynamic>('app_settings').get(advanceSettingsKey);
     if (raw is! Map || raw[employeeId] is! List) return const [];
@@ -52,6 +103,7 @@ class HrPayrollService {
     required String employeeId, required int principalPaise,
     required int installmentPaise, required DateTime issueDate,
     required DateTime firstDueDate, String description = 'Employee advance',
+    String cashAccountId = 'system:cash',
   }) async {
     if (Hive.box<Employee>(Boxes.employees).get(employeeId) == null) {
       throw const HrPayrollServiceException('Employee was not found.');
@@ -62,6 +114,7 @@ class HrPayrollService {
     if (_day(firstDueDate).isBefore(_day(issueDate)) || description.trim().isEmpty) {
       throw const HrPayrollServiceException('Enter a description and a valid first repayment date.');
     }
+    _requireAdvanceCashAccount(cashAccountId);
     final settings = Hive.box<dynamic>('app_settings');
     final raw = settings.get(advanceSettingsKey);
     final all = <String,dynamic>{if (raw is Map) ...Map<String,dynamic>.from(raw)};
@@ -77,13 +130,39 @@ class HrPayrollService {
     });
     all[employeeId] = list;
     await settings.put(advanceSettingsKey, all);
+    final advanceId = (list.last as Map)['id'] as String;
+    try {
+      await _postAdvanceJournal(
+        transactionId: 'finance:employee-advance:$advanceId',
+        transactionNumber: 'ADV-$advanceId',
+        sourceType: 'employee_advance_issue',
+        sourceId: advanceId,
+        date: issueDate,
+        memo: 'Employee advance: ${description.trim()}',
+        debitAccountId: employeeAdvanceAccountId,
+        creditAccountId: cashAccountId,
+        amountPaise: principalPaise,
+      );
+    } catch (_) {
+      final current = settings.get(advanceSettingsKey);
+      if (current is Map && current[employeeId] is List) {
+        final rollback = Map<String, dynamic>.from(current);
+        final entries = List<dynamic>.from(rollback[employeeId] as List)
+          ..removeWhere((entry) => entry is Map && entry['id'] == advanceId);
+        rollback[employeeId] = entries;
+        await settings.put(advanceSettingsKey, rollback);
+      }
+      rethrow;
+    }
   }
 
   Future<void> recordAdvanceRepayment({
     required String employeeId, required String advanceId,
     required int amountPaise, required DateTime date, String note = '',
+    String cashAccountId = 'system:cash',
   }) async {
     if (amountPaise <= 0) throw const HrPayrollServiceException('Repayment must be positive.');
+    _requireAdvanceCashAccount(cashAccountId);
     final settings = Hive.box<dynamic>('app_settings');
     final raw = settings.get(advanceSettingsKey);
     if (raw is! Map || raw[employeeId] is! List) throw const HrPayrollServiceException('Advance was not found.');
@@ -115,6 +194,37 @@ class HrPayrollService {
     advance['status'] = remaining == 0 ? 'settled' : 'active';
     list[index] = advance; all[employeeId] = list;
     await settings.put(advanceSettingsKey, all);
+    final repaymentId = repayments.last['id'] as String;
+    try {
+      await _postAdvanceJournal(
+        transactionId: 'finance:employee-advance-repayment:$repaymentId',
+        transactionNumber: 'ADVR-$repaymentId',
+        sourceType: 'employee_advance_repayment',
+        sourceId: repaymentId,
+        date: date,
+        memo: note.trim().isEmpty ? 'Employee advance repayment' : note.trim(),
+        debitAccountId: cashAccountId,
+        creditAccountId: employeeAdvanceAccountId,
+        amountPaise: amountPaise,
+      );
+    } catch (_) {
+      final current = settings.get(advanceSettingsKey);
+      if (current is Map && current[employeeId] is List) {
+        final rollback = Map<String, dynamic>.from(current);
+        final entries = List<dynamic>.from(rollback[employeeId] as List);
+        final currentIndex = entries.indexWhere((entry) => entry is Map && entry['id'] == advanceId);
+        if (currentIndex >= 0) {
+          final restored = Map<String, dynamic>.from(entries[currentIndex] as Map);
+          restored['outstandingPaise'] = outstanding;
+          restored['repayments'] = repayments.where((entry) => entry['id'] != repaymentId).toList();
+          restored['status'] = 'active';
+          entries[currentIndex] = restored;
+          rollback[employeeId] = entries;
+          await settings.put(advanceSettingsKey, rollback);
+        }
+      }
+      rethrow;
+    }
   }
 
   List<Map<String,dynamic>> _advanceDeductionSnapshot(String employeeId, DateTime start, DateTime end) {
