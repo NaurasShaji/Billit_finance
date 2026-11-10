@@ -18,11 +18,12 @@ Work branch: `feature/finance-team-promotion`
 - Moved Hive apply/rollback into `BackupRestoreService` and added real Hive-box integration tests for successful replacement, app-settings merge, malformed payload rejection without data loss, and legacy settings preservation.
 - Restore now applies only the fully parsed payload, with snapshots retained for best-effort rollback if Hive writes fail.
 - Existing export format, backup filename, Google Drive sign-in/transport, session box, and app-settings merge behavior remain unchanged.
-- Added deterministic write-failure injection to the restore service and a Hive integration test that throws after all replacement writes, then verifies that every original box and app settings are restored.
+- Added deterministic write-failure injection to the restore service and a Hive integration test that throws after all replacement writes, then verifies that all original business-data boxes, all five finance boxes, and app settings are restored.
 - **Validation pending:** the parser/Hive tests (including the new rollback test), Flutter test suite, static analysis, and builds have not been run.
 - Added finance ledger models and Hive adapters using type IDs 10–14: accounts, transaction headers, posting lines, categories, and parties.
 - Added schema migration 1→2 to create the five finance boxes and seed nine deterministic default accounts.
-- Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, valid account references, unique transaction/source IDs, and posted-only account balance calculation.
+- Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, active account references, unique transaction numbers/source IDs, and posted-only account balance calculation.
+- Added immutable reversal posting: exact opposite journal lines are appended and the original posted transaction is not modified.
 - Added finance persistence/migration and ledger integrity tests. These are authored but have not been executed.
 - Extended Google Drive backup export, parser, restore, snapshots, and rollback to include all five finance boxes. Legacy backups without finance keys preserve current finance data; partial finance collection sets and invalid posted journal entries are rejected before writes.
 - **Next:** extend Google Drive backup/restore for finance data, then execute the full test suite and static analysis.
