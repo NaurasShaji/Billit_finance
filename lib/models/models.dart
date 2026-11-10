@@ -8,3 +8,6 @@ export 'finance_transaction.dart';
 export 'finance_posting.dart';
 export 'finance_category.dart';
 export 'finance_party.dart';
+export 'hr_department.dart';
+export 'employee_attendance.dart';
+export 'leave_request.dart';
