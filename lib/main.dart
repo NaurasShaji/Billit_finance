@@ -10,6 +10,7 @@ import 'services/boxes.dart';
 import 'services/auth_service.dart';
 import 'services/desktop_window_service.dart';
 import 'services/drive_sync_service.dart';
+import 'services/finance_schema_migration.dart';
 import 'services/schema_migration_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -32,6 +33,11 @@ Future<void> main() async {
   Hive.registerAdapter(SaleAdapter());
   Hive.registerAdapter(ExpenseAdapter()); // typeId 8
   Hive.registerAdapter(EmployeeAdapter()); // typeId 9
+  Hive.registerAdapter(FinanceAccountAdapter()); // typeId 10
+  Hive.registerAdapter(FinanceTransactionAdapter()); // typeId 11
+  Hive.registerAdapter(FinancePostingAdapter()); // typeId 12
+  Hive.registerAdapter(FinanceCategoryAdapter()); // typeId 13
+  Hive.registerAdapter(FinancePartyAdapter()); // typeId 14
 
   await Hive.openBox<User>(Boxes.users);
   await Hive.openBox<Product>(Boxes.products);
@@ -41,9 +47,12 @@ Future<void> main() async {
   await Hive.openBox('session');
   final settings = await Hive.openBox<dynamic>('app_settings');
 
-  // Existing installations are initialized as schema version 1. Future
-  // migrations must be registered here before adding new persisted models.
-  await const SchemaMigrationService().run(settings);
+  // Existing installations are initialized as schema version 1, then upgraded
+  // to version 2 to create the finance ledger boxes and default chart of accounts.
+  await SchemaMigrationService(
+    currentVersion: 2,
+    migrations: [FinanceSchemaMigration.versionOneToTwo],
+  ).run(settings);
 
   Future<void> setDefaultSetting(String key, dynamic value) async {
     if (!settings.containsKey(key)) await settings.put(key, value);
