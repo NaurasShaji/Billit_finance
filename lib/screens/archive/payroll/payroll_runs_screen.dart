@@ -6,6 +6,7 @@ import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_payroll_service.dart';
 import 'payroll_run_details_screen.dart';
+import '../../../widgets/responsive_page.dart';
 
 class PayrollRunsScreen extends StatefulWidget {
   const PayrollRunsScreen({super.key});
@@ -61,7 +62,7 @@ class _PayrollRunsScreenState extends State<PayrollRunsScreen> {
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM yyyy');
     final currency = NumberFormat.simpleCurrency(locale: 'en_IN');
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Payroll runs'),
         actions: [
@@ -143,6 +144,6 @@ class _PayrollRunsScreenState extends State<PayrollRunsScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
