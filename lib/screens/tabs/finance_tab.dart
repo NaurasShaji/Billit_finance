@@ -14,6 +14,7 @@ import '../archive/gst_exports_screen.dart';
 import '../archive/finance/finance_ledger_screen.dart';
 import '../archive/finance/finance_reconciliation_screen.dart';
 import '../archive/finance/finance_category_management_screen.dart';
+import '../archive/finance/finance_reports_screen.dart';
 import '../archive/finance/finance_budgets_screen.dart';
 
 /// Top-level Finance screen: what came in, what went out, what is left.
@@ -110,6 +111,11 @@ class _FinanceTabState extends State<FinanceTab> {
                         onPressed: () => _open(const GstExportsScreen()),
                         icon: const Icon(Icons.file_download_outlined),
                         label: const Text('Reports & exports'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _open(const FinanceReportsScreen()),
+                        icon: const Icon(Icons.assessment_outlined),
+                        label: const Text('Accounting reports'),
                       ),
                       OutlinedButton.icon(
                         onPressed: () => _open(const FinanceLedgerScreen()),
