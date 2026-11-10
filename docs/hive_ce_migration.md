@@ -5,9 +5,9 @@
 Billit replaces the original `hive`, `hive_flutter`, and `hive_generator`
 packages with the maintained Hive Community Edition packages:
 
-- Runtime: `hive_ce`
-- Flutter integration: `hive_ce_flutter`
-- Adapter generator: `hive_ce_generator`
+- Runtime: `hive_ce: ^2.23.2`
+- Flutter integration: `hive_ce_flutter: 2.3.4` (pinned)
+- Adapter generator: `hive_ce_generator: 1.11.3` (pinned)
 
 The app currently targets Flutter 3.29.3 in CI. The Flutter integration is
 pinned to 2.3.4 to stay compatible with that toolchain; do not raise it to the
@@ -45,7 +45,10 @@ Package imports are changed as follows:
 
 Adapter annotations and registration continue to use the Hive v2-style API.
 Generated adapters must be regenerated with the CE generator; do not maintain
-hand-edited generated adapter files.
+hand-edited generated adapter files. The branch validation workflow runs
+`flutter pub get`, regenerates adapters, formats Dart files, runs analysis and
+tests, and builds the Android release. It commits the resolved lockfile and
+regenerated source before running validation.
 
 ## Validation before release
 
@@ -74,6 +77,8 @@ Billit data directory:
 6. Confirm that the app does not create empty replacement boxes or silently
    lose data when an adapter fails to read a record.
 
-The automated test suite and CI build are necessary but do not replace this
+The dependency/import migration is implemented in the feature branch, but the
+resolved `pubspec.lock`, generated adapters, and CI validation must be checked
+before considering the migration release-ready. The automated test suite and CI build are necessary but do not replace this
 real-data compatibility test. No production database should be opened with a
 new release until this check passes.
