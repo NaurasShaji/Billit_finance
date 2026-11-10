@@ -461,60 +461,48 @@ class HrPayrollService {
     final raw = settings.get(advancePayrollKey);
     if (raw is! Map || raw[payslipId] is! List) return;
     final advancesRaw = settings.get(advanceSettingsKey);
-    if (advancesRaw is! Map) return;
-    final all = Map<String,dynamic>.from(advancesRaw);
-    final slip = Hive.box<Payslip>(Boxes.payslips).get(payslipId);
-    if (slip == null) throw const HrPayrollServiceException('Payslip was not found for advance recovery.');
-    final deductions = (raw[payslipId] as List).whereType<Map>()
-        .map((item) => Map<String,dynamic>.from(item)).toList();
-    final recoveryTotal = deductions.fold<int>(0, (sum, item) {
-      final amount = item['amountPaise'];
-      if (amount is! int || amount <= 0 || item['employeeId'] is! String || item['advanceId'] is! String) {
-        throw const HrPayrollServiceException('Payroll advance recovery snapshot contains invalid references or amount.');
-      }
-      final employeeRecords = all[item['employeeId']] as List?;
-      final matches = employeeRecords?.whereType<Map>().where((entry) => entry['id'] == item['advanceId']).toList() ?? <Map>[];
-      final record = matches.isEmpty ? null : matches.first;
-      if (record == null || record['outstandingPaise'] is! int || amount > (record['outstandingPaise'] as int)) {
-        throw const HrPayrollServiceException('Advance balance changed after payroll generation. Reconcile before settlement.');
-      }
-      return sum + amount;
-    });
-    final grouped = <String,List<Map<String,dynamic>>>{};
+    if (advancesRaw is! Map) throw const HrPayrollServiceException('Employee advance register is unavailable.');
+    final all = Map<String, dynamic>.from(advancesRaw);
+    final deductions = (raw[payslipId] as List).whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
+    final grouped = <String, List<Map<String, dynamic>>>{};
     for (final item in deductions) {
-      grouped.putIfAbsent(item['employeeId'] as String, () => []).add(item);
+      final employeeId = item['employeeId'];
+      final advanceId = item['advanceId'];
+      final amount = item['amountPaise'];
+      if (employeeId is! String || advanceId is! String || amount is! int || amount <= 0) throw const HrPayrollServiceException('Payroll advance recovery snapshot contains invalid references or amount.');
+      grouped.putIfAbsent(employeeId, () => []).add(item);
     }
-    await _postPayrollAdvanceRecoveryJournal(
-      payslipId: payslipId,
-      date: slip.paidAt ?? DateTime.now(),
-      amountPaise: recoveryTotal,
-    );
+    // The payroll accrual journal already credits Employee Advances. Update only the HR subledger here.
     for (final group in grouped.entries) {
       final list = List<dynamic>.from(all[group.key] as List? ?? []);
       for (final deduction in group.value) {
-        final index = list.indexWhere((a) => a is Map && a['id'] == deduction['advanceId']);
-        if (index < 0) throw const HrPayrollServiceException('Advance record disappeared before payroll recovery settlement.');
-        final advance = Map<String,dynamic>.from(list[index] as Map);
+        final advanceId = deduction['advanceId'] as String;
         final amount = deduction['amountPaise'] as int;
-        final outstanding = advance['outstandingPaise'] as int;
-        if (amount <= 0 || amount > outstanding) throw const HrPayrollServiceException('Advance balance changed after payroll generation. Reconcile before settlement.');
-        final repayments = (advance['repayments'] as List? ?? []).whereType<Map>().map((e) => Map<String,dynamic>.from(e)).toList();
-        repayments.add({'id': 'payroll:$payslipId:${advance['id']}', 'date': DateTime.now().toIso8601String(), 'amountPaise': amount, 'note': 'Payroll recovery', 'source': 'payroll', 'payslipId': payslipId});
+        final index = list.indexWhere((entry) => entry is Map && entry['id'] == advanceId);
+        if (index < 0) throw const HrPayrollServiceException('Advance record disappeared before payroll accrual.');
+        final advance = Map<String, dynamic>.from(list[index] as Map);
+        final repayments = (advance['repayments'] as List? ?? []).whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).toList();
+        final repaymentId = 'payroll:$payslipId:$advanceId';
+        final existing = repayments.where((entry) => entry['id'] == repaymentId).toList();
+        if (existing.isNotEmpty) {
+          if (existing.length != 1 || existing.single['amountPaise'] != amount) throw const HrPayrollServiceException('Existing payroll advance recovery conflicts with the approved payslip.');
+          continue;
+        }
+        final outstanding = advance['outstandingPaise'];
+        if (outstanding is! int || amount > outstanding) throw const HrPayrollServiceException('Advance balance changed after payroll generation. Reconcile before approval.');
+        repayments.add({'id': repaymentId, 'date': DateTime.now().toIso8601String(), 'amountPaise': amount, 'note': 'Payroll deduction accrued', 'source': 'payroll', 'payslipId': payslipId});
         final remaining = outstanding - amount;
-        final due = DateTime.parse(advance['nextDueDate'] as String);
         advance['outstandingPaise'] = remaining;
         advance['repayments'] = repayments;
-        advance['nextDueDate'] = DateTime(due.year, due.month + 1, due.day).toIso8601String();
         advance['status'] = remaining == 0 ? 'settled' : 'active';
         list[index] = advance;
       }
       all[group.key] = list;
     }
     await settings.put(advanceSettingsKey, all);
-    final snapshots = Map<String,dynamic>.from(raw)..remove(payslipId);
+    final snapshots = Map<String, dynamic>.from(raw)..remove(payslipId);
     await settings.put(advancePayrollKey, snapshots);
   }
-
   static const bonusSettingsKey = 'hr_bonus_entries';
 
   List<Map<String, dynamic>> bonusEntries(String employeeId) {
@@ -871,192 +859,57 @@ class HrPayrollService {
     final runsBox = Hive.box<PayrollRun>(Boxes.payrollRuns);
     final slipsBox = Hive.box<Payslip>(Boxes.payslips);
     final run = runsBox.get(runId);
-    if (run == null || run.status != 'draft') {
-      throw const HrPayrollServiceException(
-        'Only draft payroll runs can be approved.',
-      );
-    }
-    final slips = slipsBox.values
-        .where((slip) => slip.payrollRunId == runId)
-        .toList();
-    final oldSlips = {for (final slip in slips) slip.id: slip};
+    if (run == null || run.status != 'draft') throw const HrPayrollServiceException('Only draft payroll runs can be approved.');
+    final slips = slipsBox.values.where((slip) => slip.payrollRunId == runId).toList()..sort((a, b) => a.id.compareTo(b.id));
     final approvedAt = DateTime.now();
-    try {
-      // A zero-net payslip is settled on approval; post its advance recovery
-      // before changing the payslip state so journal failures remain retryable.
-      for (final slip in slips.where((item) => item.netPaise == 0)) {
-        await _settlePayrollAdvanceDeductions(slip.id);
-      }
-      for (final slip in slips) {
-        final updated = _copyPayslip(
-          slip,
-          status: slip.netPaise == 0 ? 'paid' : 'approved',
-          paidAt: slip.netPaise == 0 ? approvedAt : slip.paidAt,
-        );
-        await slipsBox.put(updated.id, updated);
-      }
-      final updatedRun = _copyRun(
-        run,
-        status: slips.every((slip) => slip.netPaise == 0) ? 'paid' : 'approved',
-        approvedAt: approvedAt,
-        paidAt: slips.every((slip) => slip.netPaise == 0) ? approvedAt : null,
-      );
-      await runsBox.put(updatedRun.id, updatedRun);
-      return updatedRun;
-    } catch (_) {
-      for (final old in oldSlips.values) {
-        try {
-          await slipsBox.put(old.id, old);
-        } catch (_) {}
-      }
-      rethrow;
+    // Stable source IDs make an interrupted accrual retry-safe.
+    for (final slip in slips) {
+      await _postPayrollAccrual(slip, run);
     }
+    for (final slip in slips) {
+      await _settlePayrollAdvanceDeductions(slip.id);
+    }
+    for (final slip in slips) {
+      final updated = _copyPayslip(slip, status: slip.netPaise == 0 ? 'paid' : 'approved', paidAt: slip.netPaise == 0 ? approvedAt : slip.paidAt);
+      await slipsBox.put(updated.id, updated);
+    }
+    final allSettled = slips.every((slip) => slip.netPaise == 0);
+    final updatedRun = _copyRun(run, status: allSettled ? 'paid' : 'approved', approvedAt: approvedAt, paidAt: allSettled ? approvedAt : null);
+    await runsBox.put(updatedRun.id, updatedRun);
+    return updatedRun;
   }
-
   Future<Payslip> payPayslip({
     required String payslipId,
     required int amountPaise,
     String cashAccountId = 'system:cash',
   }) async {
-    if (amountPaise <= 0) {
-      throw const HrPayrollServiceException(
-        'Payment amount must be positive.',
-      );
-    }
-    final paymentAccount = Hive.box<FinanceAccount>(Boxes.financeAccounts).get(cashAccountId);
-    if (paymentAccount == null ||
-        !paymentAccount.active ||
-        paymentAccount.accountType != 'asset' ||
-        paymentAccount.currencyCode != 'INR') {
-      throw const HrPayrollServiceException(
-        'Select an active INR cash, bank, or wallet account for payroll payment.',
-      );
-    }
+    if (amountPaise <= 0) throw const HrPayrollServiceException('Payment amount must be positive.');
+    _requireAdvanceCashAccount(cashAccountId);
     final runsBox = Hive.box<PayrollRun>(Boxes.payrollRuns);
     final slipsBox = Hive.box<Payslip>(Boxes.payslips);
-    final expensesBox = Hive.box<Expense>(Boxes.expenses);
     final slip = slipsBox.get(payslipId);
-    if (slip == null) {
-      throw const HrPayrollServiceException('Payslip was not found.');
-    }
+    if (slip == null) throw const HrPayrollServiceException('Payslip was not found.');
     final run = runsBox.get(slip.payrollRunId);
-    if (run == null || (run.status != 'approved' && run.status != 'paid')) {
-      throw const HrPayrollServiceException(
-        'Approve the payroll run before recording payment.',
-      );
-    }
+    if (run == null || (run.status != 'approved' && run.status != 'paid')) throw const HrPayrollServiceException('Approve the payroll run before recording payment.');
     if (slip.status == 'paid') {
-      final allSlips = slipsBox.values
-          .where((item) => item.payrollRunId == run.id)
-          .toList();
-      if (allSlips.isNotEmpty &&
-          allSlips.every((item) => item.status == 'paid') &&
-          run.status != 'paid') {
-        await runsBox.put(
-          run.id,
-          _copyRun(run, status: 'paid', paidAt: DateTime.now()),
-        );
-      }
+      await _refreshRunStatus(run, slipsBox);
       return slip;
     }
-    if (slip.status != 'approved' && slip.status != 'partially_paid') {
-      throw const HrPayrollServiceException(
-        'Payslip is not in a payable state.',
-      );
-    }
-    if (amountPaise > slip.outstandingPaise) {
-      throw const HrPayrollServiceException(
-        'Payment cannot exceed the payslip outstanding amount.',
-      );
-    }
-
-    final paymentId = 'payroll-payment:${slip.id}:from:${slip.paidPaise}';
-    final existingPayment = expensesBox.get(paymentId);
-    final actualPaymentPaise = existingPayment == null
-        ? amountPaise
-        : _rupeesToPaise(existingPayment.amount, 'Existing payroll payment');
-    if (existingPayment == null) {
-      final employee = Hive.box<Employee>(Boxes.employees).get(slip.employeeId);
-      if (employee == null) {
-        throw const HrPayrollServiceException(
-          'Payslip employee record is missing.',
-        );
-      }
-      final expense = Expense(
-        id: paymentId,
-        date: DateTime.now(),
-        category: 'Salary-Run',
-        amount: amountPaise / 100,
-        description: 'Payroll run ${run.id}, payslip ${slip.id}; account=$cashAccountId',
-        employeeId: slip.employeeId,
-      );
-      await expensesBox.put(expense.id, expense);
-    }
-    if (actualPaymentPaise > slip.outstandingPaise) {
-      throw const HrPayrollServiceException(
-        'Existing payroll payment exceeds the remaining payslip balance.',
-      );
-    }
-
-    final expense = expensesBox.get(paymentId)!;
+    if (slip.status != 'approved' && slip.status != 'partially_paid') throw const HrPayrollServiceException('Payslip is not in a payable state.');
+    if (amountPaise > slip.outstandingPaise) throw const HrPayrollServiceException('Payment cannot exceed the payslip outstanding amount.');
+    final paymentDate = DateTime.now();
     try {
-      await FinanceSourceSyncService().syncExpense(
-        expense: expense,
-        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
-        transactionsBox:
-            Hive.box<FinanceTransaction>(Boxes.financeTransactions),
-        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
-        categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
-        partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
-        employeesBox: Hive.box<Employee>(Boxes.employees),
-        paymentAccountId: cashAccountId,
-      );
-      // Ensure this payroll payment was journalled to the account the operator
-      // selected. The source-sync journal remains immutable and retry-safe.
-      final journalId = 'finance:expense:${expense.id}:r${expense.financeRevision}';
-      final paymentPosting = Hive.box<FinancePosting>(Boxes.financePostings)
-          .values
-          .where((line) => line.transactionId == journalId && line.creditPaise > 0)
-          .toList();
-      if (paymentPosting.length != 1 || paymentPosting.single.accountId != cashAccountId) {
-        throw const HrPayrollServiceException(
-          'Payroll payment account does not match its finance journal. Reconcile the payment before continuing.',
-        );
-      }
+      await _postPayrollPaymentJournal(slip: slip, amountPaise: amountPaise, paidBeforePaise: slip.paidPaise, cashAccountId: cashAccountId, date: paymentDate);
     } catch (error) {
-      // Do not mark the payslip as paid when its accounting journal failed.
-      // Keep the source expense so startup reconciliation or a later retry can
-      // post it idempotently using the stable expense ID.
-      if (Hive.isBoxOpen('app_settings')) {
-        await FinanceSourceSyncService.recordIssue(
-          Hive.box<dynamic>('app_settings'),
-          'Payroll run ${run.id}, payslip ${slip.id}: $error',
-        );
-      }
-      throw HrPayrollServiceException(
-        'Payroll payment was saved, but its finance journal could not be posted. '
-        'The payslip remains unpaid; retry finance reconciliation before '
-        'recording another payment. Details: $error',
-      );
+      if (Hive.isBoxOpen('app_settings')) await FinanceSourceSyncService.recordIssue(Hive.box<dynamic>('app_settings'), 'Payroll run ${run.id}, payslip ${slip.id}: $error');
+      throw HrPayrollServiceException('Payroll payment journal could not be posted. The payslip remains unpaid. Details: $error');
     }
-
-    final paidPaise = slip.paidPaise + actualPaymentPaise;
-    final updatedSlip = _copyPayslip(
-      slip,
-      paidPaise: paidPaise,
-      status: paidPaise >= slip.netPaise ? 'paid' : 'partially_paid',
-      paidAt: paidPaise >= slip.netPaise ? DateTime.now() : null,
-    );
-    if (updatedSlip.status == 'paid') {
-      // Keep the payslip unpaid if the recovery journal cannot be posted.
-      await _settlePayrollAdvanceDeductions(updatedSlip.id);
-    }
+    final paidPaise = slip.paidPaise + amountPaise;
+    final updatedSlip = _copyPayslip(slip, paidPaise: paidPaise, status: paidPaise >= slip.netPaise ? 'paid' : 'partially_paid', paidAt: paidPaise >= slip.netPaise ? paymentDate : null);
     await slipsBox.put(updatedSlip.id, updatedSlip);
-
     await _refreshRunStatus(run, slipsBox);
     return updatedSlip;
   }
-
   Future<void> _refreshRunStatus(
     PayrollRun run,
     Box<Payslip> slipsBox,
