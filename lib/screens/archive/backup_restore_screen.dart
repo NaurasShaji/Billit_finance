@@ -1252,6 +1252,7 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'createdAt': t.createdAt.toIso8601String(),
                 'postedAt': t.postedAt?.toIso8601String(),
                 'reversedTransactionId': t.reversedTransactionId,
+                'dueDate': t.dueDate?.toIso8601String(),
               })
           .toList(),
       'financePostings': financePostingsBox.values
