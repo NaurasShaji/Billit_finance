@@ -145,7 +145,7 @@ class FinanceSchemaMigration {
         },
       );
 
-  /// Adds recurring transaction templates; generated entries remain in the journal.
+  /// Adds primitive-map storage for immutable invoice payment allocations.
   static SchemaMigration get versionSevenToEight => SchemaMigration(
         fromVersion: 7,
         toVersion: 8,
