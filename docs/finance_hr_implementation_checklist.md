@@ -21,7 +21,7 @@ Work branch: `feature/finance-team-promotion`
 - Added deterministic write-failure injection to the restore service and a Hive integration test that throws after all replacement writes, then verifies that all original business-data boxes, all seven finance boxes, and app settings are restored.
 - **Validation pending:** the parser/Hive tests (including the new rollback test), Flutter test suite, static analysis, and builds have not been run.
 - Added finance ledger models and Hive adapters using type IDs 10–14, 21, and 22: accounts, transaction headers, posting lines, categories, parties, budgets, and recurring templates.
-- Added schema migrations 1→2 and 2→3 to create the seven finance boxes and seed eleven deterministic accounts, including GST payable and salary expense.
+- Added schema migrations 1→2 and 2→3 to create the five initial ledger boxes and seed eleven deterministic accounts, including GST payable and salary expense. Later migrations 5→6 and 6→7 add budget and recurring-template boxes.
 - Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, account/category/party reference validation, unique transaction numbers/source IDs, and posted-only account balances.
 - Added immutable reversal posting: exact opposite journal lines are appended and the original posted transaction is not modified.
 - Added finance persistence/migration and ledger integrity tests. These are authored but have not been executed.
