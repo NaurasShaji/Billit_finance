@@ -6,6 +6,7 @@ import '../../../services/boxes.dart';
 import '../../../services/finance_source_sync_service.dart';
 import '../../../models/models.dart';
 import '../../../utils/theme_colors.dart';
+import '../../../widgets/responsive_page.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({super.key});
@@ -53,7 +54,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final theme = Theme.of(context);
     final currency = NumberFormat.simpleCurrency(locale: 'en_IN');
 
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       backgroundColor:
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
@@ -520,7 +521,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _saveExpense() async {
@@ -629,7 +630,7 @@ class _AddExpenseCategoryScreenState extends State<AddExpenseCategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: const Text('Add Expense Category'),
         actions: [
@@ -668,6 +669,6 @@ class _AddExpenseCategoryScreenState extends State<AddExpenseCategoryScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
