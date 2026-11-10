@@ -136,6 +136,77 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
     reason.dispose();
   }
 
+  Future<void> _managePolicies() async {
+    final service = HrService();
+    final current = service.leavePolicies();
+    final controllers = <String, TextEditingController>{
+      for (final type in HrService.leaveTypes)
+        type: TextEditingController(
+          text: current[type]!.annualEntitlementDays.toString(),
+        ),
+    };
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Annual leave entitlements'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Accrual is monthly from the employee joining date or 1 January, whichever is later. Approved leave reduces the current calendar-year balance.'),
+                const SizedBox(height: 12),
+                for (final type in HrService.leaveTypes)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: controllers[type],
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: '${type[0].toUpperCase()}${type.substring(1)} (days/year)',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save policies')),
+        ],
+      ),
+    );
+    if (saved == true) {
+      try {
+        final policies = <String, LeavePolicy>{};
+        for (final type in HrService.leaveTypes) {
+          final days = int.tryParse(controllers[type]!.text.trim());
+          if (days == null || days < 0 || days > 365) {
+            throw const HrServiceException('Enter a whole-number entitlement from 0 to 365 for every leave type.');
+          }
+          policies[type] = LeavePolicy(
+            annualEntitlementDays: days,
+            accrualEnabled: days > 0,
+          );
+        }
+        await service.saveLeavePolicies(policies);
+        if (mounted) setState(() {});
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not save leave policies: $error')),
+          );
+        }
+      }
+    }
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+  }
+
   Future<void> _review(LeaveRequest request, String decision) async {
     try {
       await HrService().reviewLeaveRequest(
@@ -170,6 +241,11 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
       appBar: AppBar(
         title: const Text('Leave management'),
         actions: [
+          IconButton(
+            onPressed: _managePolicies,
+            tooltip: 'Configure leave policies',
+            icon: const Icon(Icons.tune),
+          ),
           IconButton(
             onPressed: _newRequest,
             tooltip: 'New leave request',
@@ -232,6 +308,22 @@ class _LeaveManagementScreenState extends State<LeaveManagementScreen> {
                         '${_dateFormat.format(request.startDate)} – '
                         '${_dateFormat.format(request.endDate)}',
                       ),
+                      if (employee != null &&
+                          request.leaveType != 'unpaid' &&
+                          request.leaveType != 'other') ...[
+                        const SizedBox(height: 4),
+                        Builder(builder: (context) {
+                          final balance = HrService().leaveBalance(
+                            employeeId: employee.id,
+                            leaveType: request.leaveType,
+                          );
+                          return Text(
+                            'Current balance: ${balance.availableDays.toStringAsFixed(1)} days available '
+                            '(${balance.entitledDays.toStringAsFixed(1)} accrued, ${balance.usedDays} used)',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          );
+                        }),
+                      ],
                       if (request.reason.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Text(request.reason),
