@@ -252,6 +252,35 @@ void main() {
     expect(runs.get(run.id)!.status, 'paid');
   });
 
+  test('retrying an already-paid payslip repairs stale payroll run status',
+      () async {
+    final run = await payroll.generateRun(
+      periodStart: DateTime(2026, 11, 1),
+      periodEnd: DateTime(2026, 11, 30),
+    );
+    await payroll.approveRun(run.id);
+    final monthlySlip = payslips.values.singleWhere(
+      (slip) => slip.employeeId == 'monthly-1',
+    );
+    await payroll.payPayslip(
+      payslipId: monthlySlip.id,
+      amountPaise: monthlySlip.netPaise,
+    );
+    expect(runs.get(run.id)!.status, 'paid');
+
+    final staleRun = runs.get(run.id)!
+      ..status = 'approved'
+      ..paidAt = null;
+    await runs.put(staleRun.id, staleRun);
+
+    final retry = await payroll.payPayslip(
+      payslipId: monthlySlip.id,
+      amountPaise: 1,
+    );
+    expect(retry.status, 'paid');
+    expect(runs.get(run.id)!.status, 'paid');
+  });
+
   test('paying a payslip cannot exceed the remaining balance', () async {
     final run = await payroll.generateRun(
       periodStart: DateTime(2026, 11, 1),
