@@ -100,6 +100,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Add expense correction workflow with a required reason and backed-up correction history; retain the original payment account, reverse the previous journal revision, post the corrected snapshot with the reason in its journal memo, and complete pending correction history after a retry; payroll-generated expenses remain locked to payroll correction controls.
 - [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
 - [x] Add bank statement reconciliation for active INR asset accounts: CSV import, duplicate-file protection, signed-amount/direction matching against posted ledger lines within a five-day date window, one-to-one match protection, unmatch audit history, and backed-up statement/match records. CSV import supports Date + Debit/Credit or signed Amount columns.
+- [x] Add schema v12 Inventory Asset control account and automatic POS COGS journals from sale cost snapshots (Dr Cost of Goods Sold / Cr Inventory Asset), with revision reversals on sale edits/deletion and source-to-journal reconciliation checks.
 - [x] Add configurable income/expense categories with linked ledger accounts and category-aware manual journal entries.
 - [x] Add configurable POS payment methods and account mapping for cash, card, and UPI. The Finance payment-account screen saves active INR asset-account mappings; startup and retry POS journal sync use them. Existing posted entries remain unchanged.
 - [x] Add posted-journal search (transaction number, memo, type, reference, and source ID), transaction-type and inclusive date-range filters, and sorting by date, amount, or transaction number. Flutter tests and UI verification remain pending.
@@ -321,3 +322,11 @@ Release validation and regression tests remain pending and are intentionally own
 - Candidate matching requires the same bank account, exact signed amount/direction, a posted journal line, and a transaction date within five days. A ledger posting cannot be matched to multiple statement lines.
 - Match and unmatch decisions append history records; unmatching does not erase the prior match event. Statement lines remain available for follow-up until matched.
 - CSV format: Date, Description, optional Reference, Debit, Credit; alternatively Date, Description, optional Reference, signed Amount (deposits positive, withdrawals negative). No build or validation was run.
+
+## POS inventory cost integration — 11 November 2026
+
+- Schema v12 adds the Inventory Asset control account without changing existing balances or Hive adapter IDs.
+- POS sale synchronization now posts a separate immutable COGS adjustment when the sale snapshot contains a positive total cost: debit Cost of Goods Sold and credit Inventory Asset. Sales revenue/GST receipt journals remain separate and unchanged.
+- Sale edits reverse prior-revision COGS journals before posting the new cost snapshot. Sale deletion reverses both the revenue/GST journal and the COGS journal.
+- Finance source reconciliation now checks the COGS source amount, detects missing/duplicate/reversed current COGS journals, and reports orphaned COGS journals.
+- Shops migrating existing inventory should record the opening Inventory Asset balance before relying on the resulting stock valuation; the automatic COGS entry uses the sale's stored cost snapshot. Validation was not run.
