@@ -21,19 +21,19 @@ Work branch: `feature/finance-team-promotion`
 - Added deterministic write-failure injection to the restore service and a Hive integration test that throws after all replacement writes, then verifies that all original business-data boxes, all five finance boxes, and app settings are restored.
 - **Validation pending:** the parser/Hive tests (including the new rollback test), Flutter test suite, static analysis, and builds have not been run.
 - Added finance ledger models and Hive adapters using type IDs 10–14: accounts, transaction headers, posting lines, categories, and parties.
-- Added schema migration 1→2 to create the five finance boxes and seed nine deterministic default accounts.
-- Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, active account references, unique transaction numbers/source IDs, and posted-only account balance calculation.
+- Added schema migrations 1→2 and 2→3 to create the five finance boxes and seed eleven deterministic accounts, including GST payable and salary expense.
+- Added `FinanceLedgerService` validation and posting: integer-paise debit/credit lines, minimum two lines, balanced totals, account/category/party reference validation, unique transaction numbers/source IDs, and posted-only account balances.
 - Added immutable reversal posting: exact opposite journal lines are appended and the original posted transaction is not modified.
 - Added finance persistence/migration and ledger integrity tests. These are authored but have not been executed.
 - Extended Google Drive backup export, parser, restore, snapshots, and rollback to include all five finance boxes. Legacy backups without finance keys preserve current finance data; partial finance collection sets, broken cross-references, duplicate transaction/source identifiers, invalid posting lines, and unbalanced posted entries are rejected before writes.
-- **Next:** execute the full test suite, build_runner verification, Dart formatting, and static analysis in a Flutter-enabled environment. Then implement finance transaction workflows and legacy POS/expense journal integration.
+- Added `FinanceSourceSyncService` for legacy POS sales, GST split, general expenses, and payroll expenses. Stable source IDs and `financeRevision` fields prevent duplicate imports and represent invoice edits as reversal plus replacement entries. Invoice/expense deletion creates reversals. Startup reconciliation reports failures and the Finance tab exposes retry. Manual income/expense/transfer entry and initial accounts, journal, P&L, and cash-flow screens are present. `build_runner`, formatting, analysis, tests, and Android build remain unverified.
 
 ## Phase 0 — Repository audit and safe foundation
 
 - [x] Inspect current Finance and Team screens/services on this branch.
 - [x] Inspect employee and expense persistence models.
 - [x] Inspect Google Drive backup export/import compatibility.
-- [x] Identify branch divergence from latest main (this branch is currently 9 commits ahead and 5 behind; integration remains pending).
+- [x] Identify branch divergence from latest main (this branch is currently 138 commits ahead and 5 behind; integration remains pending).
 - [x] Complete audit of Hive adapter registrations, box names, and startup initialization.
 - [x] Document existing Hive type IDs, field IDs, and migration constraints. See [persistence schema audit](persistence_schema_audit.md).
 - [x] Decide and document persistence strategy for the full finance ledger. See [finance ledger persistence decision](finance_ledger_persistence_decision.md).
@@ -43,6 +43,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Add parser tests for legacy backup compatibility and malformed data.
 - [x] Add Hive integration tests for restore application, malformed-payload data preservation, and legacy settings behavior.
 - [x] Add a deterministic failure-injection test for rollback after a Hive write failure (authored; execution pending).
+- [x] Fix the misplaced finance box constants declaration that prevented `Boxes.finance*` references from compiling.
+- [x] Fix the immutable-posting test fixture so it constructs a new posting instead of mutating a final field.
 
 ## Phase 1 — Payroll correctness (in progress)
 
@@ -66,7 +68,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Add schema migration and default chart-of-accounts seed.
 - [x] Implement initial balanced journal validation and posting service (service-level integrity only; UI workflows pending).
 - [x] Extend Google Drive backup/restore and rollback to finance boxes (integration tests authored; execution pending).
-- [ ] Implement income, expense, transfer, and adjustment UI workflows.
+- [x] Implement manual income, expense, and transfer journal workflows.
+- [ ] Implement adjustment UI workflow.
 - [ ] Add configurable categories and payment methods.
 - [ ] Add transaction search, filtering, sorting, and date ranges.
 - [ ] Add recurring transactions.
@@ -79,7 +82,7 @@ Work branch: `feature/finance-team-promotion`
 - [ ] Partial payment allocation and outstanding balances.
 - [ ] Budgets and actual-versus-budget reports.
 - [ ] Cash-flow and profit-and-loss reports.
-- [ ] Clearly distinguish POS gross profit from accounting net profit.
+- [x] Clearly distinguish POS gross-profit estimate from journal-based accounting profit.
 - [ ] PDF and spreadsheet exports.
 
 ## Phase 4 — HR foundation
@@ -113,7 +116,8 @@ Work branch: `feature/finance-team-promotion`
 
 ## Phase 8 — UI/UX redesign
 
-- [ ] Finance dashboard and navigation redesign.
+- [x] Add initial Finance ledger overview, accounts, and journal navigation.
+- [ ] Complete Finance dashboard and navigation redesign.
 - [ ] Finance ledger, accounts, receivables, payables, budgets, and reports screens.
 - [ ] HR dashboard, employee directory, and profile redesign.
 - [ ] Attendance, leave, payroll, and payslip screens.
@@ -122,7 +126,7 @@ Work branch: `feature/finance-team-promotion`
 
 ## Phase 9 — Regression and release
 
-- [ ] Dart format and Flutter analyze.
+- [ ] Run build_runner, Dart format, and Flutter analyze.
 - [ ] Run all unit and widget tests.
 - [ ] Build supported targets.
 - [ ] Test upgrade with existing Billit data.
