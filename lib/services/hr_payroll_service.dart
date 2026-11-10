@@ -1404,6 +1404,10 @@ class HrPayrollService {
       var total = 0.0;
       for (final record in records) {
         final rate = basePayPaiseFor(employee, record.date);
+        final grade = salaryGradeFor(employee.id, record.date);
+        if (grade != null && (rate < (grade['minPaise'] as int) || rate > (grade['maxPaise'] as int))) {
+          throw HrPayrollServiceException('Daily base pay for ${employee.name} is outside the assigned salary grade range.');
+        }
         if (record.status == 'present') total += rate;
         if (record.status == 'half_day') total += rate / 2;
       }
@@ -1412,6 +1416,10 @@ class HrPayrollService {
     var total = 0.0;
     for (var day = first; !day.isAfter(last); day = day.add(const Duration(days: 1))) {
       final base = basePayPaiseFor(employee, day);
+      final grade = salaryGradeFor(employee.id, day);
+      if (grade != null && (base < (grade['minPaise'] as int) || base > (grade['maxPaise'] as int))) {
+        throw HrPayrollServiceException('Base pay for ${employee.name} is outside the assigned salary grade range.');
+      }
       final daysInMonth = DateTime(day.year, day.month + 1, 0).day;
       final dailyRate = switch (frequency) {
         'daily' => base * 12 / 365,
@@ -1436,6 +1444,11 @@ class HrPayrollService {
       throw const HrPayrollServiceException('Employee was not found.');
     }
     final date = _day(effectiveDate);
+    final employee = Hive.box<Employee>(Boxes.employees).get(employeeId)!;
+    final grade = salaryGradeFor(employeeId, date);
+    if (grade != null && (basePaise < (grade['minPaise'] as int) || basePaise > (grade['maxPaise'] as int))) {
+      throw const HrPayrollServiceException('New base pay is outside the assigned salary grade range.');
+    }
     final hasSnapshot = Hive.box<PayrollRun>(Boxes.payrollRuns).values.any(
       (run) => !_day(run.periodEnd).isBefore(date),
     );
