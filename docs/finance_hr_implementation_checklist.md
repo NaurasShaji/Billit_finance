@@ -142,7 +142,8 @@ Work branch: `feature/finance-team-promotion`
 - [x] Allowances and deductions in payroll runs.
 - [x] Dated overtime entries with hours and hourly rates, included in payroll gross and payslip totals; one-off dated bonuses with descriptions and amounts, included only in the payroll period containing their date. Both are backed up and restore-validated. Overtime approval workflow and reimbursements remain outstanding.
 - [x] Employee advance register with principal/outstanding balances, instalment amount, first due date, manual repayments, repayment history, and profile UI; payroll-period instalments are snapshotted as deductions and recovered against the advance only when the payslip is fully settled. Backup/restore includes employee advances and pending payroll deduction snapshots with reference and balance validation. Tests/builds remain unrun.
-- [ ] Post advance disbursements and recoveries to the finance journal; add linked cash/bank account selection and reconciliation.
+- [x] Add the Employee Advances asset account through schema migration v9; post advance issuance (debit Employee Advances, credit selected INR asset account) and manual repayments (debit selected INR asset account, credit Employee Advances) as balanced, idempotency-keyed journal adjustments. The service accepts a cash/bank asset account ID and defaults to Cash for existing UI calls. Payroll instalment recoveries are still operational-only and are not yet journal-posted; account selection UI, reconciliation, and reversal/correction remain open.
+- [ ] Add cash/bank account selection to the employee advance and repayment dialogs; journal payroll instalment recovery and reconcile advance subledger to the Employee Advances control account.
 - [x] Payroll runs with draft, approval, partial-payment, and paid states.
 - [x] Payslip generation and payroll history.
 - [x] Payslip PDF/print output.
