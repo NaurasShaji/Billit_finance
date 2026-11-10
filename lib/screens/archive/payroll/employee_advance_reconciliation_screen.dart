@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/hr_payroll_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
   const EmployeeAdvanceReconciliationScreen({super.key});
@@ -67,7 +68,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
     final postings = Hive.box<FinancePosting>(Boxes.financePostings);
 
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(title: const Text('Employee advance reconciliation')),
       body: ValueListenableBuilder<Box<dynamic>>(
         valueListenable: settings.listenable(keys: [
@@ -478,7 +479,7 @@ class EmployeeAdvanceReconciliationScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 
 
