@@ -342,30 +342,31 @@ class _FinanceTabState extends State<FinanceTab> {
   }
 
   Widget _metrics(FinanceSummary s, FinanceLedgerSummary accounting, NumberFormat currency) {
+    final scheme = Theme.of(context).colorScheme;
     final cards = [
       _MetricTile(
         title: 'POS sales total',
         value: currency.format(s.revenue),
         icon: Icons.point_of_sale_rounded,
-        color: Colors.blue,
+        color: scheme.primary,
       ),
       _MetricTile(
         title: 'POS gross profit estimate',
         value: currency.format(s.grossProfit),
         icon: Icons.trending_up_rounded,
-        color: Colors.green,
+        color: scheme.tertiary,
       ),
       _MetricTile(
         title: 'Accounting expenses',
         value: currency.format(accounting.expensePaise / 100),
         icon: Icons.receipt_long_outlined,
-        color: Colors.deepOrange,
+        color: scheme.error,
       ),
       _MetricTile(
         title: 'Net cash flow',
         value: currency.format(accounting.netCashFlowPaise / 100),
         icon: Icons.account_balance_wallet_outlined,
-        color: Colors.indigo,
+        color: scheme.secondary,
       ),
     ];
     return LayoutBuilder(builder: (context, constraints) {
@@ -438,7 +439,7 @@ class _NetProfitCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final positive = summary.netProfit >= 0;
-    final tone = positive ? Colors.green : Colors.red;
+    final tone = positive ? scheme.primary : scheme.error;
 
     return Container(
       width: double.infinity,
@@ -503,7 +504,7 @@ class _AccountingProfitCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final positive = summary.netProfitPaise >= 0;
-    final color = positive ? Colors.green : Colors.red;
+    final color = positive ? scheme.primary : scheme.error;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -663,8 +664,8 @@ class _Breakdown extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     backgroundColor: scheme.surfaceContainerHighest,
                     color: c.isSalary
-                        ? Colors.indigo.shade400
-                        : Colors.deepOrange.shade400,
+                        ? Theme.of(context).colorScheme.secondary
+                        : Theme.of(context).colorScheme.error,
                   ),
                 ],
               ),
@@ -691,7 +692,7 @@ class _ExpenseRow extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final salary = FinanceService.isSalary(expense);
-    final color = salary ? Colors.indigo : Colors.deepOrange;
+    final color = salary ? Theme.of(context).colorScheme.secondary : Theme.of(context).colorScheme.error;
     final title = expense.description.trim().isNotEmpty
         ? expense.description.trim()
         : FinanceService.categoryLabel(expense.category);
