@@ -264,6 +264,15 @@ void main() {
     expect(run.totalGrossPaise, 3000000);
 
     await expectLater(
+      payroll.addOvertimeEntry(
+        employeeId: 'monthly-1',
+        date: DateTime(2026, 11, 8),
+        hours: 1,
+        hourlyRatePaise: 100000,
+      ),
+      throwsA(isA<HrPayrollServiceException>()),
+    );
+    await expectLater(
       payroll.approveOvertimeEntry(
         employeeId: 'monthly-1',
         entryId: pending['id'] as String,
