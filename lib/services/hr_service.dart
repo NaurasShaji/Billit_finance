@@ -81,6 +81,19 @@ class HrService {
 
     final id = attendanceId(employeeId, date);
     final existing = attendance.get(id);
+    if (Hive.isBoxOpen(Boxes.expenses)) {
+      final paidToday = Hive.box<Expense>(Boxes.expenses).values.any(
+        (expense) =>
+            expense.employeeId == employeeId &&
+            expense.category == 'Salary-Daily' &&
+            day(expense.date) == day(date),
+      );
+      if (paidToday && (existing == null || existing.status != status)) {
+        throw const HrServiceException(
+          'Attendance cannot change after a daily wage payment has been recorded.',
+        );
+      }
+    }
     if (existing != null &&
         existing.notes.startsWith('Approved leave request')) {
       throw const HrServiceException(
