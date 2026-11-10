@@ -10,4 +10,8 @@ class Boxes {
   static const financePostings = 'finance_postings';
   static const financeCategories = 'finance_categories';
   static const financeParties = 'finance_parties';
+
+  static const hrDepartments = 'hr_departments';
+  static const employeeAttendance = 'employee_attendance';
+  static const leaveRequests = 'leave_requests';
 }
