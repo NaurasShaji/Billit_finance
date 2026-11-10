@@ -82,10 +82,9 @@ class HrService {
     final id = attendanceId(employeeId, date);
     final existing = attendance.get(id);
     if (existing != null &&
-        existing.notes.startsWith('Approved leave request') &&
-        status != 'leave') {
+        existing.notes.startsWith('Approved leave request')) {
       throw const HrServiceException(
-        'Attendance created by an approved leave request cannot be overwritten.',
+        'Attendance created by an approved leave request is locked.',
       );
     }
     final record = EmployeeAttendance(
