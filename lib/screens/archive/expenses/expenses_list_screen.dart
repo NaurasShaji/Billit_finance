@@ -671,25 +671,31 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 ),
               ),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: IconButton(
-                  onPressed: () => _deleteExpense(expense),
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: Colors.red.shade600,
-                    size: 18,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!expense.id.startsWith('payroll-payment:'))
+                    IconButton(
+                      onPressed: () => _editExpense(expense),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      tooltip: 'Correct expense',
+                    ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: IconButton(
+                      onPressed: () => _deleteExpense(expense),
+                      icon: Icon(Icons.delete_outline, color: Colors.red.shade600, size: 18),
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      tooltip: 'Delete expense',
+                    ),
                   ),
-                  padding: const EdgeInsets.all(6),
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  tooltip: 'Delete expense',
-                ),
+                ],
               ),
             ],
           ),
@@ -763,6 +769,135 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
         },
       );
       if (selected != null) setState(() => _anchor = DateTime(selected, 1, 1));
+    }
+  }
+
+  Future<void> _editExpense(Expense expense) async {
+    if (expense.id.startsWith('payroll-payment:')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payroll payments must be corrected through payroll.')),
+      );
+      return;
+    }
+    final category = TextEditingController(text: expense.category);
+    final amount = TextEditingController(text: expense.amount.toStringAsFixed(2));
+    final description = TextEditingController(text: expense.description);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Correct expense'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: category,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amount,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Amount', prefixText: '₹ '),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: description,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'The original date and payment account are retained. The previous journal entry will be reversed and a new revision posted.',
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Post correction')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final nextCategory = category.text.trim();
+      final nextAmount = double.tryParse(amount.text.trim());
+      if (nextCategory.isEmpty || nextAmount == null || !nextAmount.isFinite || nextAmount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a category and a positive valid amount.')),
+        );
+        return;
+      }
+
+      final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+      final postings = Hive.box<FinancePosting>(Boxes.financePostings);
+      final sourceId = '${expense.id}:${expense.financeRevision}';
+      final sourceJournals = transactions.values.where((tx) =>
+          tx.sourceType == 'legacy_expense' && tx.sourceId == sourceId).toList();
+      var paymentAccountId = 'system:cash';
+      if (sourceJournals.length > 1) {
+        throw StateError('Duplicate source journals exist. Reconcile this expense before correcting it.');
+      }
+      if (sourceJournals.length == 1) {
+        final credits = postings.values.where((line) =>
+            line.transactionId == sourceJournals.single.id && line.creditPaise > 0).toList();
+        if (credits.length != 1) {
+          throw StateError('The original expense payment account cannot be identified. Reconcile it before correcting this expense.');
+        }
+        paymentAccountId = credits.single.accountId;
+      }
+
+      final oldCategory = expense.category;
+      final oldAmount = expense.amount;
+      final oldDescription = expense.description;
+      final oldRevision = expense.financeRevision;
+      expense
+        ..category = nextCategory
+        ..amount = nextAmount
+        ..description = description.text.trim()
+        ..financeRevision = oldRevision + 1;
+      await Hive.box<Expense>(Boxes.expenses).put(expense.id, expense);
+      try {
+        await FinanceSourceSyncService().syncExpense(
+          expense: expense,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: transactions,
+          postingsBox: postings,
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+          employeesBox: Hive.box<Employee>(Boxes.employees),
+          paymentAccountId: paymentAccountId,
+        );
+      } catch (error) {
+        await FinanceSourceSyncService.recordIssue(
+          Hive.box<dynamic>('app_settings'),
+          'Expense correction ${expense.id} revision ${expense.financeRevision}: $error',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Correction saved, but journal sync failed. Retry Finance reconciliation before editing it again: $error')),
+          );
+        }
+        return;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Expense corrected. The previous journal was reversed and the new revision posted.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not correct expense: $error')),
+        );
+      }
+    } finally {
+      category.dispose();
+      amount.dispose();
+      description.dispose();
     }
   }
 
