@@ -569,7 +569,8 @@ class HrPayrollService {
   int _bonusPaise(String employeeId, DateTime start, DateTime end) {
     return bonusEntries(employeeId).where((entry) {
       final date = _day(DateTime.parse(entry['date'] as String));
-      return !date.isBefore(start) && !date.isAfter(end);
+      final status = entry['status'] ?? 'approved';
+      return status == 'approved' && !date.isBefore(start) && !date.isAfter(end);
     }).fold<int>(
       0,
       (total, entry) => total + (entry['amountPaise'] as int),
@@ -623,10 +624,71 @@ class HrPayrollService {
       'hoursMilli': hoursMilli,
       'hourlyRatePaise': hourlyRatePaise,
       'amountPaise': (hoursMilli * hourlyRatePaise / 1000).round(),
+      'status': 'pending',
       'createdAt': DateTime.now().toIso8601String(),
     });
     allEntries[employeeId] = entries;
     await settings.put(overtimeSettingsKey, allEntries);
+  }
+
+  Future<void> _updateOvertimeStatus({
+    required String employeeId,
+    required String entryId,
+    required String status,
+    String reason = '',
+  }) async {
+    if (!{'approved', 'rejected'}.contains(status)) {
+      throw const HrPayrollServiceException('Unsupported overtime decision.');
+    }
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(overtimeSettingsKey);
+    if (raw is! Map || raw[employeeId] is! List) {
+      throw const HrPayrollServiceException('Overtime entry was not found.');
+    }
+    final all = Map<String, dynamic>.from(raw);
+    final entries = List<dynamic>.from(all[employeeId] as List);
+    final matches = entries.where((item) => item is Map && item['id'] == entryId).toList();
+    if (matches.length != 1) {
+      throw const HrPayrollServiceException('Overtime entry must exist exactly once.');
+    }
+    final entry = Map<String, dynamic>.from(matches.single as Map);
+    // Missing status is treated as approved for records created before this workflow.
+    if ((entry['status'] ?? 'approved') != 'pending') {
+      throw const HrPayrollServiceException('Only pending overtime entries can be reviewed.');
+    }
+    entry['status'] = status;
+    entry['reviewedAt'] = DateTime.now().toIso8601String();
+    entry['reviewNote'] = reason.trim();
+    entries[entries.indexWhere((item) => item is Map && item['id'] == entryId)] = entry;
+    all[employeeId] = entries;
+    await settings.put(overtimeSettingsKey, all);
+  }
+
+  Future<void> approveOvertimeEntry({
+    required String employeeId,
+    required String entryId,
+    String note = '',
+  }) => _updateOvertimeStatus(
+        employeeId: employeeId,
+        entryId: entryId,
+        status: 'approved',
+        reason: note,
+      );
+
+  Future<void> rejectOvertimeEntry({
+    required String employeeId,
+    required String entryId,
+    required String reason,
+  }) {
+    if (reason.trim().isEmpty) {
+      throw const HrPayrollServiceException('Enter a reason for rejecting overtime.');
+    }
+    return _updateOvertimeStatus(
+      employeeId: employeeId,
+      entryId: entryId,
+      status: 'rejected',
+      reason: reason,
+    );
   }
 
   int _approvedOvertimePaise(String employeeId, DateTime start, DateTime end) {
