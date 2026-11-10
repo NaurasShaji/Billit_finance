@@ -68,6 +68,19 @@ class HrService {
     if (!attendanceStatuses.contains(status)) {
       throw const HrServiceException('Unsupported attendance status.');
     }
+    if (checkOut != null && checkIn == null) {
+      throw const HrServiceException(
+        'Record check-in before recording check-out.',
+      );
+    }
+    final attendanceDay = day(date);
+    for (final timestamp in [checkIn, checkOut]) {
+      if (timestamp != null && day(timestamp) != attendanceDay) {
+        throw const HrServiceException(
+          'Check-in and check-out times must belong to the attendance date.',
+        );
+      }
+    }
     if (checkIn != null &&
         checkOut != null &&
         checkOut.isBefore(checkIn)) {
