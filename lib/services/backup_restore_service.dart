@@ -90,6 +90,11 @@ class BackupRestoreService {
     required Box<Expense> expensesBox,
     required Box<Employee> employeesBox,
     required Box<dynamic> appSettingsBox,
+    Box<FinanceAccount>? financeAccountsBox,
+    Box<FinanceTransaction>? financeTransactionsBox,
+    Box<FinancePosting>? financePostingsBox,
+    Box<FinanceCategory>? financeCategoriesBox,
+    Box<FinanceParty>? financePartiesBox,
     Future<void> Function(String stage)? afterWrite,
   }) async {
     final hasFinancePayload = payload.financeAccounts != null;
