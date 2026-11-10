@@ -18,17 +18,20 @@ void main() {
   setUp(() async {
     tempDirectory = await Directory.systemTemp.createTemp('billit_finance_test');
     Hive.init(tempDirectory.path);
-    final adapters = <int, TypeAdapter<dynamic>>{
-      10: FinanceAccountAdapter(),
-      11: FinanceTransactionAdapter(),
-      12: FinancePostingAdapter(),
-      13: FinanceCategoryAdapter(),
-      14: FinancePartyAdapter(),
-    };
-    for (final entry in adapters.entries) {
-      if (!Hive.isAdapterRegistered(entry.key)) {
-        Hive.registerAdapter(entry.value);
-      }
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(FinanceAccountAdapter());
+    }
+    if (!Hive.isAdapterRegistered(11)) {
+      Hive.registerAdapter(FinanceTransactionAdapter());
+    }
+    if (!Hive.isAdapterRegistered(12)) {
+      Hive.registerAdapter(FinancePostingAdapter());
+    }
+    if (!Hive.isAdapterRegistered(13)) {
+      Hive.registerAdapter(FinanceCategoryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(14)) {
+      Hive.registerAdapter(FinancePartyAdapter());
     }
     settings = await Hive.openBox<dynamic>('app_settings');
     await SchemaMigrationService(
