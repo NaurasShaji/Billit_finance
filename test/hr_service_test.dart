@@ -163,6 +163,31 @@ void main() {
     );
   });
 
+  test('employee employment type and pay frequency persist with validation', () async {
+    final service = HrService();
+    expect(service.employeeWorkTerms(employees.get('employee-1')!), {
+      'employmentType': 'permanent',
+      'payFrequency': 'daily',
+    });
+    await service.saveEmployeeWorkTerms(
+      employeeId: 'employee-1',
+      employmentType: 'contract',
+      payFrequency: 'fortnightly',
+    );
+    expect(service.employeeWorkTerms(employees.get('employee-1')!), {
+      'employmentType': 'contract',
+      'payFrequency': 'fortnightly',
+    });
+    await expectLater(
+      service.saveEmployeeWorkTerms(
+        employeeId: 'employee-1',
+        employmentType: 'invalid',
+        payFrequency: 'monthly',
+      ),
+      throwsA(isA<HrServiceException>()),
+    );
+  });
+
   test('employment history persists per employee in app settings', () async {
     final service = HrService();
     await service.addEmploymentHistory(
