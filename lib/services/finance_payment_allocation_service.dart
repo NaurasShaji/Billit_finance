@@ -87,18 +87,18 @@ class FinanceAllocationDraft {\n  const FinanceAllocationDraft({required this.id
   int allocatedFromSettlement(String settlementId, {
     Iterable<FinanceTransaction>? transactions,
   }) {
-    final reversed = transactions == null
-        ? <String>{}
-        : transactions
-            .where((t) =>
-                t.status == 'posted' && t.transactionType == 'reversal')
-            .map((t) => t.reversedTransactionId)
-            .whereType<String>()
-            .toSet();
+    final posted = transactions == null ? null : {
+      for (final t in transactions)
+        if (t.status == 'posted') t.id: t,
+    };
+    final reversed = posted == null ? <String>{} : posted.values
+        .where((t) => t.transactionType == 'reversal')
+        .map((t) => t.reversedTransactionId).whereType<String>().toSet();
     if (reversed.contains(settlementId)) return 0;
-    return allocations
-        .where((a) => a.settlementTransactionId == settlementId)
-        .fold(0, (sum, a) => sum + a.amountPaise);
+    return allocations.where((a) =>
+      a.settlementTransactionId == settlementId &&
+      (posted == null || (posted.containsKey(a.invoiceTransactionId) && !reversed.contains(a.invoiceTransactionId)))
+    ).fold(0, (sum, a) => sum + a.amountPaise);
   }
 
   int invoiceAmountPaise({
@@ -209,6 +209,7 @@ class FinanceAllocationDraft {\n  const FinanceAllocationDraft({required this.id
     required Iterable<FinanceTransaction> transactions, required Iterable<FinancePosting> postings,
   }) async {
     if (drafts.isEmpty) return const [];
+    if (partyType != 'customer' && partyType != 'supplier') throw const FinanceAllocationException('Only customer and supplier allocations are supported.');
     final tx = transactions.toList(), lines = postings.toList();
     final gross = settlementAmountPaise(settlementId:settlementTransactionId, partyId:partyId, partyType:partyType, transactions:tx, postings:lines);
     final settlement = tx.firstWhere((t) => t.id == settlementTransactionId);
