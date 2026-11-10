@@ -280,6 +280,13 @@ class FinanceReconciliationService {
         continue;
       }
       final accrual = accruals.single;
+      if (_hasReversal(accrual.id, allTransactions)) {
+        payrollIssues.add(FinanceReconciliationIssue(
+          sourceType: 'payroll_accrual',
+          sourceId: slip.id,
+          message: 'Payroll accrual has been reversed but the payslip remains active.',
+        ));
+      }
       final expectedGross = slip.basePaise + slip.allowancesPaise;
       payrollGross += expectedGross;
       payrollAccrualCount++;
@@ -305,6 +312,13 @@ class FinanceReconciliationService {
           tx.sourceId.startsWith('${slip.id}:from:')).toList();
       var paidFromJournal = 0;
       for (final payment in payments) {
+        if (_hasReversal(payment.id, allTransactions)) {
+          payrollIssues.add(FinanceReconciliationIssue(
+            sourceType: 'payroll_payment',
+            sourceId: payment.sourceId,
+            message: 'Payroll payment journal has been reversed but the payslip payment register remains unchanged.',
+          ));
+        }
         final paymentLines = postings.where((line) =>
             line.transactionId == payment.id).toList();
         final payableDebit = paymentLines.where((line) =>
