@@ -382,8 +382,17 @@ class FinanceSourceSyncService {
     Box<dynamic>? settingsBox,
   }) async {
     const sourceType = 'pos_sale';
+    const cogsSourceType = 'pos_sale_cogs';
     final sourceId = _sourceId(sale.id, sale.financeRevision);
-    if (_hasSource(transactionsBox, sourceType, sourceId)) return false;
+    final cogsSourceId = _sourceId(sale.id, sale.financeRevision);
+    final incomeExists = _hasSource(transactionsBox, sourceType, sourceId);
+    final cogsPaise = _toPaise(sale.totalCost, 'Cost of goods for sale ${sale.id}');
+    if (cogsPaise < 0) {
+      throw FinanceLedgerException('Sale ${sale.id} has a negative inventory cost.');
+    }
+    final needsCogs = cogsPaise > 0;
+    final cogsExists = _hasSource(transactionsBox, cogsSourceType, cogsSourceId);
+    if (incomeExists && (!needsCogs || cogsExists)) return false;
 
     await _reversePreviousRevisions(
       sourceType: sourceType,
@@ -395,89 +404,139 @@ class FinanceSourceSyncService {
       categoriesBox: categoriesBox,
       partiesBox: partiesBox,
     );
-
-    final totalPaise = _toPaise(sale.totalAmount, 'Sale ${sale.id}');
-    if (totalPaise <= 0) {
-      throw FinanceLedgerException(
-        'Sale ${sale.id} must have a positive total.',
-      );
-    }
-    final taxPaise = sale.gstEnabled
-        ? _toPaise(
-            sale.cgstAmount + sale.sgstAmount + sale.igstAmount,
-            'GST for sale ${sale.id}',
-          )
-        : 0;
-    if (taxPaise > totalPaise) {
-      throw FinanceLedgerException(
-        'GST amount exceeds the total for sale ${sale.id}.',
-      );
-    }
-    final revenuePaise = totalPaise - taxPaise;
-    if (revenuePaise <= 0) {
-      throw FinanceLedgerException(
-        'Sale ${sale.id} has no positive sales revenue after GST.',
-      );
-    }
-
-    final transactionId =
-        'finance:sale:${sale.id}:r${sale.financeRevision}';
-    final method = switch (sale.payment) {
-      PaymentMethod.cash => 'cash',
-      PaymentMethod.card => 'card',
-      PaymentMethod.upi => 'upi',
-    };
-    final receiptAccount = paymentAccountFor(
-      method: method,
-      accountsBox: accountsBox,
-      settingsBox: settingsBox,
-    );
-    final lines = <FinancePosting>[
-      FinancePosting(
-        id: '$transactionId:receipt',
-        transactionId: transactionId,
-        accountId: receiptAccount,
-        debitPaise: totalPaise,
-        memo: 'POS receipt',
-      ),
-      FinancePosting(
-        id: '$transactionId:revenue',
-        transactionId: transactionId,
-        accountId: 'system:sales-income',
-        creditPaise: revenuePaise,
-        memo: 'Sales revenue',
-      ),
-    ];
-    if (taxPaise > 0) {
-      lines.add(
-        FinancePosting(
-          id: '$transactionId:gst',
-          transactionId: transactionId,
-          accountId: 'system:gst-payable',
-          creditPaise: taxPaise,
-          memo: 'GST collected',
-        ),
-      );
-    }
-
-    await _ledger.postTransaction(
-      transaction: FinanceTransaction(
-        id: transactionId,
-        transactionNumber: 'SALE-${sale.id}-${sale.financeRevision}',
-        transactionType: 'income',
-        date: sale.date,
-        memo: 'POS sale ${sale.id}',
-        reference: sale.id,
-        sourceType: sourceType,
-        sourceId: sourceId,
-      ),
-      postings: lines,
+    await _reversePreviousRevisions(
+      sourceType: cogsSourceType,
+      sourceRecordId: sale.id,
+      currentRevision: sale.financeRevision,
       accountsBox: accountsBox,
       transactionsBox: transactionsBox,
       postingsBox: postingsBox,
       categoriesBox: categoriesBox,
       partiesBox: partiesBox,
     );
+
+    if (!incomeExists) {
+      final totalPaise = _toPaise(sale.totalAmount, 'Sale ${sale.id}');
+      if (totalPaise <= 0) {
+        throw FinanceLedgerException(
+          'Sale ${sale.id} must have a positive total.',
+        );
+      }
+      final taxPaise = sale.gstEnabled
+          ? _toPaise(
+              sale.cgstAmount + sale.sgstAmount + sale.igstAmount,
+              'GST for sale ${sale.id}',
+            )
+          : 0;
+      if (taxPaise > totalPaise) {
+        throw FinanceLedgerException(
+          'GST amount exceeds the total for sale ${sale.id}.',
+        );
+      }
+      final revenuePaise = totalPaise - taxPaise;
+      if (revenuePaise <= 0) {
+        throw FinanceLedgerException(
+          'Sale ${sale.id} has no positive sales revenue after GST.',
+        );
+      }
+
+      final transactionId =
+          'finance:sale:${sale.id}:r${sale.financeRevision}';
+      final method = switch (sale.payment) {
+        PaymentMethod.cash => 'cash',
+        PaymentMethod.card => 'card',
+        PaymentMethod.upi => 'upi',
+      };
+      final receiptAccount = paymentAccountFor(
+        method: method,
+        accountsBox: accountsBox,
+        settingsBox: settingsBox,
+      );
+      final lines = <FinancePosting>[
+        FinancePosting(
+          id: '$transactionId:receipt',
+          transactionId: transactionId,
+          accountId: receiptAccount,
+          debitPaise: totalPaise,
+          memo: 'POS receipt',
+        ),
+        FinancePosting(
+          id: '$transactionId:revenue',
+          transactionId: transactionId,
+          accountId: 'system:sales-income',
+          creditPaise: revenuePaise,
+          memo: 'Sales revenue',
+        ),
+      ];
+      if (taxPaise > 0) {
+        lines.add(
+          FinancePosting(
+            id: '$transactionId:gst',
+            transactionId: transactionId,
+            accountId: 'system:gst-payable',
+            creditPaise: taxPaise,
+            memo: 'GST collected',
+          ),
+        );
+      }
+
+      await _ledger.postTransaction(
+        transaction: FinanceTransaction(
+          id: transactionId,
+          transactionNumber: 'SALE-${sale.id}-${sale.financeRevision}',
+          transactionType: 'income',
+          date: sale.date,
+          memo: 'POS sale ${sale.id}',
+          reference: sale.id,
+          sourceType: sourceType,
+          sourceId: sourceId,
+        ),
+        postings: lines,
+        accountsBox: accountsBox,
+        transactionsBox: transactionsBox,
+        postingsBox: postingsBox,
+        categoriesBox: categoriesBox,
+        partiesBox: partiesBox,
+      );
+    }
+
+    if (needsCogs && !cogsExists) {
+      final cogsTransactionId =
+          'finance:sale-cogs:${sale.id}:r${sale.financeRevision}';
+      await _ledger.postTransaction(
+        transaction: FinanceTransaction(
+          id: cogsTransactionId,
+          transactionNumber: 'COGS-${sale.id}-${sale.financeRevision}',
+          transactionType: 'adjustment',
+          date: sale.date,
+          memo: 'Inventory cost recognized for POS sale ${sale.id}',
+          reference: sale.id,
+          sourceType: cogsSourceType,
+          sourceId: cogsSourceId,
+        ),
+        postings: [
+          FinancePosting(
+            id: '$cogsTransactionId:expense',
+            transactionId: cogsTransactionId,
+            accountId: 'system:cost-of-goods-sold',
+            debitPaise: cogsPaise,
+            memo: 'Cost of goods sold',
+          ),
+          FinancePosting(
+            id: '$cogsTransactionId:inventory',
+            transactionId: cogsTransactionId,
+            accountId: 'system:inventory',
+            creditPaise: cogsPaise,
+            memo: 'Inventory relieved',
+          ),
+        ],
+        accountsBox: accountsBox,
+        transactionsBox: transactionsBox,
+        postingsBox: postingsBox,
+        categoriesBox: categoriesBox,
+        partiesBox: partiesBox,
+      );
+    }
     return true;
   }
 
@@ -510,16 +569,18 @@ class FinanceSourceSyncService {
     required Box<FinanceCategory> categoriesBox,
     required Box<FinanceParty> partiesBox,
   }) async {
-    await _reverseCurrent(
-      sourceType: 'pos_sale',
-      sourceRecordId: sale.id,
-      revision: sale.financeRevision,
-      accountsBox: accountsBox,
-      transactionsBox: transactionsBox,
-      postingsBox: postingsBox,
-      categoriesBox: categoriesBox,
-      partiesBox: partiesBox,
-    );
+    for (final sourceType in ['pos_sale', 'pos_sale_cogs']) {
+      await _reverseCurrent(
+        sourceType: sourceType,
+        sourceRecordId: sale.id,
+        revision: sale.financeRevision,
+        accountsBox: accountsBox,
+        transactionsBox: transactionsBox,
+        postingsBox: postingsBox,
+        categoriesBox: categoriesBox,
+        partiesBox: partiesBox,
+      );
+    }
   }
 
   Future<void> _reverseCurrent({
