@@ -99,7 +99,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Implement balanced journal adjustment entry UI workflow.
 - [x] Add source-to-journal reconciliation report and retry action (tests authored; execution pending).
 - [x] Add configurable income/expense categories with linked ledger accounts and category-aware manual journal entries.
-- [ ] Add configurable payment methods and account mapping for POS and imported payment workflows. Manual finance entries already allow direct cash/bank account selection; POS sync still maps cash to Cash and card/UPI to Bank by default.
+- [x] Add configurable POS payment methods and account mapping for cash, card, and UPI. The Finance payment-account screen saves active INR asset-account mappings; startup and retry POS journal sync use them. Existing posted entries remain unchanged.
 - [x] Add posted-journal search (transaction number, memo, type, reference, and source ID), transaction-type and inclusive date-range filters, and sorting by date, amount, or transaction number. Flutter tests and UI verification remain pending.
 - [x] Add recurring transaction templates with daily/weekly/monthly/quarterly/yearly schedules, idempotent due processing, and month-end cadence handling (tests authored; execution pending).
 - [x] Add ledger integrity and balance tests (authored; execution pending).
@@ -255,3 +255,12 @@ Priority for the remaining Finance work is correctness and release safety, not a
 4. Preserve existing POS, GST, inventory, invoice, printing, and Google Drive backup behaviour. Do not merge this branch to main until branch integration and legacy Hive data migration are tested.
 
 This checklist records implementation only when code exists; validation items remain open until a passing CI run is observed.
+
+
+### POS payment-account mapping
+
+- [x] Persist cash/card/UPI destination account mapping in the existing app-settings backup collection.
+- [x] Add a Finance screen to select active INR asset accounts for each POS payment method.
+- [x] Apply configured mappings to startup and manual retry POS-to-journal synchronization, retaining the existing Cash/Bank defaults for shops that have not configured mappings.
+- [x] Add service tests for a separate UPI wallet account and rejection of invalid non-asset mappings (tests authored; execution pending).
+- [ ] Validate with Flutter test/analyze/build in CI.
