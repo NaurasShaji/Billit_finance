@@ -170,8 +170,8 @@ class FinanceLedgerService {
     final insertedIds = <String>[];
     try {
       for (final line in postings) {
-        await postingsBox.put(line.id, line);
         insertedIds.add(line.id);
+        await postingsBox.put(line.id, line);
       }
       transaction
         ..status = 'posted'
@@ -181,6 +181,11 @@ class FinanceLedgerService {
       transaction
         ..status = 'draft'
         ..postedAt = null;
+      try {
+        await transactionsBox.delete(transaction.id);
+      } catch (_) {
+        // Preserve the original write error; cleanup is best effort.
+      }
       for (final id in insertedIds.reversed) {
         try {
           await postingsBox.delete(id);
