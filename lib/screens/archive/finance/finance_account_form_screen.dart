@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_ledger_service.dart';
+import '../../../widgets/responsive_page.dart';
 
 class FinanceAccountFormScreen extends StatefulWidget {
   const FinanceAccountFormScreen({super.key, this.account});
@@ -247,7 +248,7 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ScaffolResponsivePage(child: Scaffold((
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit account' : 'New account'),
       ),
@@ -399,6 +400,6 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
           );
         },
       ),
-    );
+    ));
   }
 }
