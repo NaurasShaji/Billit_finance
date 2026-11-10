@@ -100,6 +100,9 @@ class HrService {
           policy.annualEntitlementDays > 365) {
         throw const HrServiceException('Leave entitlement must be between 0 and 365 days for every leave type.');
       }
+      if (type == 'unpaid' && policy.annualEntitlementDays != 0) {
+        throw const HrServiceException('Unpaid leave cannot accrue paid leave days.');
+      }
       if (!policy.accrualEnabled && policy.annualEntitlementDays != 0) {
         throw const HrServiceException('Disable accrual only when the entitlement is zero.');
       }
@@ -115,7 +118,7 @@ class HrService {
     required String leaveType,
     DateTime? asOf,
   }) {
-    if (!leaveTypes.contains(leaveType) || leaveType == 'unpaid' || leaveType == 'other') {
+    if (!leaveTypes.contains(leaveType) || leaveType == 'unpaid') {
       return LeaveBalance(leaveType: leaveType, entitledDays: 0, usedDays: 0);
     }
     final employee = Hive.box<Employee>(Boxes.employees).get(employeeId);
