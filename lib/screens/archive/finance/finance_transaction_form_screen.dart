@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../models/models.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_ledger_service.dart';
+import '../../../services/finance_payment_allocation_service.dart';
 
 class FinanceTransactionFormScreen extends StatefulWidget {
   const FinanceTransactionFormScreen({super.key});
@@ -27,11 +28,14 @@ class _FinanceTransactionFormScreenState
   String? _partyId;
   DateTime? _dueDate;
   bool _saving = false;
+  final List<String?> _allocationInvoiceIds = [];
+  final List<TextEditingController> _allocationAmountControllers = [];
 
   @override
   void dispose() {
     _amountController.dispose();
     _memoController.dispose();
+    for (final controller in _allocationAmountControllers) { controller.dispose(); }
     super.dispose();
   }
 
@@ -146,6 +150,22 @@ class _FinanceTransactionFormScreenState
         _ => 'Paid from / payable',
       };
 
+  bool get _supportsInvoiceAllocation => _type == 'customer_receipt' || _type == 'supplier_payment';
+
+  void _clearAllocationRows() {
+    for (final controller in _allocationAmountControllers) { controller.dispose(); }
+    _allocationInvoiceIds.clear();
+    _allocationAmountControllers.clear();
+  }
+
+  void _addAllocationRow() {
+    setState(() { _allocationInvoiceIds.add(null); _allocationAmountControllers.add(TextEditingController()); });
+  }
+
+  void _removeAllocationRow(int index) {
+    setState(() { _allocationInvoiceIds.removeAt(index); _allocationAmountControllers.removeAt(index).dispose(); });
+  }
+
   Future<void> _save() async {
     if (_saving || !_formKey.currentState!.validate()) return;
     final debitAccountId = _debitAccountId;
@@ -200,6 +220,26 @@ class _FinanceTransactionFormScreenState
 
     setState(() => _saving = true);
     try {
+      final allocationDrafts = <FinanceAllocationDraft>[];
+      if (_supportsInvoiceAllocation && _allocationInvoiceIds.isNotEmpty) {
+        final party = Hive.box<FinanceParty>(Boxes.financeParties).get(_partyId);
+        if (party == null) throw const FinanceAllocationException('Select a valid party before allocating.');
+        final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions).values.toList();
+        final postings = Hive.box<FinancePosting>(Boxes.financePostings).values.toList();
+        final allocationService = FinancePaymentAllocationService();
+        var allocationTotal = 0;
+        for (var i = 0; i < _allocationInvoiceIds.length; i++) {
+          final invoiceId = _allocationInvoiceIds[i];
+          final amount = _parsePaise(_allocationAmountControllers[i].text);
+          if (invoiceId == null || amount == null || amount <= 0) throw const FinanceAllocationException('Complete every invoice allocation row or remove it.');
+          final outstanding = allocationService.invoiceOutstandingPaise(invoiceId:invoiceId, partyId:party.id, partyType:party.partyType, transactions:transactions, postings:postings);
+          final duplicateTotal = allocationDrafts.where((d)=>d.invoiceTransactionId==invoiceId).fold<int>(0,(sum,d)=>sum+d.amountPaise);
+          if (duplicateTotal + amount > outstanding) throw const FinanceAllocationException('Allocation exceeds the invoice outstanding balance.');
+          allocationDrafts.add(FinanceAllocationDraft(id:const Uuid().v4(), invoiceTransactionId:invoiceId, amountPaise:amount));
+          allocationTotal += amount;
+        }
+        if (allocationTotal > amountPaise) throw const FinanceAllocationException('Total invoice allocations cannot exceed the receipt/payment amount.');
+      }
       final now = DateTime.now();
       final id = const Uuid().v4();
       final number =
@@ -243,6 +283,28 @@ class _FinanceTransactionFormScreenState
         categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
         partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
       );
+      if (allocationDrafts.isNotEmpty) {
+        try {
+          await FinancePaymentAllocationService().allocateBatch(
+            settlementTransactionId:id, partyId:_partyId!, partyType:_type == 'customer_receipt' ? 'customer' : 'supplier',
+            drafts:allocationDrafts,
+            transactions:Hive.box<FinanceTransaction>(Boxes.financeTransactions).values,
+            postings:Hive.box<FinancePosting>(Boxes.financePostings).values,
+          );
+        } catch (_) {
+          await FinanceLedgerService().reverseTransaction(
+            originalTransactionId:id, reversalId:const Uuid().v4(),
+            reversalNumber:'REV-$number', reversalDate:DateTime.now(),
+            accountsBox:Hive.box<FinanceAccount>(Boxes.financeAccounts),
+            transactionsBox:Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+            postingsBox:Hive.box<FinancePosting>(Boxes.financePostings),
+            categoriesBox:Hive.box<FinanceCategory>(Boxes.financeCategories),
+            partiesBox:Hive.box<FinanceParty>(Boxes.financeParties),
+            memo:'Automatic reversal: payment allocation could not be saved',
+          );
+          rethrow;
+        }
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) {
@@ -309,6 +371,7 @@ class _FinanceTransactionFormScreenState
                     _creditAccountId = null;
                     _categoryId = null;
                     _partyId = null;
+                    _clearAllocationRows();
                   }),
                 ),
                 const SizedBox(height: 20),
@@ -467,8 +530,10 @@ class _FinanceTransactionFormScreenState
                               child: Text(party.name),
                             ),
                         ],
-                        onChanged: (value) =>
-                            setState(() => _partyId = value),
+                        onChanged: (value) => setState(() {
+                          _partyId = value;
+                          _clearAllocationRows();
+                        }),
                         validator: (value) => _partyRequired && value == null
                             ? 'Select a party'
                             : null,
@@ -477,6 +542,42 @@ class _FinanceTransactionFormScreenState
                   ),
                 ],
                 const SizedBox(height: 16),
+                if (_supportsInvoiceAllocation && _partyId != null) ...[
+                  const SizedBox(height: 20),
+                  Text('Allocate to invoices (optional)', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  const Text('Split this receipt/payment across one or more open invoices. Any unallocated amount remains as a party advance.'),
+                  ValueListenableBuilder<Box<FinanceTransaction>>(
+                    valueListenable:Hive.box<FinanceTransaction>(Boxes.financeTransactions).listenable(),
+                    builder:(context, txBox, _) => ValueListenableBuilder<Box<FinancePosting>>(
+                      valueListenable:Hive.box<FinancePosting>(Boxes.financePostings).listenable(),
+                      builder:(context, postingBox, __) {
+                        final partyType = _type == 'customer_receipt' ? 'customer' : 'supplier';
+                        final accountId = partyType == 'customer' ? 'system:receivables' : 'system:payables';
+                        final invoiceType = partyType == 'customer' ? 'income' : 'expense';
+                        final reversed = txBox.values.where((t)=>t.status=='posted' && t.transactionType=='reversal').map((t)=>t.reversedTransactionId).whereType<String>().toSet();
+                        final service = FinancePaymentAllocationService();
+                        final invoices = txBox.values.where((t)=>t.status=='posted' && t.transactionType==invoiceType && !reversed.contains(t.id) && !t.date.isAfter(DateTime.now()) && postingBox.values.any((p)=>p.transactionId==t.id && p.accountId==accountId && p.partyId==_partyId)).toList()..sort((a,b)=>a.date.compareTo(b.date));
+                        return Column(crossAxisAlignment:CrossAxisAlignment.stretch, children:[
+                          for (var i=0; i<_allocationInvoiceIds.length; i++)
+                            Padding(padding:const EdgeInsets.only(top:10), child: Row(crossAxisAlignment:CrossAxisAlignment.start, children:[
+                              Expanded(flex:3, child: DropdownButtonFormField<String>(
+                                value:invoices.any((t)=>t.id==_allocationInvoiceIds[i]) ? _allocationInvoiceIds[i] : null,
+                                decoration:InputDecoration(labelText:'Invoice ${i+1}', border:const OutlineInputBorder()),
+                                items:[for(final invoice in invoices) DropdownMenuItem(value:invoice.id, child:Text(invoice.transactionNumber))],
+                                onChanged:(value)=>setState(()=>_allocationInvoiceIds[i]=value),
+                              )),
+                              const SizedBox(width:8),
+                              Expanded(flex:2, child:TextField(controller:_allocationAmountControllers[i], keyboardType:const TextInputType.numberWithOptions(decimal:true), decoration:const InputDecoration(labelText:'Amount', prefixText:'₹ ', border:OutlineInputBorder()))),
+                              IconButton(onPressed:()=>_removeAllocationRow(i), icon:const Icon(Icons.remove_circle_outline)),
+                            ])),
+                          Align(alignment:Alignment.centerLeft, child:TextButton.icon(onPressed:invoices.isEmpty ? null : _addAllocationRow, icon:const Icon(Icons.add), label:const Text('Add invoice'))),
+                          if (invoices.isEmpty) const Text('No eligible posted invoices for this party.'),
+                        ]);
+                      },
+                    ),
+                  ),
+                ],
                 TextFormField(
                   controller: _memoController,
                   maxLines: 3,
