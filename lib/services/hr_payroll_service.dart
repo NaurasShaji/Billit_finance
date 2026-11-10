@@ -340,9 +340,13 @@ class HrPayrollService {
       throw const HrPayrollServiceException('Advance must exist exactly once in the HR register.');
     }
     final advance = matches.single;
+    final principal = advance['principalPaise'];
     final outstanding = advance['outstandingPaise'];
-    if (outstanding is! int || outstanding <= 0) {
-      throw const HrPayrollServiceException('Only an advance with a positive outstanding balance can be opened.');
+    if (principal is! int || outstanding is! int ||
+        principal <= 0 || outstanding <= 0 || outstanding != principal) {
+      throw const HrPayrollServiceException(
+        'Opening balance requires a positive outstanding amount equal to the recorded principal. Advances with prior repayments require manual reconstruction.',
+      );
     }
     final issueDateValue = advance['issueDate'];
     final issueDate = issueDateValue is String ? DateTime.tryParse(issueDateValue) : null;
