@@ -805,6 +805,187 @@ class BackupRestoreService {
     );
   }
 
+  SalaryComponent _parseSalaryComponent(Map<String, dynamic> json) {
+    const path = 'salaryComponents';
+    final componentType = _requiredString(json, 'componentType', path);
+    if (componentType != 'earning' && componentType != 'deduction') {
+      throw const FormatException(
+        'salaryComponents.componentType must be earning or deduction.',
+      );
+    }
+    final amountPaise = _integer(json, 'amountPaise', path);
+    if (amountPaise <= 0) {
+      throw const FormatException('salaryComponents.amountPaise must be positive.');
+    }
+    final effectiveFrom = _date(json, 'effectiveFrom', path);
+    final effectiveTo = json['effectiveTo'] == null
+        ? null
+        : _date(json, 'effectiveTo', path);
+    if (effectiveTo != null && effectiveTo.isBefore(effectiveFrom)) {
+      throw const FormatException(
+        'salaryComponents.effectiveTo cannot be before effectiveFrom.',
+      );
+    }
+    return SalaryComponent(
+      id: _requiredString(json, 'id', path),
+      employeeId: _requiredString(json, 'employeeId', path),
+      name: _requiredString(json, 'name', path),
+      componentType: componentType,
+      amountPaise: amountPaise,
+      effectiveFrom: effectiveFrom,
+      effectiveTo: effectiveTo,
+      active: _boolean(json, 'active', path, fallback: true),
+    );
+  }
+
+  PayrollRun _parsePayrollRun(Map<String, dynamic> json) {
+    const path = 'payrollRuns';
+    final status = _optionalString(json, 'status', 'draft', path);
+    if (!{'draft', 'approved', 'paid'}.contains(status)) {
+      throw FormatException('$path.status is unsupported.');
+    }
+    final periodStart = _date(json, 'periodStart', path);
+    final periodEnd = _date(json, 'periodEnd', path);
+    if (periodEnd.isBefore(periodStart)) {
+      throw FormatException('$path.periodEnd cannot be before periodStart.');
+    }
+    return PayrollRun(
+      id: _requiredString(json, 'id', path),
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+      status: status,
+      createdAt: json['createdAt'] == null
+          ? DateTime.now()
+          : _date(json, 'createdAt', path),
+      approvedAt: json['approvedAt'] == null
+          ? null
+          : _date(json, 'approvedAt', path),
+      paidAt: json['paidAt'] == null ? null : _date(json, 'paidAt', path),
+      totalGrossPaise: _integer(json, 'totalGrossPaise', path, fallback: 0),
+      totalDeductionsPaise:
+          _integer(json, 'totalDeductionsPaise', path, fallback: 0),
+      totalNetPaise: _integer(json, 'totalNetPaise', path, fallback: 0),
+      memo: _optionalString(json, 'memo', '', path),
+    );
+  }
+
+  Payslip _parsePayslip(Map<String, dynamic> json) {
+    const path = 'payslips';
+    final status = _optionalString(json, 'status', 'draft', path);
+    if (!{'draft', 'approved', 'partially_paid', 'paid'}.contains(status)) {
+      throw FormatException('$path.status is unsupported.');
+    }
+    final payableDays = _number(json, 'payableDays', path);
+    if (payableDays < 0) {
+      throw const FormatException('payslips.payableDays cannot be negative.');
+    }
+    return Payslip(
+      id: _requiredString(json, 'id', path),
+      payrollRunId: _requiredString(json, 'payrollRunId', path),
+      employeeId: _requiredString(json, 'employeeId', path),
+      payType: _requiredString(json, 'payType', path),
+      basePaise: _integer(json, 'basePaise', path, fallback: 0),
+      allowancesPaise: _integer(json, 'allowancesPaise', path, fallback: 0),
+      deductionsPaise: _integer(json, 'deductionsPaise', path, fallback: 0),
+      payableDays: payableDays,
+      paidPaise: _integer(json, 'paidPaise', path, fallback: 0),
+      status: status,
+      generatedAt: json['generatedAt'] == null
+          ? DateTime.now()
+          : _date(json, 'generatedAt', path),
+      paidAt: json['paidAt'] == null ? null : _date(json, 'paidAt', path),
+    );
+  }
+
+  void _validatePayrollCollections(
+    List<Employee> employees,
+    List<SalaryComponent> components,
+    List<PayrollRun> runs,
+    List<Payslip> payslips,
+  ) {
+    final employeeIds = employees.map((item) => item.id).toSet();
+    final runById = {for (final run in runs) run.id: run};
+    for (final component in components) {
+      if (!employeeIds.contains(component.employeeId)) {
+        throw FormatException(
+          'salaryComponents.${component.id} references an unknown employee.',
+        );
+      }
+    }
+
+    final runPeriods = <String>{};
+    for (final run in runs) {
+      final key = '${run.periodStart.year}-${run.periodStart.month}-'
+          '${run.periodEnd.year}-${run.periodEnd.month}';
+      if (!runPeriods.add(key)) {
+        throw const FormatException('Payroll backup contains duplicate payroll periods.');
+      }
+      if (run.totalGrossPaise < 0 ||
+          run.totalDeductionsPaise < 0 ||
+          run.totalNetPaise < 0) {
+        throw FormatException('payrollRuns.${run.id} contains negative totals.');
+      }
+    }
+
+    final payslipKeys = <String>{};
+    final totals = <String, List<int>>{};
+    for (final payslip in payslips) {
+      if (!employeeIds.contains(payslip.employeeId)) {
+        throw FormatException(
+          'payslips.${payslip.id} references an unknown employee.',
+        );
+      }
+      if (!runById.containsKey(payslip.payrollRunId)) {
+        throw FormatException(
+          'payslips.${payslip.id} references an unknown payroll run.',
+        );
+      }
+      if (payslip.basePaise < 0 ||
+          payslip.allowancesPaise < 0 ||
+          payslip.deductionsPaise < 0 ||
+          payslip.paidPaise < 0 ||
+          payslip.netPaise < 0 ||
+          payslip.paidPaise > payslip.netPaise) {
+        throw FormatException('payslips.${payslip.id} contains invalid amounts.');
+      }
+      final key = '${payslip.payrollRunId}:${payslip.employeeId}';
+      if (!payslipKeys.add(key)) {
+        throw const FormatException(
+          'Payroll backup contains duplicate payslips for an employee and run.',
+        );
+      }
+      final aggregate = totals.putIfAbsent(
+        payslip.payrollRunId,
+        () => [0, 0, 0],
+      );
+      aggregate[0] += payslip.grossPaise;
+      aggregate[1] += payslip.deductionsPaise;
+      aggregate[2] += payslip.netPaise;
+      if (payslip.status == 'paid' && payslip.paidPaise != payslip.netPaise) {
+        throw FormatException('payslips.${payslip.id} is marked paid with an outstanding balance.');
+      }
+    }
+
+    for (final run in runs) {
+      final aggregate = totals[run.id] ?? [0, 0, 0];
+      if (run.totalGrossPaise != aggregate[0] ||
+          run.totalDeductionsPaise != aggregate[1] ||
+          run.totalNetPaise != aggregate[2]) {
+        throw FormatException(
+          'payrollRuns.${run.id} totals do not match its payslips.',
+        );
+      }
+      if (run.status == 'paid' &&
+          payslips
+              .where((item) => item.payrollRunId == run.id)
+              .any((item) => item.status != 'paid')) {
+        throw FormatException(
+          'payrollRuns.${run.id} is paid but contains unpaid payslips.',
+        );
+      }
+    }
+  }
+
   void _validateHrCollections(
     List<Employee> employees,
     List<HrDepartment> departments,
