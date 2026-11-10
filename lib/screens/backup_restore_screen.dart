@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hive_ce_flutter/adapters.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import '../services/drive_backup_service.dart';
 import '../services/drive_sync_service.dart';
 import '../services/boxes.dart';
