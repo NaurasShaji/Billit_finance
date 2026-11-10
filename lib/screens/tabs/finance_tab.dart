@@ -6,6 +6,7 @@ import '../../models/models.dart';
 import '../../services/boxes.dart';
 import '../../services/finance_service.dart';
 import '../../services/finance_source_sync_service.dart';
+import '../../services/finance_recurring_service.dart';
 import '../../utils/theme_colors.dart';
 import '../../widgets/app_components.dart';
 import '../archive/expenses/add_expense_screen.dart';
