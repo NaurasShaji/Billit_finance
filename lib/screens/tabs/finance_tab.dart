@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../services/boxes.dart';
 import '../../services/finance_service.dart';
+import '../../services/finance_source_sync_service.dart';
 import '../../utils/theme_colors.dart';
 import '../../widgets/app_components.dart';
 import '../archive/expenses/add_expense_screen.dart';
@@ -50,11 +51,19 @@ class _FinanceTabState extends State<FinanceTab> {
                 expenses: expensesBox.values.toList(),
                 span: FinanceService.spanFor(_period, DateTime.now()),
               );
+              final syncIssues = (Hive.box<dynamic>('app_settings').get(
+                'finance_sync_errors',
+                defaultValue: const <String>[],
+              ) as List).cast<String>();
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
                 children: [
                   _header(theme, scheme),
+                  if (syncIssues.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _syncWarning(syncIssues.length),
+                  ],
                   const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
@@ -113,6 +122,54 @@ class _FinanceTabState extends State<FinanceTab> {
         ),
       ),
     );
+  }
+
+  Widget _syncWarning(int issueCount) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.error.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: scheme.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$issueCount legacy record(s) still need finance journal sync.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          TextButton(
+            onPressed: _retryFinanceSync,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _retryFinanceSync() async {
+    final issues = await FinanceSourceSyncService().syncAll(
+      salesBox: Hive.box<Sale>(Boxes.sales),
+      expensesBox: Hive.box<Expense>(Boxes.expenses),
+      employeesBox: Hive.box<Employee>(Boxes.employees),
+      accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+      transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+      postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+      categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+      partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+    );
+    final settings = Hive.box<dynamic>('app_settings');
+    if (issues.isEmpty) {
+      await settings.delete('finance_sync_errors');
+    } else {
+      await settings.put('finance_sync_errors', issues);
+    }
+    if (mounted) setState(() {});
   }
 
   Widget _header(ThemeData theme, ColorScheme scheme) {
