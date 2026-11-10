@@ -167,20 +167,28 @@ class FinanceLedgerService {
       }
     }
 
+    final postedTransaction = FinanceTransaction(
+      id: transaction.id,
+      transactionNumber: transaction.transactionNumber,
+      transactionType: transaction.transactionType,
+      status: 'posted',
+      date: transaction.date,
+      memo: transaction.memo,
+      reference: transaction.reference,
+      sourceType: transaction.sourceType,
+      sourceId: transaction.sourceId,
+      createdAt: transaction.createdAt,
+      postedAt: DateTime.now(),
+      reversedTransactionId: transaction.reversedTransactionId,
+    );
     final insertedIds = <String>[];
     try {
       for (final line in postings) {
         insertedIds.add(line.id);
         await postingsBox.put(line.id, line);
       }
-      transaction
-        ..status = 'posted'
-        ..postedAt = DateTime.now();
-      await transactionsBox.put(transaction.id, transaction);
+      await transactionsBox.put(transaction.id, postedTransaction);
     } catch (_) {
-      transaction
-        ..status = 'draft'
-        ..postedAt = null;
       try {
         await transactionsBox.delete(transaction.id);
       } catch (_) {
