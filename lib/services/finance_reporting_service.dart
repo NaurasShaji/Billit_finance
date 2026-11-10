@@ -52,7 +52,11 @@ class FinanceReportingService {
     required DateSpan span,
   }) {
     final accountsById = {for (final account in accounts) account.id: account};
-    final postedInPeriod = transactions
+    final allTransactions = transactions.toList();
+    final allTransactionsById = {
+      for (final transaction in allTransactions) transaction.id: transaction,
+    };
+    final postedInPeriod = allTransactions
         .where((transaction) =>
             transaction.status == 'posted' && span.contains(transaction.date))
         .toList();
@@ -77,10 +81,17 @@ class FinanceReportingService {
       }
 
       final transaction = transactionsById[line.transactionId]!;
+      final originalTransaction = transaction.transactionType == 'reversal'
+          ? allTransactionsById[transaction.reversedTransactionId]
+          : null;
+      final isInternalMovement =
+          transaction.transactionType == 'transfer' ||
+          transaction.transactionType == 'opening_balance' ||
+          originalTransaction?.transactionType == 'transfer' ||
+          originalTransaction?.transactionType == 'opening_balance';
       if ((line.accountId == 'system:cash' ||
               line.accountId == 'system:bank') &&
-          transaction.transactionType != 'transfer' &&
-          transaction.transactionType != 'opening_balance') {
+          !isInternalMovement) {
         cashIn += line.debitPaise;
         cashOut += line.creditPaise;
       }
