@@ -160,6 +160,13 @@ class BackupRestoreService {
     if (hasAllocationPayload && financePaymentAllocationsBox == null) {
       throw const FormatException('Payment allocation backup data was supplied but allocation storage is unavailable.');
     }
+    if (hasFinancePayload && !hasAllocationPayload &&
+        financePaymentAllocationsBox != null &&
+        financePaymentAllocationsBox.isNotEmpty) {
+      throw const FormatException(
+        'This older finance backup has no invoice allocation history. Export a current backup before restoring it, or clear allocation history through an explicit migration.',
+      );
+    }
     if (hasRecurringPayload && financeRecurringTemplatesBox == null) {
       throw const FormatException(
         'Recurring finance backup data was supplied but recurring-template storage is unavailable.',
