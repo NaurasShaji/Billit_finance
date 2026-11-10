@@ -634,12 +634,16 @@ class BackupRestoreService {
     if (!{'asset', 'liability', 'equity', 'income', 'expense'}.contains(type)) {
       throw FormatException('$path.accountType is unsupported.');
     }
+    final currencyCode = _optionalString(json, 'currencyCode', 'INR', path);
+    if (currencyCode != 'INR') {
+      throw FormatException('$path.currencyCode must be INR in this release.');
+    }
     return FinanceAccount(
       id: _requiredString(json, 'id', path),
       name: _requiredString(json, 'name', path),
       accountType: type,
       parentId: _nullableString(json, 'parentId', path),
-      currencyCode: _optionalString(json, 'currencyCode', 'INR', path),
+      currencyCode: currencyCode,
       active: _boolean(json, 'active', path, fallback: true),
       createdAt: json['createdAt'] == null
           ? DateTime.now()
