@@ -56,7 +56,10 @@ class FinanceReportingService {
         .where((transaction) =>
             transaction.status == 'posted' && span.contains(transaction.date))
         .toList();
-    final transactionIds = postedInPeriod.map((item) => item.id).toSet();
+    final transactionsById = {
+      for (final transaction in postedInPeriod) transaction.id: transaction,
+    };
+    final transactionIds = transactionsById.keys.toSet();
 
     var income = 0;
     var expense = 0;
@@ -73,8 +76,11 @@ class FinanceReportingService {
         expense += line.debitPaise - line.creditPaise;
       }
 
-      if (line.accountId == 'system:cash' ||
-          line.accountId == 'system:bank') {
+      final transaction = transactionsById[line.transactionId]!;
+      if ((line.accountId == 'system:cash' ||
+              line.accountId == 'system:bank') &&
+          transaction.transactionType != 'transfer' &&
+          transaction.transactionType != 'opening_balance') {
         cashIn += line.debitPaise;
         cashOut += line.creditPaise;
       }
