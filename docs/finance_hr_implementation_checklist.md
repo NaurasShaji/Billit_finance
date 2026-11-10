@@ -31,6 +31,7 @@ Work branch: `feature/finance-team-promotion`
 - Added recurring transaction templates with idempotent scheduled posting, month-end cadence handling, startup processing, manual processing, and a dedicated screen. Added recurring service tests.
 - Added budget tracking and actual-versus-budget calculations, plus accounting reports for P&L, cash flow, and trial balance with PDF and Excel workbook export.
 - Added a Hive CE persistence smoke test covering adapter Type IDs 1–22 and close/reopen persistence across legacy, finance, HR, budget, and recurring-template boxes.
+- Added optional due dates to manual receivable/payable journal entries. The due date is persisted as an additive nullable Hive field and carried into posted transaction records. Due-date ageing and invoice-level allocation remain outstanding; adapter generation and migration compatibility are unverified.
 - **Validation remains pending:** no Flutter commands have been run in this environment. The Hive CE workflow must regenerate `pubspec.lock` and adapters, then run formatting, analysis, tests, and Android build.
 
 ## Phase 0 — Repository audit and safe foundation
