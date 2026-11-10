@@ -1,14 +1,14 @@
+import 'package:hive/hive.dart';
+
 import '../models/employee.dart';
+import '../models/expense.dart';
 import '../models/finance_account.dart';
 import '../models/finance_category.dart';
 import '../models/finance_party.dart';
 import '../models/finance_posting.dart';
 import '../models/finance_transaction.dart';
-import '../models/expense.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
-import 'package:hive/hive.dart';
-
 import '../models/user.dart';
 
 /// Fully parsed backup data. Constructing this object performs all validation,
@@ -516,6 +516,23 @@ class BackupRestoreService {
     final transactionById = {
       for (final item in transactions) item.id: item,
     };
+    final transactionNumbers = <String>{};
+    final sourceKeys = <String>{};
+    for (final transaction in transactions) {
+      if (!transactionNumbers.add(transaction.transactionNumber)) {
+        throw const FormatException(
+          'Finance backup contains duplicate transaction numbers.',
+        );
+      }
+      if (transaction.sourceType.isNotEmpty && transaction.sourceId.isNotEmpty) {
+        final sourceKey = '${transaction.sourceType}:${transaction.sourceId}';
+        if (!sourceKeys.add(sourceKey)) {
+          throw const FormatException(
+            'Finance backup contains duplicate source references.',
+          );
+        }
+      }
+    }
     final categoryIds = categories.map((item) => item.id).toSet();
     final partyIds = parties.map((item) => item.id).toSet();
     final postingsByTransaction = <String, List<FinancePosting>>{};
