@@ -855,6 +855,107 @@ class HrPayrollService {
     return run;
   }
 
+  static const payrollPayableAccountId = 'system:payroll-payable';
+  static const payrollDeductionsPayableAccountId = 'system:payroll-deductions-payable';
+
+  int _advanceSnapshotTotal(String payslipId) {
+    final settings = Hive.box<dynamic>('app_settings');
+    final raw = settings.get(advancePayrollKey);
+    if (raw is Map && raw[payslipId] is List) {
+      return (raw[payslipId] as List).whereType<Map>().fold<int>(0, (sum, item) {
+        final amount = item['amountPaise'];
+        if (amount is! int || amount < 0) throw const HrPayrollServiceException('Invalid payroll advance deduction snapshot.');
+        return sum + amount;
+      });
+    }
+    final advances = settings.get(advanceSettingsKey);
+    if (advances is! Map) return 0;
+    var total = 0;
+    for (final employeeRecords in advances.values) {
+      if (employeeRecords is! List) continue;
+      for (final advance in employeeRecords.whereType<Map>()) {
+        final repayments = advance['repayments'];
+        if (repayments is! List) continue;
+        for (final repayment in repayments.whereType<Map>()) {
+          if (repayment['source'] == 'payroll' && repayment['payslipId'] == payslipId) {
+            final amount = repayment['amountPaise'];
+            if (amount is! int || amount <= 0) throw const HrPayrollServiceException('Recorded payroll advance recovery is malformed.');
+            total += amount;
+          }
+        }
+      }
+    }
+    return total;
+  }
+
+  void _requirePayrollAccount(String id, String type) {
+    final account = Hive.box<FinanceAccount>(Boxes.financeAccounts).get(id);
+    if (account == null || !account.active || account.accountType != type || account.currencyCode != 'INR') throw HrPayrollServiceException('Required payroll account $id is unavailable or invalid.');
+  }
+
+  Future<void> _postPayrollAccrual(Payslip slip, PayrollRun run) async {
+    final gross = slip.basePaise + slip.allowancesPaise;
+    final deductions = slip.deductionsPaise;
+    final net = slip.netPaise;
+    final advance = _advanceSnapshotTotal(slip.id);
+    final other = deductions - advance;
+    if (gross < 0 || deductions < 0 || net < 0 || gross != deductions + net || other < 0) throw HrPayrollServiceException('Payslip ${slip.id} has inconsistent gross, deduction, or net totals.');
+    if (gross == 0) return;
+    _requirePayrollAccount('system:salary-expense', 'expense');
+    _requirePayrollAccount(payrollPayableAccountId, 'liability');
+    if (advance > 0) _requirePayrollAccount(employeeAdvanceAccountId, 'asset');
+    if (other > 0) _requirePayrollAccount(payrollDeductionsPayableAccountId, 'liability');
+    final id = 'finance:payroll-accrual:${slip.id}';
+    final txBox = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final postingBox = Hive.box<FinancePosting>(Boxes.financePostings);
+    final existing = txBox.values.where((tx) => tx.sourceType == 'payroll_accrual' && tx.sourceId == slip.id).toList();
+    if (existing.isNotEmpty) {
+      if (existing.length != 1 || existing.single.id != id || existing.single.status != 'posted') throw const HrPayrollServiceException('Conflicting payroll accrual journal exists.');
+      final lines = postingBox.values.where((line) => line.transactionId == id).toList();
+      int netFor(String account) => lines.where((line) => line.accountId == account).fold<int>(0, (sum, line) => sum + line.debitPaise - line.creditPaise);
+      final expectedCount = 1 + (net > 0 ? 1 : 0) + (advance > 0 ? 1 : 0) + (other > 0 ? 1 : 0);
+      if (lines.length != expectedCount || netFor('system:salary-expense') != gross || netFor(payrollPayableAccountId) != -net || netFor(employeeAdvanceAccountId) != -advance || netFor(payrollDeductionsPayableAccountId) != -other) throw const HrPayrollServiceException('Existing payroll accrual journal does not match the payslip snapshot.');
+      return;
+    }
+    final lines = <FinancePosting>[
+      FinancePosting(id: '$id:salary-expense', transactionId: id, accountId: 'system:salary-expense', debitPaise: gross, memo: 'Gross salary accrued for payroll run ${run.id}'),
+    ];
+    if (net > 0) lines.add(FinancePosting(id: '$id:payroll-payable', transactionId: id, accountId: payrollPayableAccountId, creditPaise: net, memo: 'Net salary payable'));
+    if (advance > 0) lines.add(FinancePosting(id: '$id:employee-advances', transactionId: id, accountId: employeeAdvanceAccountId, creditPaise: advance, memo: 'Employee advance deduction accrued'));
+    if (other > 0) lines.add(FinancePosting(id: '$id:deductions-payable', transactionId: id, accountId: payrollDeductionsPayableAccountId, creditPaise: other, memo: 'Other payroll deductions withheld'));
+    await FinanceLedgerService().postTransaction(
+      transaction: FinanceTransaction(id: id, transactionNumber: 'PAY-ACC-${slip.id}', transactionType: 'adjustment', date: run.periodEnd, memo: 'Payroll accrual for ${slip.employeeId}, run ${run.id}', sourceType: 'payroll_accrual', sourceId: slip.id),
+      postings: lines, accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: txBox, postingsBox: postingBox,
+      categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories), partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+    );
+  }
+
+  Future<void> _postPayrollPaymentJournal({required Payslip slip, required int amountPaise, required int paidBeforePaise, required String cashAccountId, required DateTime date}) async {
+    _requirePayrollAccount(payrollPayableAccountId, 'liability');
+    _requireAdvanceCashAccount(cashAccountId);
+    final sourceId = '${slip.id}:from:$paidBeforePaise';
+    final id = 'finance:payroll-payment:$sourceId';
+    final txBox = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final postingBox = Hive.box<FinancePosting>(Boxes.financePostings);
+    final existing = txBox.values.where((tx) => tx.sourceType == 'payroll_payment' && tx.sourceId == sourceId).toList();
+    if (existing.isNotEmpty) {
+      if (existing.length != 1 || existing.single.id != id || existing.single.status != 'posted') throw const HrPayrollServiceException('Conflicting payroll payment journal exists.');
+      final lines = postingBox.values.where((line) => line.transactionId == id).toList();
+      final debit = lines.where((line) => line.accountId == payrollPayableAccountId).fold<int>(0, (sum, line) => sum + line.debitPaise);
+      final credit = lines.where((line) => line.accountId == cashAccountId).fold<int>(0, (sum, line) => sum + line.creditPaise);
+      if (lines.length != 2 || debit != amountPaise || credit != amountPaise) throw const HrPayrollServiceException('Existing payroll payment journal does not match this payment request.');
+      return;
+    }
+    await FinanceLedgerService().postTransaction(
+      transaction: FinanceTransaction(id: id, transactionNumber: 'PAY-SET-${slip.id}-$paidBeforePaise', transactionType: 'adjustment', date: date, memo: 'Payroll payment for payslip ${slip.id}', sourceType: 'payroll_payment', sourceId: sourceId),
+      postings: [
+        FinancePosting(id: '$id:payroll-payable', transactionId: id, accountId: payrollPayableAccountId, debitPaise: amountPaise, memo: 'Settle employee net salary payable'),
+        FinancePosting(id: '$id:cash', transactionId: id, accountId: cashAccountId, creditPaise: amountPaise, memo: 'Payroll payment'),
+      ],
+      accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts), transactionsBox: txBox, postingsBox: postingBox,
+      categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories), partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+    );
+  }
   Future<PayrollRun> approveRun(String runId) async {
     final runsBox = Hive.box<PayrollRun>(Boxes.payrollRuns);
     final slipsBox = Hive.box<Payslip>(Boxes.payslips);
