@@ -23,7 +23,7 @@ class FinanceCategoryManagementScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accountsBox = Hive.box<FinanceAccount>(Boxes.financeAccounts);
-    return ScaffolResponsivePage(child: Scaffold((
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(title: const Text('Finance categories')),
       body: ValueListenableBuilder<Box<FinanceCategory>>(
         valueListenable:
@@ -219,7 +219,7 @@ class _FinanceCategoryFormScreenState
     final canChangeMapping =
         existing == null || (!hasPostings && !hasSourceExpenses);
 
-    return ScaffolResponsivePage(child: Scaffold((
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(
         title: Text(existing == null ? 'New category' : 'Edit category'),
       ),
