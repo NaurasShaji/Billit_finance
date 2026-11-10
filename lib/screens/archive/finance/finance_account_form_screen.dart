@@ -267,7 +267,7 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: _type,
+                  value: _type,
                   decoration: const InputDecoration(
                     labelText: 'Account type',
                     border: OutlineInputBorder(),
@@ -288,7 +288,7 @@ class _FinanceAccountFormScreenState extends State<FinanceAccountFormScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: _parentId,
+                  value: _parentId,
                   decoration: const InputDecoration(
                     labelText: 'Parent account (optional)',
                     border: OutlineInputBorder(),
