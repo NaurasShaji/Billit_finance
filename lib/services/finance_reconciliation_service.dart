@@ -85,7 +85,16 @@ class FinanceReconciliationService {
     required Iterable<FinanceTransaction> transactions,
     required Iterable<FinancePosting> postings,
   }) {
+    final saleRecords = sales.toList();
+    final expenseRecords = expenses.toList();
     final allTransactions = transactions.toList();
+    final currentSaleKeys = {
+      for (final sale in saleRecords) _sourceId(sale.id, sale.financeRevision),
+    };
+    final currentExpenseKeys = {
+      for (final expense in expenseRecords)
+        _sourceId(expense.id, expense.financeRevision),
+    };
     final posted = allTransactions
         .where((transaction) => transaction.status == 'posted')
         .toList();
@@ -97,7 +106,7 @@ class FinanceReconciliationService {
     var journalExpenseTotal = 0;
     var journalExpenseCount = 0;
 
-    for (final sale in sales) {
+    for (final sale in saleRecords) {
       final sourceId = _sourceId(sale.id, sale.financeRevision);
       int expected;
       try {
@@ -152,7 +161,7 @@ class FinanceReconciliationService {
       }
     }
 
-    for (final expense in expenses) {
+    for (final expense in expenseRecords) {
       final sourceId = _sourceId(expense.id, expense.financeRevision);
       int expected;
       try {
@@ -207,12 +216,33 @@ class FinanceReconciliationService {
       }
     }
 
+    for (final transaction in posted) {
+      if (transaction.sourceType == 'pos_sale' &&
+          !currentSaleKeys.contains(transaction.sourceId) &&
+          !_hasReversal(transaction.id, allTransactions)) {
+        issues.add(FinanceReconciliationIssue(
+          sourceType: 'pos_sale',
+          sourceId: transaction.sourceId,
+          message: 'Journal entry has no matching current source sale and has not been reversed.',
+        ));
+      }
+      if (transaction.sourceType == 'legacy_expense' &&
+          !currentExpenseKeys.contains(transaction.sourceId) &&
+          !_hasReversal(transaction.id, allTransactions)) {
+        issues.add(FinanceReconciliationIssue(
+          sourceType: 'legacy_expense',
+          sourceId: transaction.sourceId,
+          message: 'Journal entry has no matching current source expense and has not been reversed.',
+        ));
+      }
+    }
+
     return FinanceReconciliationSummary(
-      sourceSaleCount: sales.length,
+      sourceSaleCount: saleRecords.length,
       journalSaleCount: journalSaleCount,
       sourceSaleTotalPaise: sourceSaleTotal,
       journalSaleTotalPaise: journalSaleTotal,
-      sourceExpenseCount: expenses.length,
+      sourceExpenseCount: expenseRecords.length,
       journalExpenseCount: journalExpenseCount,
       sourceExpenseTotalPaise: sourceExpenseTotal,
       journalExpenseTotalPaise: journalExpenseTotal,
