@@ -325,7 +325,7 @@ class _FinanceReconciliationScreenState
           ],
         ),
       ),
-    ));
+    );
   }
 
   Widget _row(String label, String value, {Color? valueColor}) => Padding(
