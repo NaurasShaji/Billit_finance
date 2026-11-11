@@ -138,13 +138,13 @@ class _FinanceTabState extends State<FinanceTab> {
                   const SizedBox(height: 6),
                   _recent(summary, currency),
                   const SizedBox(height: 24),
-                  _sectionTitle(theme, scheme, 'MORE'),
+                  _sectionTitle(theme, scheme, 'FINANCE TOOLS'),
                   const SizedBox(height: 10),
                   GridView.count(
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 2.65,
+                    childAspectRatio: 2.15,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
@@ -230,19 +230,48 @@ class _FinanceTabState extends State<FinanceTab> {
     required IconData icon,
     required VoidCallback onPressed,
   }) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        minimumSize: Size.zero,
-      ),
-      icon: Icon(icon, size: 20),
-      label: Text(
-        label,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.left,
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: context.panelColor,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(icon, size: 20, color: scheme.primary),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right_rounded,
+                  size: 18, color: scheme.onSurfaceVariant),
+            ],
+          ),
+        ),
       ),
     );
   }
