@@ -1,10 +1,11 @@
 import 'dart:typed_data';
 
-import 'package:excel_community/excel.dart';
+import 'package:excel_community/excel_community.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -110,7 +111,7 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> {
     final document = pw.Document();
     document.addPage(
       pw.MultiPage(
-        pageFormat: const pw.PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         build: (context) => [
           pw.Text(
