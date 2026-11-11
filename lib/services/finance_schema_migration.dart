@@ -219,6 +219,25 @@ class FinanceSchemaMigration {
         },
       );
 
+  /// Adds the inventory shrinkage account used by stock write-offs.
+  static SchemaMigration get versionTwelveToThirteen => SchemaMigration(
+        fromVersion: 12,
+        toVersion: 13,
+        apply: (_) async {
+          final accounts = await Hive.openBox<FinanceAccount>(Boxes.financeAccounts);
+          if (!accounts.containsKey('system:inventory-adjustment')) {
+            await accounts.put(
+              'system:inventory-adjustment',
+              FinanceAccount(
+                id: 'system:inventory-adjustment',
+                name: 'Inventory Shrinkage and Adjustments',
+                accountType: 'expense',
+              ),
+            );
+          }
+        },
+      );
+
   /// Adds primitive-map storage for immutable invoice payment allocations.
   static SchemaMigration get versionSevenToEight => SchemaMigration(
         fromVersion: 7,
