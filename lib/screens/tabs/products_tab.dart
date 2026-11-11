@@ -709,7 +709,7 @@ class _ProductsTabState extends State<ProductsTab> {
             account.currencyCode == 'INR' &&
             (account.accountType == 'asset' ||
                 account.accountType == 'liability') &&
-            account.id != 'system:inventory')
+            !{'system:inventory', 'system:receivables', 'system:employee-advances'}.contains(account.id))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
     String? offsetAccountId = offsetAccounts.any((a) => a.id == 'system:cash')
