@@ -1770,7 +1770,6 @@ class HrPayrollService {
       throw const HrPayrollServiceException('Employee was not found.');
     }
     final date = _day(effectiveDate);
-    final employee = Hive.box<Employee>(Boxes.employees).get(employeeId)!;
     final grade = salaryGradeFor(employeeId, date);
     if (grade != null && (basePaise < (grade['minPaise'] as int) || basePaise > (grade['maxPaise'] as int))) {
       throw const HrPayrollServiceException('New base pay is outside the assigned salary grade range.');
