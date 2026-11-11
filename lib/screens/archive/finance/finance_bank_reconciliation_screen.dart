@@ -147,9 +147,11 @@ class _FinanceBankReconciliationScreenState
                     final timestamp = DateTime.tryParse(
                       entry['at']?.toString() ?? '',
                     );
-                    final action = entry['action'] == 'matched'
-                        ? 'Matched'
-                        : 'Unmatched';
+                    final action = switch (entry['action']) {
+                      'auto_matched' => 'Automatically matched',
+                      'matched' => 'Manually matched',
+                      _ => 'Unmatched',
+                    };
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(action),
