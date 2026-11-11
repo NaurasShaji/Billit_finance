@@ -17,6 +17,7 @@ import '../archive/expenses/expenses_list_screen.dart';
 import '../archive/gst_exports_screen.dart';
 import '../archive/finance/finance_ledger_screen.dart';
 import '../archive/finance/finance_reconciliation_screen.dart';
+import '../archive/finance/finance_bank_reconciliation_screen.dart';
 import '../archive/finance/finance_category_management_screen.dart';
 import '../archive/finance/finance_reports_screen.dart';
 import '../archive/finance/finance_parties_screen.dart';
@@ -168,6 +169,12 @@ class _FinanceTabState extends State<FinanceTab> {
                             _open(const FinanceReconciliationScreen()),
                         icon: const Icon(Icons.fact_check_outlined),
                         label: const Text('Reconciliation'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            _open(const FinanceBankReconciliationScreen()),
+                        icon: const Icon(Icons.account_balance_outlined),
+                        label: const Text('Bank statements'),
                       ),
                       OutlinedButton.icon(
                         onPressed: () =>
