@@ -216,6 +216,7 @@ class _FinanceTabState extends State<FinanceTab> {
           ),
         ),
       ),
+    ),
     );
   }
 
