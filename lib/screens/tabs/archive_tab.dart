@@ -8,8 +8,7 @@ import '../archive/customer_lookup_screen.dart';
 import '../archive/bulk_product_import_screen.dart';
 import '../archive/gst_exports_screen.dart';
 
-/// Business tools that are not everyday features: bulk import, report exports,
-/// backup/restore and account tools. Finance and Team are top-level tabs.
+/// Archive contains supporting business tools, exports, backup/restore and account utilities.
 class ArchiveTab extends StatelessWidget {
   const ArchiveTab({super.key, this.standalone = false});
 
@@ -150,14 +149,14 @@ class ArchiveTab extends StatelessWidget {
                     const SizedBox(height: 7),
                   ],
                   Text(
-                    'Import, exports, backup and account management',
+                    'Exports, data management and account utilities',
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: scheme.onSurface.withValues(alpha: 0.62),
                     ),
                   ),
                   const SizedBox(height: 26),
                   Text(
-                    'CATEGORIES',
+                    'ARCHIVE CATEGORIES',
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: scheme.onSurface.withValues(alpha: 0.55),
                       fontWeight: FontWeight.w700,
