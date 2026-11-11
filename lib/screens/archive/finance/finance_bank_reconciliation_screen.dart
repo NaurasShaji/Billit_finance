@@ -274,7 +274,7 @@ class _FinanceBankReconciliationScreenState
                     Text(
                       'CSV columns: Date, Description, Reference (optional), Debit, Credit. '
                       'Alternatively use Date, Description, Reference, Amount; deposits are positive and withdrawals are negative. '
-                      'Duplicate statement files are rejected.',
+                      'Unique exact matches within five days are matched automatically; remaining lines can be matched manually. Duplicate statement files are rejected.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
