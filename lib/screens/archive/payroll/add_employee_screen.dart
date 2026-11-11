@@ -3,7 +3,6 @@ import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/employee.dart';
 import '../../../services/boxes.dart';
-import '../../../utils/theme_colors.dart';
 import '../../../widgets/responsive_page.dart';
 
 class AddEmployeeScreen extends StatefulWidget {
