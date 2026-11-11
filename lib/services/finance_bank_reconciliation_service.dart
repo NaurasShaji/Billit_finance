@@ -199,6 +199,27 @@ class FinanceBankReconciliationService {
       );
     }
     await _settings.put(storageKey, [...stored, ...imported]);
+
+    // Auto-match only when one exact amount/direction candidate exists within
+    // five days. Ambiguous or unmatched rows remain available for manual review.
+    for (final line in imported) {
+      final candidates = candidatePostings(
+        line,
+        maxDateDifferenceDays: 5,
+      );
+      if (candidates.length == 1) {
+        try {
+          await match(
+            statementLineId: line['id'] as String,
+            transactionId: candidates.single.transaction.id,
+            postingId: candidates.single.posting.id,
+            automatic: true,
+          );
+        } catch (_) {
+          // Keep the imported line unmatched if another operation claimed it.
+        }
+      }
+    }
     return imported.length;
   }
 
@@ -206,6 +227,7 @@ class FinanceBankReconciliationService {
     required String statementLineId,
     required String transactionId,
     required String postingId,
+    bool automatic = false,
   }) async {
     final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
     final postings = Hive.box<FinancePosting>(Boxes.financePostings);
@@ -248,7 +270,7 @@ class FinanceBankReconciliationService {
         ? List<dynamic>.from(line['matchHistory'] as List)
         : <dynamic>[];
     history.add({
-      'action': 'matched',
+      'action': automatic ? 'auto_matched' : 'matched',
       'transactionId': transactionId,
       'postingId': postingId,
       'at': DateTime.now().toIso8601String(),
@@ -297,7 +319,10 @@ class FinanceBankReconciliationService {
   }
 
   List<({FinanceTransaction transaction, FinancePosting posting})>
-      candidatePostings(Map<String, dynamic> line) {
+      candidatePostings(
+    Map<String, dynamic> line, {
+    int? maxDateDifferenceDays,
+  }) {
     final date = DateTime.parse(line['date'] as String);
     final amount = line['amountPaise'] as int;
     final matched = lines()
@@ -315,9 +340,12 @@ class FinanceBankReconciliationService {
         continue;
       }
       final transaction = transactions.get(posting.transactionId);
-      if (transaction == null ||
-          transaction.status != 'posted' ||
-          false) {
+      if (transaction == null || transaction.status != 'posted') {
+        continue;
+      }
+      if (maxDateDifferenceDays != null &&
+          transaction.date.difference(date).inDays.abs() >
+              maxDateDifferenceDays) {
         continue;
       }
       candidates.add((transaction: transaction, posting: posting));
