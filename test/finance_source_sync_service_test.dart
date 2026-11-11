@@ -362,16 +362,16 @@ void main() {
     expect(
       FinanceLedgerBalance.balance(
         accountId: 'system:cash',
-        transactions: transactions,
-        postings: postings,
+        transactions: transactions.values,
+        postings: postings.values,
       ),
       15000,
     );
     expect(
       FinanceLedgerBalance.balance(
         accountId: 'system:sales-income',
-        transactions: transactions,
-        postings: postings,
+        transactions: transactions.values,
+        postings: postings.values,
       ),
       -15000,
     );
@@ -409,8 +409,8 @@ void main() {
     expect(
       FinanceLedgerBalance.balance(
         accountId: 'system:operating-expense',
-        transactions: transactions,
-        postings: postings,
+        transactions: transactions.values,
+        postings: postings.values,
       ),
       0,
     );
