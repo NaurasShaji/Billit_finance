@@ -18,10 +18,8 @@ void main() {
   late Box<PayrollRun> runs;
   late Box<Payslip> payslips;
   late Box<Expense> expenses;
-  late Box<FinanceAccount> accounts;
   late Box<FinanceTransaction> transactions;
   late Box<FinancePosting> postings;
-  late Box<FinanceCategory> categories;
   late Box<FinanceParty> parties;
   late HrPayrollService payroll;
 
@@ -194,7 +192,7 @@ void main() {
       employmentType: 'permanent',
       payFrequency: 'weekly',
     );
-    final run = await payroll.generateRun(
+    await payroll.generateRun(
       periodStart: DateTime(2026, 11, 1),
       periodEnd: DateTime(2026, 11, 7),
     );
