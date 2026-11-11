@@ -6,7 +6,6 @@ import './invoice_template_service.dart';
 
 class InvoiceService {
   final ThermalPrinterService _thermalPrinter = ThermalPrinterService();
-  final PdfService _pdfService = PdfService();
 
   // Check if thermal printer is connected
   Future<bool> isThermalPrinterConnected() async {
