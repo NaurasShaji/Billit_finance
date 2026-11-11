@@ -18,8 +18,10 @@ void main() {
   late Box<PayrollRun> runs;
   late Box<Payslip> payslips;
   late Box<Expense> expenses;
+  late Box<FinanceAccount> accounts;
   late Box<FinanceTransaction> transactions;
   late Box<FinancePosting> postings;
+  late Box<FinanceCategory> categories;
   late Box<FinanceParty> parties;
   late HrPayrollService payroll;
 
