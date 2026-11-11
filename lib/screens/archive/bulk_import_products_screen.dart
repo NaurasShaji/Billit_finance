@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/finance_inventory_service.dart';
 
 class BulkImportProductsScreen extends StatefulWidget {
   const BulkImportProductsScreen({super.key});
@@ -251,13 +252,19 @@ class _BulkImportProductsScreenState extends State<BulkImportProductsScreen> {
     try {
       final box = Hive.box<Product>(Boxes.products);
       final products = <String, Product>{};
+      final inventory = FinanceInventoryService();
+      final accountsBox = Hive.box<FinanceAccount>(Boxes.financeAccounts);
+      final transactionsBox =
+          Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+      final postingsBox = Hive.box<FinancePosting>(Boxes.financePostings);
       for (final row in rowsToImport) {
         final product = Product()
           ..id = const Uuid().v4()
           ..name = row.name
           ..sellingPrice = row.sellingPrice
           ..costPrice = row.costPrice
-          ..stock = row.stock
+          // Opening quantity is posted through the inventory service below.
+          ..stock = 0
           ..unit = row.unit
           ..category = row.category
           ..subCategory = row.subCategory
@@ -265,9 +272,25 @@ class _BulkImportProductsScreenState extends State<BulkImportProductsScreen> {
           ..barcode = row.barcode.isEmpty ? null : row.barcode
           ..hsnCode = row.hsnCode
           ..gstRate = row.gstRate;
-        products[product.id] = product;
+        await box.put(product.id, product);
+        try {
+          if (row.stock > 0) {
+            await inventory.receiveStock(
+              product: product,
+              quantity: row.stock,
+              unitCost: row.costPrice,
+              offsetAccountId: 'system:opening-equity',
+              accountsBox: accountsBox,
+              transactionsBox: transactionsBox,
+              postingsBox: postingsBox,
+            );
+          }
+          products[product.id] = product;
+        } catch (_) {
+          await box.delete(product.id);
+          rethrow;
+        }
       }
-      await box.putAll(products);
       if (!mounted) return;
       setState(() {
         _importedCount = products.length;
