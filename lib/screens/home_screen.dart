@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
         category: 'Finance & Team',
         question: 'How do I record an expense?',
         answer:
-            'Admins can open Finance and tap Expense. Pick a category, enter the amount and an optional note. Finance shows net profit for today, this month or this year.',
+            'Admins can open Finance & HR, select Finance, and tap Expense. Pick a category, enter the amount and an optional note. The Finance section shows financial summaries for today, this month or this year.',
       ),
       (
         category: 'Finance & Team',
@@ -97,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
         category: 'Finance & Team',
         question: 'How do I add or edit employees?',
         answer:
-            'Open Team and tap Manage to add an employee, change their pay, or remove them. Tap any employee card to see their payment history.',
+            'Open Finance & HR, select HR & Payroll, and use Manage to add or update employees. Open an employee card to view their profile and payment history.',
       ),
       (
         category: 'Invoices',
@@ -322,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Expanded(
                                         child: Text(
                                           isAdmin
-                                              ? 'Start with Billing and Inventory. Use Reports for exports, Finance for expenses and profit, Team for employees and payroll, and Settings > Business Tools for backups and account management.'
+                                              ? 'Start with Billing and Inventory. Use Reports for exports, Finance & HR for accounting, employees and payroll, and Settings > Business Tools for backups and account management.'
                                               : 'Start with Billing and Inventory. Ask your admin if you need access to restricted settings or business tools.',
                                           style: Theme.of(context)
                                               .textTheme
