@@ -223,6 +223,88 @@ class FinanceBankReconciliationService {
     return imported.length;
   }
 
+  /// Returns imported statement batches with reconciliation progress.
+  List<Map<String, dynamic>> batches({required String accountId}) {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final line in lines(accountId: accountId)) {
+      final batchId = line['batchId']?.toString();
+      if (batchId == null || batchId.isEmpty) continue;
+      (grouped[batchId] ??= <Map<String, dynamic>>[]).add(line);
+    }
+    final result = <Map<String, dynamic>>[];
+    for (final entry in grouped.entries) {
+      final batchLines = entry.value;
+      final dates = batchLines.map((line) => DateTime.parse(line['date'] as String)).toList()..sort();
+      final matchedCount = batchLines.where((line) => line['status'] == 'matched').length;
+      result.add({
+        'batchId': entry.key,
+        'lineCount': batchLines.length,
+        'matchedCount': matchedCount,
+        'firstDate': dates.first.toIso8601String(),
+        'lastDate': dates.last.toIso8601String(),
+        'completed': batchLines.every((line) => line['batchStatus'] == 'completed'),
+        'statementClosingBalancePaise': batchLines.first['statementClosingBalancePaise'],
+        'ledgerClosingBalancePaise': batchLines.first['ledgerClosingBalancePaise'],
+      });
+    }
+    result.sort((a, b) => DateTime.parse(b['lastDate'] as String).compareTo(DateTime.parse(a['lastDate'] as String)));
+    return result;
+  }
+
+  /// Closes a statement batch only when every line is matched and the supplied
+  /// statement closing balance equals the posted ledger balance at period end.
+  Future<int> completeBatch({
+    required String batchId,
+    required String accountId,
+    required int statementClosingBalancePaise,
+  }) async {
+    final stored = lines();
+    final batchLines = stored.where((line) => line['batchId'] == batchId && line['accountId'] == accountId).toList();
+    if (batchLines.isEmpty) throw const FinanceBankReconciliationException('Statement batch not found.');
+    if (batchLines.any((line) => line['batchStatus'] == 'completed')) {
+      throw const FinanceBankReconciliationException('This statement batch is already completed.');
+    }
+    if (batchLines.any((line) => line['status'] != 'matched')) {
+      throw const FinanceBankReconciliationException('Match every statement line before completing reconciliation.');
+    }
+    final account = Hive.box<FinanceAccount>(Boxes.financeAccounts).get(accountId);
+    if (account == null || !account.active || account.accountType != 'asset' || account.currencyCode != 'INR') {
+      throw const FinanceBankReconciliationException('The selected bank account is no longer active.');
+    }
+    final endDate = batchLines.map((line) => DateTime.parse(line['date'] as String)).reduce((a, b) => a.isAfter(b) ? a : b);
+    final cutoff = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+    final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    var ledgerClosingBalancePaise = 0;
+    for (final posting in Hive.box<FinancePosting>(Boxes.financePostings).values) {
+      if (posting.accountId != accountId) continue;
+      final transaction = transactions.get(posting.transactionId);
+      if (transaction == null || transaction.status != 'posted' || transaction.date.isAfter(cutoff)) continue;
+      ledgerClosingBalancePaise += posting.debitPaise - posting.creditPaise;
+    }
+    if (ledgerClosingBalancePaise != statementClosingBalancePaise) {
+      final difference = statementClosingBalancePaise - ledgerClosingBalancePaise;
+      throw FinanceBankReconciliationException(
+        'Closing balance does not match. Statement: ₹${(statementClosingBalancePaise / 100).toStringAsFixed(2)}, '
+        'ledger: ₹${(ledgerClosingBalancePaise / 100).toStringAsFixed(2)}, '
+        'difference: ₹${(difference / 100).toStringAsFixed(2)}.',
+      );
+    }
+    final completedAt = DateTime.now().toIso8601String();
+    await _settings.put(storageKey, [
+      for (final line in stored)
+        if (line['batchId'] == batchId && line['accountId'] == accountId)
+          <String, dynamic>{
+            ...line,
+            'batchStatus': 'completed',
+            'statementClosingBalancePaise': statementClosingBalancePaise,
+            'ledgerClosingBalancePaise': ledgerClosingBalancePaise,
+            'completedAt': completedAt,
+          }
+        else
+          line,
+    ]);
+    return ledgerClosingBalancePaise;
+  }
   Future<void> match({
     required String statementLineId,
     required String transactionId,
@@ -237,7 +319,7 @@ class FinanceBankReconciliationService {
       throw const FinanceBankReconciliationException('Statement line not found.');
     }
     final line = stored[index];
-    if (line['status'] == 'matched') {
+    if (line['batchStatus'] == 'completed') {\n      throw const FinanceBankReconciliationException('Completed statement batches cannot be changed.');\n    }\n    if (line['status'] == 'matched') {
       throw const FinanceBankReconciliationException('Statement line is already matched.');
     }
     final transaction = transactions.get(transactionId);
@@ -294,7 +376,7 @@ class FinanceBankReconciliationService {
       throw const FinanceBankReconciliationException('Statement line not found.');
     }
     final line = stored[index];
-    if (line['status'] != 'matched') {
+    if (line['batchStatus'] == 'completed') {\n      throw const FinanceBankReconciliationException('Completed statement batches cannot be changed.');\n    }\n    if (line['status'] != 'matched') {
       throw const FinanceBankReconciliationException('Statement line is not matched.');
     }
     final history = line['matchHistory'] is List
