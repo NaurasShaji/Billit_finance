@@ -109,10 +109,11 @@ class FinanceInventoryService {
     }
     final offset = accountsBox.get(offsetAccountId);
     if (offset == null || !offset.active || offset.currencyCode != 'INR' ||
-        !{'asset', 'liability'}.contains(offset.accountType) ||
+        (!{'asset', 'liability'}.contains(offset.accountType) &&
+            offset.id != 'system:opening-equity') ||
         offset.id == 'system:inventory') {
       throw const FinanceLedgerException(
-        'Choose an active INR cash, bank, wallet, or payable account as the stock purchase offset.',
+        'Choose an active INR cash, bank, wallet, payable, or opening-equity account as the stock receipt offset.',
       );
     }
 
