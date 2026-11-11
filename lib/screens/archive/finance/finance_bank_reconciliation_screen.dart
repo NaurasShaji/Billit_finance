@@ -68,7 +68,7 @@ class _FinanceBankReconciliationScreenState
     if (candidates.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No exact amount match was found within five days.'),
+          content: Text('No ledger posting with the exact amount and direction was found.'),
         ),
       );
       return;
@@ -122,6 +122,60 @@ class _FinanceBankReconciliationScreenState
         );
       }
     }
+  }
+
+  Future<void> _showHistory(Map<String, dynamic> line) async {
+    final raw = line['matchHistory'];
+    final history = raw is List
+        ? raw.whereType<Map>().map((entry) =>
+            Map<String, dynamic>.from(entry)).toList()
+        : <Map<String, dynamic>>[];
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reconciliation history'),
+        content: SizedBox(
+          width: 480,
+          child: history.isEmpty
+              ? const Center(child: Text('No matching history is available.'))
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: history.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final entry = history[index];
+                    final timestamp = DateTime.tryParse(
+                      entry['at']?.toString() ?? '',
+                    );
+                    final action = entry['action'] == 'matched'
+                        ? 'Matched'
+                        : 'Unmatched';
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(action),
+                      subtitle: Text(
+                        [
+                          if (entry['transactionId'] != null)
+                            'Transaction: ${entry['transactionId']}',
+                          if (entry['postingId'] != null)
+                            'Posting: ${entry['postingId']}',
+                          if (timestamp != null)
+                            DateFormat('dd MMM yyyy, hh:mm a')
+                                .format(timestamp.toLocal()),
+                        ].join(' · '),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _unmatch(Map<String, dynamic> line) async {
@@ -274,7 +328,8 @@ class _FinanceBankReconciliationScreenState
                             ' • ${line['status'] == 'matched' ? 'Matched' : 'Unmatched'}',
                           ),
                           isThreeLine: true,
-                          trailing: SizedBox(
+                          onTap: () => _showHistory(line),
+                        trailing: SizedBox(
                             width: 132,
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
