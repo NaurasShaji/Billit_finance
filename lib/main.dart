@@ -90,15 +90,27 @@ Future<void> main() async {
     partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
     settingsBox: settings,
   );
-  try {
-    await FinanceInventoryService().initializeOpeningInventory(
-      products: Hive.box<Product>(Boxes.products).values,
-      accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
-      transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
-      postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+  // Do not establish the opening inventory baseline while any historical
+  // sale is still missing its COGS journal. Otherwise a later retry would
+  // deduct old COGS from an already reduced stock valuation a second time.
+  final unresolvedSaleSync = financeSyncIssues.any(
+    (issue) => issue.startsWith('Sale '),
+  );
+  if (!unresolvedSaleSync) {
+    try {
+      await FinanceInventoryService().initializeOpeningInventory(
+        products: Hive.box<Product>(Boxes.products).values,
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+        transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+      );
+    } catch (inventoryError) {
+      financeSyncIssues.add('Opening inventory valuation: $inventoryError');
+    }
+  } else {
+    financeSyncIssues.add(
+      'Opening inventory valuation deferred until all historical sale journals sync successfully.',
     );
-  } catch (inventoryError) {
-    financeSyncIssues.add('Opening inventory valuation: $inventoryError');
   }
 
   if (financeSyncIssues.isEmpty) {
