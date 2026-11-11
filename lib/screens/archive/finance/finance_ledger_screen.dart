@@ -11,7 +11,6 @@ import 'finance_transaction_form_screen.dart';
 import 'finance_account_form_screen.dart';
 import 'finance_general_ledger_screen.dart';
 import 'finance_bank_reconciliation_screen.dart';
-import '../../../widgets/responsive_page.dart';
 import '../../../widgets/finance_content_frame.dart';
 
 class FinanceLedgerScreen extends StatefulWidget {
