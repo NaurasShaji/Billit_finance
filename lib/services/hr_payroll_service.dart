@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:hive_ce/hive_ce.dart';
 
 import '../models/models.dart';
