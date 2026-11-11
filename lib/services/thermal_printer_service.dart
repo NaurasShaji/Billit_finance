@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:flutter_thermal_printer/utils/printer.dart' as usb;
-import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:image/image.dart' as img;
 import 'payment_qr_service.dart';
 import 'invoice_template_service.dart';
@@ -487,10 +486,6 @@ class ThermalPrinterService {
       bytes += <int>[0x1D, 0x56, 0x00];
       return bytes;
     }
-
-    // Currency symbol - fallback to Rs. if printer doesn't support ₹
-    const String currencySymbol =
-        'Rs.'; // Changed to Rs. to avoid encoding errors
 
     // Render the configured logo before the business name.
     if (invoiceLogo != null) bytes += generator.image(invoiceLogo);
