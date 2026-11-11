@@ -1505,6 +1505,9 @@ class _BillingTabState extends State<BillingTab> with TickerProviderStateMixin {
         final taxable = _lineTaxableAmount(item);
         final rate = _applyGst ? _lineGstRate(item) : 0.0;
         item
+          // Capture the current weighted-average inventory cost at checkout,
+          // not a potentially stale cost from when the cart item was added.
+          ..costPrice = product?.costPrice ?? item.costPrice
           ..hsnCode = product?.hsnCode ?? ''
           ..gstRate = rate
           ..taxableAmount = taxable
