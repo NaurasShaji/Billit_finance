@@ -72,7 +72,7 @@ class _FinanceTransactionFormScreenState
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-  String _debitType => switch (_type) {
+  String get _debitType => switch (_type) {
         'income' => 'asset',
         'transfer' || 'customer_receipt' => 'cash_accounts',
         'supplier_payment' => 'payables',
@@ -80,7 +80,7 @@ class _FinanceTransactionFormScreenState
         _ => 'expense',
       };
 
-  String _creditType => switch (_type) {
+  String get _creditType => switch (_type) {
         'income' => 'income',
         'expense' => 'asset_or_liability',
         'customer_receipt' => 'receivables',
