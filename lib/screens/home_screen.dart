@@ -10,6 +10,8 @@ import 'tabs/products_tab.dart';
 import 'tabs/reports_tab.dart';
 import 'tabs/finance_tab.dart';
 import 'tabs/team_tab.dart';
+import 'tabs/archive_tab.dart';
+import 'tabs/finance_hr_tab.dart';
 import 'settings_screen.dart';
 import '../widgets/responsive_page.dart';
 
@@ -431,19 +433,19 @@ class _HomeScreenState extends State<HomeScreen> {
         : isRounded
             ? Icons.account_balance_wallet_rounded
             : Icons.account_balance_wallet_outlined;
-    final team = isFilled
-        ? Icons.groups
+    final archive = isFilled
+        ? Icons.archive
         : isRounded
-            ? Icons.groups_rounded
-            : Icons.groups_outlined;
+            ? Icons.archive_rounded
+            : Icons.archive_outlined;
 
     return isAdmin
-        ? [overview, billing, inventory, reports, finance, team]
+        ? [overview, billing, inventory, reports, archive, finance]
         : [overview, billing, inventory, reports];
   }
 
   List<String> _navigationKeys(bool isAdmin) => isAdmin
-      ? ['overview', 'billing', 'inventory', 'reports', 'finance', 'team']
+      ? ['overview', 'billing', 'inventory', 'reports', 'archive', 'finance']
       : ['overview', 'billing', 'inventory', 'reports'];
 
   IconData _iconFromChoice(String choice, IconData fallback) {
@@ -614,7 +616,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool isAdmin = _authService.isAdmin;
 
     final List<String> labels = isAdmin
-        ? ['Overview', 'Billing', 'Inventory', 'Reports', 'Finance', 'Team']
+        ? ['Overview', 'Billing', 'Inventory', 'Reports', 'Archive', 'Finance & HR']
         : ['Overview', 'Billing', 'Inventory', 'Reports'];
 
     final settingsBox = Hive.box<dynamic>('app_settings');
@@ -643,14 +645,14 @@ class _HomeScreenState extends State<HomeScreen> {
         onOpenBilling: () => setState(() => _index = 1),
         onOpenProducts: () => setState(() => _index = 2),
         onOpenReports: () => setState(() => _index = 3),
-        onOpenFinance: isAdmin ? () => setState(() => _index = 4) : null,
+        onOpenFinance: isAdmin ? () => setState(() => _index = 5) : null,
       ),
       const BillingTab(),
       const ProductsTab(),
       const ReportsTab(),
       if (isAdmin) ...[
-        const FinanceTab(),
-        const TeamTab(),
+        const ArchiveTab(),
+        const FinanceHrTab(),
       ],
     ];
 
