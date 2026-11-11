@@ -240,7 +240,10 @@ class FinancePaymentAllocationService {
     if (existing + requestedTotal > gross) throw const FinanceAllocationException('Allocations exceed the unallocated settlement amount.');
     final createdAt = DateTime.now();
     final records = drafts.map((d)=>FinancePaymentAllocation(id:d.id, settlementTransactionId:settlementTransactionId, invoiceTransactionId:d.invoiceTransactionId, partyId:partyId, amountPaise:d.amountPaise, createdAt:createdAt)).toList(growable:false);
-    final snapshot = Map<dynamic,dynamic>.from(_box.toMap());
+    final snapshot = <String, dynamic>{
+      for (final entry in _box.toMap().entries)
+        entry.key as String: entry.value,
+    };
     try { await _box.putAll({for (final a in records) a.id:a.toMap()}); }
     catch (_) { try { await _box.clear(); await _box.putAll(snapshot); } catch (_) {} rethrow; }
     return records;

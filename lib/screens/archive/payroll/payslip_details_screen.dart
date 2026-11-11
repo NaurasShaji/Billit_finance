@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -48,7 +49,7 @@ class PayslipDetailsScreen extends StatelessWidget {
               pw.Text('Payslip reference: ${slip.id}'),
               pw.SizedBox(height: 22),
               pw.Table(
-                border: pw.TableBorder.all(color: pw.PdfColors.grey400),
+                border: pw.TableBorder.all(color: pdf.PdfColors.grey400),
                 children: [
                   _row('Basic pay', _money(slip.basePaise)),
                   _row('Allowances', _money(slip.allowancesPaise)),

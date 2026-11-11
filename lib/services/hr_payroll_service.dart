@@ -122,7 +122,7 @@ class HrPayrollService {
     final existingClaims = settings.get(employeeReimbursementsKey);
     if (existingClaims != null && existingClaims is! List) throw const HrPayrollServiceException('Reimbursement register is malformed.');
     final claims = existingClaims is List ? List<dynamic>.from(existingClaims) : <dynamic>[];
-    final claim = {'id': const Uuid().v4(), 'employeeId': employeeId, 'amountPaise': amountPaise, 'paidPaise': 0, 'expenseDate': _day(expenseDate).toIso8601String(), 'categoryId': categoryId, 'note': note.trim(), 'status': 'submitted', 'createdAt': DateTime.now().toIso8601String(), 'payments': <Map<String, dynamic>>[]};
+    final claim = {'id': Uuid().v4(), 'employeeId': employeeId, 'amountPaise': amountPaise, 'paidPaise': 0, 'expenseDate': _day(expenseDate).toIso8601String(), 'categoryId': categoryId, 'note': note.trim(), 'status': 'submitted', 'createdAt': DateTime.now().toIso8601String(), 'payments': <Map<String, dynamic>>[]};
     await settings.put(employeeReimbursementsKey, [...claims, claim]);
     return claim;
   }
@@ -304,7 +304,7 @@ class HrPayrollService {
     final all = <String,dynamic>{if (raw is Map) ...Map<String,dynamic>.from(raw)};
     final list = all[employeeId] is List ? List<dynamic>.from(all[employeeId] as List) : <dynamic>[];
     list.add({
-      'id': const Uuid().v4(), 'description': description.trim(),
+      'id': Uuid().v4(), 'description': description.trim(),
       'principalPaise': principalPaise, 'outstandingPaise': principalPaise,
       'installmentPaise': installmentPaise,
       'issueDate': _day(issueDate).toIso8601String(),
@@ -369,7 +369,7 @@ class HrPayrollService {
     if (amountPaise > outstanding) throw const HrPayrollServiceException('Repayment cannot exceed the outstanding advance balance.');
     final repayments = (advance['repayments'] as List? ?? []).whereType<Map>()
         .map((e) => Map<String,dynamic>.from(e)).toList();
-    repayments.add({'id': const Uuid().v4(), 'date': _day(date).toIso8601String(),
+    repayments.add({'id': Uuid().v4(), 'date': _day(date).toIso8601String(),
       'amountPaise': amountPaise, 'note': note.trim(), 'source': 'manual',
       'createdAt': DateTime.now().toIso8601String()});
     final remaining = outstanding - amountPaise;
@@ -865,7 +865,7 @@ class HrPayrollService {
         ? List<dynamic>.from(allEntries[employeeId] as List)
         : <dynamic>[];
     entries.add({
-      'id': const Uuid().v4(),
+      'id': Uuid().v4(),
       'date': _day(date).toIso8601String(),
       'amountPaise': amountPaise,
       'description': description.trim(),
@@ -937,7 +937,7 @@ class HrPayrollService {
         : <dynamic>[];
     final hoursMilli = (hours * 1000).round();
     entries.add({
-      'id': const Uuid().v4(),
+      'id': Uuid().v4(),
       'date': _day(date).toIso8601String(),
       'hoursMilli': hoursMilli,
       'hourlyRatePaise': hourlyRatePaise,
@@ -1657,7 +1657,7 @@ class HrPayrollService {
     final settings = Hive.box<dynamic>('app_settings');
     final grades = salaryGrades();
     if (grades.any((grade) => (grade['name'] as String).toLowerCase() == cleanName.toLowerCase())) throw const HrPayrollServiceException('A salary grade with this name already exists.');
-    final grade = {'id': const Uuid().v4(), 'name': cleanName, 'payBasis': payBasis, 'minPaise': minPaise, 'maxPaise': maxPaise, 'active': true, 'createdAt': DateTime.now().toIso8601String()};
+    final grade = {'id': Uuid().v4(), 'name': cleanName, 'payBasis': payBasis, 'minPaise': minPaise, 'maxPaise': maxPaise, 'active': true, 'createdAt': DateTime.now().toIso8601String()};
     await settings.put(salaryGradesKey, [...grades, grade]);
     return grade;
   }
@@ -1684,7 +1684,7 @@ class HrPayrollService {
     final all = <String, dynamic>{if (raw is Map) ...Map<String, dynamic>.from(raw)};
     final history = all[employeeId] is List ? List<dynamic>.from(all[employeeId] as List) : <dynamic>[];
     if (history.any((entry) => entry is Map && entry['effectiveDate'] is String && _day(DateTime.parse(entry['effectiveDate'] as String)) == date)) throw const HrPayrollServiceException('A salary grade assignment already exists for this effective date.');
-    history.add({'id': const Uuid().v4(), 'gradeId': gradeId, 'effectiveDate': date.toIso8601String(), 'createdAt': DateTime.now().toIso8601String()});
+    history.add({'id': Uuid().v4(), 'gradeId': gradeId, 'effectiveDate': date.toIso8601String(), 'createdAt': DateTime.now().toIso8601String()});
     all[employeeId] = history;
     await settings.put(employeeSalaryGradesKey, all);
   }
@@ -1801,7 +1801,7 @@ class HrPayrollService {
       );
     }
     entries.add({
-      'id': const Uuid().v4(),
+      'id': Uuid().v4(),
       'effectiveDate': date.toIso8601String(),
       'basePaise': basePaise,
       'note': note.trim(),
