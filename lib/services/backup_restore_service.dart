@@ -569,7 +569,7 @@ class BackupRestoreService {
       }
       for (final entry in settlementTotals.entries) {
         final settlement = transactionsById[entry.key]!;
-        final party = financeParties!.firstWhere((p) =>
+        final party = financeParties.firstWhere((p) =>
             p.partyType == (settlement.transactionType == 'customer_receipt' ? 'customer' : 'supplier') &&
             (postingsByTransaction[settlement.id] ?? []).any((line) =>
                 line.partyId == p.id &&
