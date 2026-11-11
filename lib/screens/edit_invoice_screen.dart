@@ -33,8 +33,6 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
   bool _isSaving = false;
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
-  final InvoiceService _invoiceService =
-      InvoiceService(); // Instantiated InvoiceService
 
   @override
   void initState() {
