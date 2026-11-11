@@ -1,0 +1,48 @@
+workflows:
+  android-release:
+    name: Billit Android Release APK
+    max_build_duration: 60
+    instance_type: linux_x2
+
+    environment:
+      flutter: 3.29.3
+      java: 17
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+
+    scripts:
+      - name: Configure Flutter SDK path
+        script: |
+          echo "flutter.sdk=$FLUTTER_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+
+      - name: Resolve Flutter dependencies
+        script: |
+          flutter pub get
+
+      - name: Regenerate Hive CE adapters
+        script: |
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate launcher icons
+        script: |
+          dart run flutter_launcher_icons
+
+      - name: Build Android release APK
+        script: |
+          flutter build apk --release
+
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/**/outputs/**/*.log
