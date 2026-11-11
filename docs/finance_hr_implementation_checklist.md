@@ -160,7 +160,7 @@ Work branch: `feature/finance-team-promotion`
 - [x] Payroll liabilities and linked finance payments. New payroll runs accrue gross salary once, credit net Payroll Payable and supported deduction controls, settle net payments against selected INR asset accounts, and retain a cash-basis compatibility path for previously approved runs.
 - [x] Employee-linked advances, issuance, manual repayment, payroll instalment recovery, controlled balance correction, and subledger-to-journal reconciliation.
 - [x] Employee reimbursement claims, approval/rejection, partial settlement, expense accrual, reimbursement payable control, and finance reconciliation.
-- [x] Complete cross-module reconciliation for POS sales, expenses, payroll accruals/payments, employee advances, and reimbursement claims/liabilities. Bank-statement reconciliation and inventory COGS matching remain outside this source-to-journal report.
+- [x] Complete cross-module reconciliation for POS sales, expenses, payroll accruals/payments, employee advances, reimbursement claims/liabilities, and POS COGS source journals. Bank-statement matching remains a separate statement-to-ledger workflow.
 
 ## Phase 8 — UI/UX redesign
 
@@ -328,7 +328,7 @@ Release validation and regression tests remain pending and are intentionally own
 
 - Schema v12 adds the Inventory Asset control account and schema v13 adds Inventory Shrinkage and Adjustments. No Hive adapter IDs are added.
 - On startup, after historical POS sales are synchronized, the inventory service establishes an idempotent opening inventory valuation from current product stock × stored cost price, adjusted for historical inventory COGS postings.
-- Positive stock receipts require a purchase unit cost and an offset account. Product cost price is recalculated using weighted-average costing; the journal debits Inventory Asset and credits the selected cash, bank, wallet, or payable account.
+- Positive stock receipts require a purchase unit cost and an offset account. Product cost price is recalculated using weighted-average costing; the journal debits Inventory Asset and credits the selected cash, bank, wallet, or payable account. New-product opening stock from the product form and the active Excel bulk-import screen is posted against Opening Balance Equity.
 - Negative stock adjustments are treated as write-offs at weighted-average cost: debit Inventory Shrinkage and credit Inventory Asset. Direct stock edits are disabled for existing products; new products with opening stock post an opening-equity offset.
 - POS sale synchronization posts a separate immutable COGS adjustment from the sale's stored item-cost snapshot: debit Cost of Goods Sold and credit Inventory Asset. Sale edits reverse prior-revision COGS journals before posting the new snapshot. Sale deletion reverses both revenue/GST and COGS journals.
 - Finance source reconciliation checks COGS source amounts and detects missing, duplicate, reversed, or orphaned current COGS journals. Validation was not run.
