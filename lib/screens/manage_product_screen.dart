@@ -3,6 +3,7 @@ import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 import '../models/models.dart';
 import '../services/boxes.dart';
+import '../services/finance_inventory_service.dart';
 import '../utils/platform_support.dart';
 import 'barcode_scanner_screen.dart';
 import '../widgets/responsive_page.dart';
@@ -140,6 +141,11 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
         );
         return;
       }
+      final initialStock =
+          double.tryParse(_stockController.text.trim()) ?? 0;
+      final initialCost =
+          double.tryParse(_costPriceController.text.trim()) ?? 0;
+      final isNewProduct = widget.product == null;
       final product = widget.product ?? Product()
         ..id = widget.product?.id ?? const Uuid().v4()
         ..active = true;
@@ -147,8 +153,8 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
       product
         ..name = _nameController.text
         ..sellingPrice = double.tryParse(_sellingPriceController.text) ?? 0
-        ..costPrice = double.tryParse(_costPriceController.text) ?? 0
-        ..stock = double.tryParse(_stockController.text) ?? 0
+        ..costPrice = initialCost
+        ..stock = isNewProduct ? 0 : initialStock
         ..category = _categoryController.text
         ..subCategory = _subCategoryController.text
         ..barcode = barcode.isEmpty ? null : barcode
@@ -156,8 +162,20 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
         ..gstRate = gstRate
         ..unit = _selectedUnit;
 
-      if (widget.product == null) {
+      if (isNewProduct) {
         await box.put(product.id, product);
+        if (initialStock > 0) {
+          await FinanceInventoryService().receiveStock(
+            product: product,
+            quantity: initialStock,
+            unitCost: initialCost,
+            offsetAccountId: 'system:opening-equity',
+            accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+            transactionsBox:
+                Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+            postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          );
+        }
       } else {
         await product.save();
       }
