@@ -96,6 +96,7 @@ class _FinanceReconciliationScreenState
                   expenses: expensesBox.values,
                   transactions: transactionsBox.values,
                   postings: postingsBox.values,
+                  accounts: Hive.box<FinanceAccount>(Boxes.financeAccounts).values,
                   payslips: payslipsBox.values,
                   reimbursements: reimbursementRaw is List
                       ? reimbursementRaw.whereType<Map>().map((entry) => Map<String, dynamic>.from(entry))
