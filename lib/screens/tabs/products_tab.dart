@@ -752,7 +752,7 @@ class _ProductsTabState extends State<ProductsTab> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Purchase cost per ${product.unit.name}',
                         prefixText: '₹ ',
                         helperText: 'Used to recalculate weighted average cost',
