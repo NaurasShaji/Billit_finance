@@ -244,8 +244,6 @@ class _FinanceReconciliationScreenState
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 
