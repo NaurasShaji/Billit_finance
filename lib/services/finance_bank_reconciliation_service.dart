@@ -319,7 +319,10 @@ class FinanceBankReconciliationService {
       throw const FinanceBankReconciliationException('Statement line not found.');
     }
     final line = stored[index];
-    if (line['batchStatus'] == 'completed') {\n      throw const FinanceBankReconciliationException('Completed statement batches cannot be changed.');\n    }\n    if (line['status'] == 'matched') {
+    if (line['batchStatus'] == 'completed') {
+      throw const FinanceBankReconciliationException('Completed statement batches cannot be changed.');
+    }
+    if (line['status'] == 'matched') {
       throw const FinanceBankReconciliationException('Statement line is already matched.');
     }
     final transaction = transactions.get(transactionId);
@@ -376,7 +379,10 @@ class FinanceBankReconciliationService {
       throw const FinanceBankReconciliationException('Statement line not found.');
     }
     final line = stored[index];
-    if (line['batchStatus'] == 'completed') {\n      throw const FinanceBankReconciliationException('Completed statement batches cannot be changed.');\n    }\n    if (line['status'] != 'matched') {
+    if (line['batchStatus'] == 'completed') {
+      throw const FinanceBankReconciliationException('Completed statement batches cannot be changed.');
+    }
+    if (line['status'] != 'matched') {
       throw const FinanceBankReconciliationException('Statement line is not matched.');
     }
     final history = line['matchHistory'] is List
