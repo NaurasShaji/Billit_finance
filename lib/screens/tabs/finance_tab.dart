@@ -173,6 +173,12 @@ class _FinanceTabState extends State<FinanceTab> {
                       OutlinedButton.icon(
                         onPressed: () =>
                             _open(const FinanceBankReconciliationScreen()),
+                        icon: const Icon(Icons.account_balance_wallet_outlined),
+                        label: const Text('Bank reconciliation'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            _open(const FinanceBankReconciliationScreen()),
                         icon: const Icon(Icons.account_balance_outlined),
                         label: const Text('Bank statements'),
                       ),
