@@ -39,6 +39,10 @@ workflows:
         script: |
           dart run flutter_launcher_icons
 
+      - name: Analyze Dart and Flutter code
+        script: |
+          flutter analyze
+
       - name: Build Android release APK
         script: |
           flutter build apk --release
