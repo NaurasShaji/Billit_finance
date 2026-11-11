@@ -195,8 +195,40 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
 
   Future<void> _saveChanges() async {
     setState(() => _isSaving = true);
+    final stockSnapshots = <String, double>{};
+    var saleSaved = false;
 
     try {
+      // Invoice edits must return removed quantities to stock and deduct any
+      // additional quantities, keeping operational stock aligned with COGS.
+      final oldQuantities = <String, double>{};
+      final newQuantities = <String, double>{};
+      for (final item in widget.sale.items) {
+        oldQuantities.update(item.productId, (value) => value + item.qty,
+            ifAbsent: () => item.qty);
+      }
+      for (final item in _editedItems) {
+        newQuantities.update(item.productId, (value) => value + item.qty,
+            ifAbsent: () => item.qty);
+      }
+      final productBox = Hive.box<Product>(Boxes.products);
+      final productIds = <String>{...oldQuantities.keys, ...newQuantities.keys};
+      for (final productId in productIds) {
+        final product = productBox.get(productId);
+        final delta = (oldQuantities[productId] ?? 0) -
+            (newQuantities[productId] ?? 0);
+        if (delta == 0) continue;
+        if (product == null) {
+          throw StateError('Product $productId is missing; invoice stock cannot be adjusted.');
+        }
+        final nextStock = product.stock + delta;
+        if (nextStock < -0.000001) {
+          throw StateError('Insufficient stock for ${product.name} to save this invoice edit.');
+        }
+        stockSnapshots[productId] = product.stock;
+        product.stock = nextStock < 0 ? 0 : nextStock;
+        await product.save();
+      }
       for (final item in _editedItems) {
         final product = Hive.box<Product>(Boxes.products).get(item.productId);
         final taxable = _taxableForItem(item);
@@ -226,6 +258,7 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
         ..financeRevision += 1;
 
       await widget.sale.save();
+      saleSaved = true;
 
       // A new immutable journal revision reverses the previous invoice snapshot.
       try {
@@ -258,6 +291,16 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
         Navigator.of(context).pop(true);
       }
     } catch (e) {
+      if (!saleSaved && stockSnapshots.isNotEmpty) {
+        final productBox = Hive.box<Product>(Boxes.products);
+        for (final entry in stockSnapshots.entries) {
+          final product = productBox.get(entry.key);
+          if (product != null) {
+            product.stock = entry.value;
+            await product.save();
+          }
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
