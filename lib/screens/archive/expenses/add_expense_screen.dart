@@ -5,7 +5,6 @@ import 'package:uuid/uuid.dart';
 import '../../../services/boxes.dart';
 import '../../../services/finance_source_sync_service.dart';
 import '../../../models/models.dart';
-import '../../../utils/theme_colors.dart';
 import '../../../widgets/responsive_page.dart';
 
 class AddExpenseScreen extends StatefulWidget {
