@@ -124,6 +124,7 @@ class FinanceReconciliationService {
     required Iterable<Expense> expenses,
     required Iterable<FinanceTransaction> transactions,
     required Iterable<FinancePosting> postings,
+    Iterable<FinanceAccount> accounts = const [],
     Iterable<Payslip> payslips = const [],
     Iterable<Map<String, dynamic>> reimbursements = const [],
   }) {
@@ -137,6 +138,7 @@ class FinanceReconciliationService {
       for (final expense in expenseRecords)
         _sourceId(expense.id, expense.financeRevision),
     };
+    final accountsById = {for (final account in accounts) account.id: account};
     final posted = allTransactions
         .where((transaction) => transaction.status == 'posted')
         .toList();
@@ -383,8 +385,6 @@ class FinanceReconciliationService {
       final expectedGross = slip.basePaise + slip.allowancesPaise;
       payrollGross += expectedGross;
       payrollAccrualCount++;
-      final lines = postings.where((line) =>
-          line.transactionId == accrual.id).toList();
       final adjustmentJournals = posted.where((tx) =>
           tx.sourceType == 'payroll_adjustment' &&
           tx.sourceId.startsWith('${slip.id}:adjustment:')).toList();
