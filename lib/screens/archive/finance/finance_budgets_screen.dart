@@ -70,7 +70,7 @@ class FinanceBudgetsScreen extends StatelessWidget {
               valueListenable:
                   Hive.box<FinanceAccount>(Boxes.financeAccounts).listenable(),
               builder: (context, accountsBox, ____) {
-                final progress = const FinanceBudgetService().summarize(
+                final progress = FinanceBudgetService().summarize(
                   budgets: budgetsBox.values,
                   transactions: transactionsBox.values,
                   postings: postingsBox.values,
