@@ -8,8 +8,6 @@ import 'tabs/billing_tab.dart';
 import 'tabs/dashboard_tab.dart';
 import 'tabs/products_tab.dart';
 import 'tabs/reports_tab.dart';
-import 'tabs/finance_tab.dart';
-import 'tabs/team_tab.dart';
 import 'tabs/archive_tab.dart';
 import 'tabs/finance_hr_tab.dart';
 import 'settings_screen.dart';
