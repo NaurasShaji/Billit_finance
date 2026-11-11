@@ -132,8 +132,8 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
         final isSelected = _selectedDevice?.macAdress == device.macAdress;
 
         return ListTile(
-          title: Text(device.name ?? 'Unknown Device'),
-          subtitle: Text(device.macAdress ?? ''),
+          title: Text(device.name),
+          subtitle: Text(device.macAdress),
           leading: Icon(
             Icons.print,
             color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
