@@ -155,7 +155,7 @@ class TeamTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'TEAM',
+                      'EMPLOYEE DIRECTORY',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: scheme.onSurface.withValues(alpha: 0.55),
                         fontWeight: FontWeight.w700,
@@ -212,7 +212,7 @@ class TeamTab extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Employees and payroll',
+                'Employee records, attendance and payroll operations',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: scheme.onSurface.withValues(alpha: 0.62),
                 ),
@@ -224,7 +224,7 @@ class TeamTab extends StatelessWidget {
         FilledButton.icon(
           onPressed: () => _open(context, const AddEmployeeScreen()),
           icon: const Icon(Icons.person_add_alt_1_outlined),
-          label: const Text('Manage'),
+          label: const Text('Add employee'),
         ),
       ],
     );
