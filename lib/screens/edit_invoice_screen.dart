@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/finance_source_sync_service.dart';
 import '../../services/invoice_service.dart'; // Added import
 import './product_selection_screen.dart';
 import '../widgets/responsive_page.dart';
@@ -194,8 +195,40 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
 
   Future<void> _saveChanges() async {
     setState(() => _isSaving = true);
+    final stockSnapshots = <String, double>{};
+    var saleSaved = false;
 
     try {
+      // Invoice edits must return removed quantities to stock and deduct any
+      // additional quantities, keeping operational stock aligned with COGS.
+      final oldQuantities = <String, double>{};
+      final newQuantities = <String, double>{};
+      for (final item in widget.sale.items) {
+        oldQuantities.update(item.productId, (value) => value + item.qty,
+            ifAbsent: () => item.qty);
+      }
+      for (final item in _editedItems) {
+        newQuantities.update(item.productId, (value) => value + item.qty,
+            ifAbsent: () => item.qty);
+      }
+      final productBox = Hive.box<Product>(Boxes.products);
+      final productIds = <String>{...oldQuantities.keys, ...newQuantities.keys};
+      for (final productId in productIds) {
+        final product = productBox.get(productId);
+        final delta = (oldQuantities[productId] ?? 0) -
+            (newQuantities[productId] ?? 0);
+        if (delta == 0) continue;
+        if (product == null) {
+          throw StateError('Product $productId is missing; invoice stock cannot be adjusted.');
+        }
+        final nextStock = product.stock + delta;
+        if (nextStock < -0.000001) {
+          throw StateError('Insufficient stock for ${product.name} to save this invoice edit.');
+        }
+        stockSnapshots[productId] = product.stock;
+        product.stock = nextStock < 0 ? 0 : nextStock;
+        await product.save();
+      }
       for (final item in _editedItems) {
         final product = Hive.box<Product>(Boxes.products).get(item.productId);
         final taxable = _taxableForItem(item);
@@ -221,9 +254,36 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
         ..cgstAmount = _currentCgst
         ..sgstAmount = _currentSgst
         ..igstAmount = _currentIgst
-        ..discount = _discount;
+        ..discount = _discount
+        ..financeRevision += 1;
 
       await widget.sale.save();
+      saleSaved = true;
+
+      // A new immutable journal revision reverses the previous invoice snapshot.
+      try {
+        await FinanceSourceSyncService().syncSale(
+          sale: widget.sale,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+        );
+      } catch (financeError) {
+        await FinanceSourceSyncService.recordIssue(
+          Hive.box<dynamic>('app_settings'),
+          'Sale ${widget.sale.id}: $financeError',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invoice updated; finance journal sync will retry on next launch: $financeError'),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
+      }
 
       if (mounted) {
         _showSuccessMessage('Invoice updated successfully');
@@ -231,6 +291,16 @@ class _EditInvoiceScreenState extends State<EditInvoiceScreen>
         Navigator.of(context).pop(true);
       }
     } catch (e) {
+      if (!saleSaved && stockSnapshots.isNotEmpty) {
+        final productBox = Hive.box<Product>(Boxes.products);
+        for (final entry in stockSnapshots.entries) {
+          final product = productBox.get(entry.key);
+          if (product != null) {
+            product.stock = entry.value;
+            await product.save();
+          }
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

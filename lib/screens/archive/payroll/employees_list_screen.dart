@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import '../../../models/employee.dart';
 import '../../../services/boxes.dart';
+import '../../../widgets/responsive_page.dart';
 
 class EmployeesListScreen extends StatelessWidget {
   const EmployeesListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       appBar: AppBar(title: const Text('Employees List')),
       body: ValueListenableBuilder(
         valueListenable: Hive.box<Employee>(Boxes.employees).listenable(),
@@ -43,7 +44,7 @@ class EmployeesListScreen extends StatelessWidget {
           );
         },
       ),
-    );
+    ));
   }
 
   void _showDeleteDialog(

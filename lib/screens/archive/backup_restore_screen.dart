@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/backup_restore_service.dart';
 import '../../services/drive_backup_service.dart';
 import '../../utils/theme_colors.dart';
 
@@ -1024,6 +1025,22 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
     final salesBox = Hive.box<Sale>(Boxes.sales);
     final expensesBox = Hive.box<Expense>(Boxes.expenses);
     final employeesBox = Hive.box<Employee>(Boxes.employees);
+    final financeAccountsBox =
+        Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    final financeTransactionsBox =
+        Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+    final financePostingsBox =
+        Hive.box<FinancePosting>(Boxes.financePostings);
+    final financeCategoriesBox =
+        Hive.box<FinanceCategory>(Boxes.financeCategories);
+    final financePartiesBox =
+        Hive.box<FinanceParty>(Boxes.financeParties);
+    final financeBudgetsBox =
+        Hive.box<FinanceBudget>(Boxes.financeBudgets);
+    final financeRecurringTemplatesBox =
+        Hive.box<FinanceRecurringTemplate>(Boxes.financeRecurringTemplates);
+    final financePaymentAllocationsBox =
+        Hive.box<Map>(Boxes.financePaymentAllocations);
     final appSettingsBox = Hive.box<dynamic>('app_settings');
 
     return {
@@ -1096,6 +1113,7 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'customerGstin': s.customerGstin,
                 'interstateSale': s.interstateSale,
                 'gstInclusive': s.gstInclusive,
+                'financeRevision': s.financeRevision,
               })
           .toList(),
       'expenses': expensesBox.values
@@ -1105,6 +1123,8 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'category': e.category,
                 'amount': e.amount,
                 'description': e.description,
+                if (e.employeeId != null) 'employeeId': e.employeeId,
+                'financeRevision': e.financeRevision,
               })
           .toList(),
       'employees': employeesBox.values
@@ -1115,125 +1135,227 @@ class _BackupRestoreTabState extends State<BackupRestoreTab>
                 'wage': e.wage,
                 'attendance': e.attendance,
                 'salaryPaid': e.salaryPaid,
+                'employeeCode': e.employeeCode,
+                'phone': e.phone,
+                'email': e.email,
+                'departmentId': e.departmentId,
+                'designation': e.designation,
+                'joiningDate': e.joiningDate?.toIso8601String(),
+                'employmentStatus': e.employmentStatus,
+                'emergencyContact': e.emergencyContact,
+                'address': e.address,
+                'notes': e.notes,
+              })
+          .toList(),
+      'hrDepartments': Hive.box<HrDepartment>(Boxes.hrDepartments).values
+          .map((department) => {
+                'id': department.id,
+                'name': department.name,
+                'description': department.description,
+                'active': department.active,
+                'createdAt': department.createdAt.toIso8601String(),
+              })
+          .toList(),
+      'employeeAttendance':
+          Hive.box<EmployeeAttendance>(Boxes.employeeAttendance).values
+              .map((record) => {
+                    'id': record.id,
+                    'employeeId': record.employeeId,
+                    'date': record.date.toIso8601String(),
+                    'status': record.status,
+                    'checkIn': record.checkIn?.toIso8601String(),
+                    'checkOut': record.checkOut?.toIso8601String(),
+                    'notes': record.notes,
+                    'updatedAt': record.updatedAt.toIso8601String(),
+                  })
+              .toList(),
+      'leaveRequests': Hive.box<LeaveRequest>(Boxes.leaveRequests).values
+          .map((request) => {
+                'id': request.id,
+                'employeeId': request.employeeId,
+                'leaveType': request.leaveType,
+                'startDate': request.startDate.toIso8601String(),
+                'endDate': request.endDate.toIso8601String(),
+                'reason': request.reason,
+                'status': request.status,
+                'reviewedBy': request.reviewedBy,
+                'reviewedAt': request.reviewedAt?.toIso8601String(),
+                'createdAt': request.createdAt.toIso8601String(),
+              })
+          .toList(),
+      'salaryComponents':
+          Hive.box<SalaryComponent>(Boxes.salaryComponents).values
+              .map((component) => {
+                    'id': component.id,
+                    'employeeId': component.employeeId,
+                    'name': component.name,
+                    'componentType': component.componentType,
+                    'amountPaise': component.amountPaise,
+                    'effectiveFrom': component.effectiveFrom.toIso8601String(),
+                    'effectiveTo': component.effectiveTo?.toIso8601String(),
+                    'active': component.active,
+                  })
+              .toList(),
+      'payrollRuns': Hive.box<PayrollRun>(Boxes.payrollRuns).values
+          .map((run) => {
+                'id': run.id,
+                'periodStart': run.periodStart.toIso8601String(),
+                'periodEnd': run.periodEnd.toIso8601String(),
+                'status': run.status,
+                'createdAt': run.createdAt.toIso8601String(),
+                'approvedAt': run.approvedAt?.toIso8601String(),
+                'paidAt': run.paidAt?.toIso8601String(),
+                'totalGrossPaise': run.totalGrossPaise,
+                'totalDeductionsPaise': run.totalDeductionsPaise,
+                'totalNetPaise': run.totalNetPaise,
+                'memo': run.memo,
+              })
+          .toList(),
+      'payslips': Hive.box<Payslip>(Boxes.payslips).values
+          .map((slip) => {
+                'id': slip.id,
+                'payrollRunId': slip.payrollRunId,
+                'employeeId': slip.employeeId,
+                'payType': slip.payType,
+                'basePaise': slip.basePaise,
+                'allowancesPaise': slip.allowancesPaise,
+                'deductionsPaise': slip.deductionsPaise,
+                'payableDays': slip.payableDays,
+                'paidPaise': slip.paidPaise,
+                'status': slip.status,
+                'generatedAt': slip.generatedAt.toIso8601String(),
+                'paidAt': slip.paidAt?.toIso8601String(),
+              })
+          .toList(),
+      'financeAccounts': financeAccountsBox.values
+          .map((a) => {
+                'id': a.id,
+                'name': a.name,
+                'accountType': a.accountType,
+                'parentId': a.parentId,
+                'currencyCode': a.currencyCode,
+                'active': a.active,
+                'createdAt': a.createdAt.toIso8601String(),
+              })
+          .toList(),
+      'financeTransactions': financeTransactionsBox.values
+          .map((t) => {
+                'id': t.id,
+                'transactionNumber': t.transactionNumber,
+                'transactionType': t.transactionType,
+                'status': t.status,
+                'date': t.date.toIso8601String(),
+                'memo': t.memo,
+                'reference': t.reference,
+                'sourceType': t.sourceType,
+                'sourceId': t.sourceId,
+                'createdAt': t.createdAt.toIso8601String(),
+                'postedAt': t.postedAt?.toIso8601String(),
+                'reversedTransactionId': t.reversedTransactionId,
+                'dueDate': t.dueDate?.toIso8601String(),
+              })
+          .toList(),
+      'financePostings': financePostingsBox.values
+          .map((p) => {
+                'id': p.id,
+                'transactionId': p.transactionId,
+                'accountId': p.accountId,
+                'debitPaise': p.debitPaise,
+                'creditPaise': p.creditPaise,
+                'partyId': p.partyId,
+                'categoryId': p.categoryId,
+                'memo': p.memo,
+              })
+          .toList(),
+      'financeCategories': financeCategoriesBox.values
+          .map((category) => {
+                'id': category.id,
+                'name': category.name,
+                'kind': category.kind,
+                'accountId': category.accountId,
+                'active': category.active,
+              })
+          .toList(),
+      'financeParties': financePartiesBox.values
+          .map((party) => {
+                'id': party.id,
+                'name': party.name,
+                'partyType': party.partyType,
+                'phone': party.phone,
+                'email': party.email,
+                'taxIdentifier': party.taxIdentifier,
+                'active': party.active,
+              })
+          .toList(),
+      'financeBudgets': financeBudgetsBox.values
+          .map((budget) => {
+                'id': budget.id,
+                'name': budget.name,
+                'accountId': budget.accountId,
+                'categoryId': budget.categoryId,
+                'periodStart': budget.periodStart.toIso8601String(),
+                'periodEnd': budget.periodEnd.toIso8601String(),
+                'budgetPaise': budget.budgetPaise,
+                'active': budget.active,
+                'notes': budget.notes,
+                'createdAt': budget.createdAt.toIso8601String(),
+              })
+          .toList(),
+      'financePaymentAllocations': financePaymentAllocationsBox.values
+          .map((allocation) => Map<String, dynamic>.from(allocation))
+          .toList(),
+      'financeRecurringTemplates': financeRecurringTemplatesBox.values
+          .map((template) => {
+                'id': template.id,
+                'name': template.name,
+                'transactionType': template.transactionType,
+                'debitAccountId': template.debitAccountId,
+                'creditAccountId': template.creditAccountId,
+                'amountPaise': template.amountPaise,
+                'interval': template.interval,
+                'nextDueDate': template.nextDueDate.toIso8601String(),
+                'endDate': template.endDate?.toIso8601String(),
+                'categoryId': template.categoryId,
+                'partyId': template.partyId,
+                'memo': template.memo,
+                'active': template.active,
+                'createdAt': template.createdAt.toIso8601String(),
               })
           .toList(),
     };
   }
 
   Future<void> _importAllBoxesFromJson(Map<String, dynamic> data) async {
-    final usersBox = Hive.box<User>(Boxes.users);
-    final productsBox = Hive.box<Product>(Boxes.products);
-    final salesBox = Hive.box<Sale>(Boxes.sales);
-    final expensesBox = Hive.box<Expense>(Boxes.expenses);
-    final employeesBox = Hive.box<Employee>(Boxes.employees);
-    final appSettingsBox = Hive.box<dynamic>('app_settings');
-
-    await usersBox.clear();
-    await productsBox.clear();
-    await salesBox.clear();
-    await expensesBox.clear();
-    await employeesBox.clear();
-
-    for (final u in (data['users'] as List? ?? const [])) {
-      final user = User()
-        ..id = u['id'] as String
-        ..username = u['username'] as String
-        ..password = u['password'] as String
-        ..userType = (u['userType'] as String) == 'admin'
-            ? UserType.admin
-            : UserType.worker;
-      await usersBox.put(user.id, user);
-    }
-
-    for (final p in (data['products'] as List? ?? const [])) {
-      final product = Product()
-        ..id = p['id'] as String
-        ..name = p['name'] as String
-        ..sellingPrice = (p['sellingPrice'] as num).toDouble()
-        ..costPrice = (p['costPrice'] as num).toDouble()
-        ..stock = (p['stock'] as num).toDouble()
-        ..unit = UnitType.values.firstWhere(
-          (unit) => unit.name == (p['unit'] as String? ?? 'pcs'),
-          orElse: () => UnitType.pcs,
-        )
-        ..category = p['category'] as String? ?? 'General'
-        ..subCategory = p['subCategory'] as String? ?? ''
-        ..active = p['active'] as bool? ?? true
-        ..barcode = p['barcode'] as String?
-        ..hsnCode = p['hsnCode'] as String? ?? ''
-        ..gstRate = (p['gstRate'] as num?)?.toDouble();
-      await productsBox.put(product.id, product);
-    }
-
-    for (final s in (data['sales'] as List? ?? const [])) {
-      final sale = Sale()
-        ..id = s['id'] as String
-        ..date = DateTime.parse(s['date'] as String)
-        ..items = ((s['items'] as List?) ?? const [])
-            .map((it) => SaleItem()
-              ..productId = it['productId'] as String
-              ..qty = (it['qty'] as num).toDouble()
-              ..sellingPrice = (it['sellingPrice'] as num).toDouble()
-              ..costPrice = (it['costPrice'] as num).toDouble()
-              ..subtotal = (it['subtotal'] as num).toDouble()
-              ..unitLabel = it['unitLabel'] as String? ?? 'pcs'
-              ..hsnCode = it['hsnCode'] as String? ?? ''
-              ..gstRate = (it['gstRate'] as num?)?.toDouble()
-              ..taxableAmount = (it['taxableAmount'] as num?)?.toDouble() ?? 0.0
-              ..cgstAmount = (it['cgstAmount'] as num?)?.toDouble() ?? 0.0
-              ..sgstAmount = (it['sgstAmount'] as num?)?.toDouble() ?? 0.0
-              ..igstAmount = (it['igstAmount'] as num?)?.toDouble() ?? 0.0)
-            .toList()
-        ..totalAmount = (s['totalAmount'] as num).toDouble()
-        ..totalCost = (s['totalCost'] as num).toDouble()
-        ..profit = (s['profit'] as num).toDouble()
-        ..payment = switch (s['payment'] as String) {
-          'card' => PaymentMethod.card,
-          'upi' => PaymentMethod.upi,
-          _ => PaymentMethod.cash,
-        }
-        ..customerName = s['customerName'] as String? ?? ''
-        ..customerPhone = s['customerPhone'] as String? ?? ''
-        ..userId = s['userId'] as String? ?? ''
-        ..discount = (s['discount'] as num?)?.toDouble() ?? 0.0
-        ..gstEnabled = s['gstEnabled'] as bool? ?? false
-        ..gstRate = (s['gstRate'] as num?)?.toDouble() ?? 0.0
-        ..taxableAmount = (s['taxableAmount'] as num?)?.toDouble() ?? 0.0
-        ..cgstAmount = (s['cgstAmount'] as num?)?.toDouble() ?? 0.0
-        ..sgstAmount = (s['sgstAmount'] as num?)?.toDouble() ?? 0.0
-        ..igstAmount = (s['igstAmount'] as num?)?.toDouble() ?? 0.0
-        ..customerGstin = s['customerGstin'] as String? ?? ''
-        ..interstateSale = s['interstateSale'] as bool? ?? false
-        ..gstInclusive = s['gstInclusive'] as bool? ?? false;
-      await salesBox.put(sale.id, sale);
-    }
-
-    for (final e in (data['expenses'] as List? ?? const [])) {
-      final expense = Expense(
-        id: e['id'] as String,
-        date: DateTime.parse(e['date'] as String),
-        category: e['category'] as String,
-        amount: (e['amount'] as num).toDouble(),
-        description: e['description'] as String? ?? '',
-      );
-      await expensesBox.put(expense.id, expense);
-    }
-
-    for (final emp in (data['employees'] as List? ?? const [])) {
-      final employee = Employee(
-        id: emp['id'] as String,
-        name: emp['name'] as String,
-        type: emp['type'] as String,
-        wage: (emp['wage'] as num).toDouble(),
-        attendance: (emp['attendance'] as num?)?.toInt() ?? 0,
-        salaryPaid: emp['salaryPaid'] as bool? ?? false,
-      );
-      await employeesBox.put(employee.id, employee);
-    }
-
-    final savedSettings = data['appSettings'];
-    if (savedSettings is Map) {
-      await appSettingsBox.putAll(Map<String, dynamic>.from(savedSettings));
-    }
+    await const BackupRestoreService().restore(
+      data,
+      usersBox: Hive.box<User>(Boxes.users),
+      productsBox: Hive.box<Product>(Boxes.products),
+      salesBox: Hive.box<Sale>(Boxes.sales),
+      expensesBox: Hive.box<Expense>(Boxes.expenses),
+      employeesBox: Hive.box<Employee>(Boxes.employees),
+      appSettingsBox: Hive.box<dynamic>('app_settings'),
+      financeAccountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+      financeTransactionsBox:
+          Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+      financePostingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+      financeCategoriesBox:
+          Hive.box<FinanceCategory>(Boxes.financeCategories),
+      financePartiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      financeBudgetsBox: Hive.box<FinanceBudget>(Boxes.financeBudgets),
+      financeRecurringTemplatesBox: Hive.box<FinanceRecurringTemplate>(
+        Boxes.financeRecurringTemplates,
+      ),
+      financePaymentAllocationsBox: Hive.box<Map>(
+        Boxes.financePaymentAllocations,
+      ),
+      hrDepartmentsBox: Hive.box<HrDepartment>(Boxes.hrDepartments),
+      employeeAttendanceBox:
+          Hive.box<EmployeeAttendance>(Boxes.employeeAttendance),
+      leaveRequestsBox: Hive.box<LeaveRequest>(Boxes.leaveRequests),
+      salaryComponentsBox:
+          Hive.box<SalaryComponent>(Boxes.salaryComponents),
+      payrollRunsBox: Hive.box<PayrollRun>(Boxes.payrollRuns),
+      payslipsBox: Hive.box<Payslip>(Boxes.payslips),
+    );
   }
 }

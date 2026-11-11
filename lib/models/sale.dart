@@ -1,4 +1,4 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import './product.dart'; // Import Product model
 import '../services/boxes.dart'; // Import Boxes
 part 'sale.g.dart';
@@ -138,6 +138,9 @@ class Sale extends HiveObject {
   bool interstateSale = false;
   @HiveField(19)
   bool gstInclusive = false;
+  // Incremented whenever an existing invoice is edited; finance journals are revisioned.
+  @HiveField(20)
+  int financeRevision = 0;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -160,6 +163,7 @@ class Sale extends HiveObject {
         'customerGstin': customerGstin,
         'interstateSale': interstateSale,
         'gstInclusive': gstInclusive,
+        'financeRevision': financeRevision,
       };
 
   static Sale fromJson(Map<String, dynamic> json) {
@@ -188,6 +192,7 @@ class Sale extends HiveObject {
       ..igstAmount = (json['igstAmount'] as num?)?.toDouble() ?? 0.0
       ..customerGstin = json['customerGstin'] as String? ?? ''
       ..interstateSale = json['interstateSale'] as bool? ?? false
-      ..gstInclusive = json['gstInclusive'] as bool? ?? false;
+      ..gstInclusive = json['gstInclusive'] as bool? ?? false
+      ..financeRevision = json['financeRevision'] as int? ?? 0;
   }
 }

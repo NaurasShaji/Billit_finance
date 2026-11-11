@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/finance_inventory_service.dart';
 import '../manage_product_screen.dart';
 import '../../widgets/app_components.dart';
 
@@ -697,62 +698,192 @@ class _ProductsTabState extends State<ProductsTab> {
   }
 
   Future<void> _adjustStock(Product product) async {
-    final controller = TextEditingController();
-    final delta = await showDialog<double>(
+    final quantityController = TextEditingController();
+    final unitCostController = TextEditingController(
+      text: product.costPrice > 0 ? product.costPrice.toStringAsFixed(2) : '',
+    );
+    final accountsBox = Hive.box<FinanceAccount>(Boxes.financeAccounts);
+    final offsetAccounts = accountsBox.values
+        .where((account) =>
+            account.active &&
+            account.currencyCode == 'INR' &&
+            (account.accountType == 'asset' ||
+                account.accountType == 'liability') &&
+            !{'system:inventory', 'system:receivables', 'system:employee-advances'}.contains(account.id))
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    String? offsetAccountId = offsetAccounts.any((a) => a.id == 'system:cash')
+        ? 'system:cash'
+        : (offsetAccounts.isEmpty ? null : offsetAccounts.first.id);
+
+    final adjustment = await showDialog<
+        ({double delta, double? unitCost, String? offsetAccountId})>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Adjust stock · ${product.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Current stock: ${product.stock} ${product.unit.name}'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true, signed: true),
-              decoration: const InputDecoration(
-                labelText: 'Quantity change',
-                helperText: '+ve: stock increase · -ve: stock decrease',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final delta = double.tryParse(quantityController.text.trim()) ?? 0;
+          final receiving = delta > 0;
+          return AlertDialog(
+            title: Text('Adjust stock · ${product.name}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Available stock: ${product.stock} ${product.unit.name}'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: quantityController,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity change',
+                      helperText: '+ve: receive stock · -ve: write off stock',
+                    ),
+                  ),
+                  if (receiving) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: unitCostController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Purchase cost per ${product.unit.name}',
+                        prefixText: '₹ ',
+                        helperText: 'Used to recalculate weighted average cost',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: offsetAccountId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Paid from / payable account',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final account in offsetAccounts)
+                          DropdownMenuItem(
+                            value: account.id,
+                            child: Text(account.name),
+                          ),
+                      ],
+                      onChanged: (value) =>
+                          setDialogState(() => offsetAccountId = value),
+                    ),
+                  ] else if (delta < 0) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'The write-off will be valued at the current weighted average cost and posted to Inventory Shrinkage.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text.trim());
-              if (value == null || value == 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Enter a non-zero quantity change.')),
-                );
-                return;
-              }
-              if (product.stock + value < 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Stock cannot become negative.')),
-                );
-                return;
-              }
-              Navigator.pop(dialogContext, value);
-            },
-            child: const Text('Update stock'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final value =
+                      double.tryParse(quantityController.text.trim());
+                  if (value == null || !value.isFinite || value == 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Enter a non-zero quantity change.'),
+                      ),
+                    );
+                    return;
+                  }
+                  if (product.stock + value < 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Stock cannot become negative.'),
+                      ),
+                    );
+                    return;
+                  }
+                  if (value > 0) {
+                    final unitCost =
+                        double.tryParse(unitCostController.text.trim());
+                    if (unitCost == null ||
+                        !unitCost.isFinite ||
+                        unitCost <= 0 ||
+                        offsetAccountId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Enter a valid purchase cost and select a payment or payable account.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext, (
+                      delta: value,
+                      unitCost: unitCost,
+                      offsetAccountId: offsetAccountId,
+                    ));
+                  } else {
+                    Navigator.pop(dialogContext, (
+                      delta: value,
+                      unitCost: null,
+                      offsetAccountId: null,
+                    ));
+                  }
+                },
+                child: const Text('Update stock'),
+              ),
+            ],
+          );
+        },
       ),
     );
-    controller.dispose();
-    if (delta == null || !mounted) return;
+    quantityController.dispose();
+    unitCostController.dispose();
+    if (adjustment == null || !mounted) return;
+
     final previousStock = product.stock;
-    product.stock += delta;
-    await product.save();
+    final previousCost = product.costPrice;
+    final inventoryService = FinanceInventoryService();
+    try {
+      if (adjustment.delta > 0) {
+        await inventoryService.receiveStock(
+          product: product,
+          quantity: adjustment.delta,
+          unitCost: adjustment.unitCost!,
+          offsetAccountId: adjustment.offsetAccountId!,
+          accountsBox: accountsBox,
+          transactionsBox:
+              Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+        );
+      } else {
+        await inventoryService.writeOffStock(
+          product: product,
+          quantity: adjustment.delta.abs(),
+          accountsBox: accountsBox,
+          transactionsBox:
+              Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stock adjustment failed: $error')),
+        );
+      }
+      return;
+    }
 
     final settings = Hive.box<dynamic>('app_settings');
     final history = (settings
@@ -763,9 +894,13 @@ class _ProductsTabState extends State<ProductsTab> {
       'productId': product.id,
       'productName': product.name,
       'date': DateTime.now().toIso8601String(),
-      'delta': delta,
+      'delta': adjustment.delta,
       'previousStock': previousStock,
       'newStock': product.stock,
+      'previousAverageCost': previousCost,
+      'newAverageCost': product.costPrice,
+      'unitCost': adjustment.unitCost,
+      'offsetAccountId': adjustment.offsetAccountId,
       'unit': product.unit.name,
     });
     if (history.length > 500) {
@@ -776,8 +911,10 @@ class _ProductsTabState extends State<ProductsTab> {
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(
-              'Stock updated for ${product.name}. New stock: ${product.stock} ${product.unit.name}.')),
+        content: Text(
+          'Stock updated. Available: ${product.stock} ${product.unit.name}; weighted average cost: ₹${product.costPrice.toStringAsFixed(2)}.',
+        ),
+      ),
     );
   }
 

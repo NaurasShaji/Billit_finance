@@ -1,7 +1,7 @@
 import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../services/boxes.dart';
@@ -59,6 +59,7 @@ class DashboardTab extends StatefulWidget {
   final VoidCallback onOpenBilling;
   final VoidCallback onOpenProducts;
   final VoidCallback onOpenReports;
+  final VoidCallback? onOpenFinance;
 
   const DashboardTab({
     super.key,
@@ -66,6 +67,7 @@ class DashboardTab extends StatefulWidget {
     required this.onOpenBilling,
     required this.onOpenProducts,
     required this.onOpenReports,
+    this.onOpenFinance,
   });
 
   @override
@@ -267,6 +269,7 @@ class _DashboardTabState extends State<DashboardTab> {
                     color: Colors.deepOrange.shade600,
                     delta: _delta(cur.expenses, prev.expenses, upIsGood: false),
                     compareLabel: _period.compareLabel,
+                    onTap: widget.onOpenFinance,
                   ),
                 if (financial)
                   _MetricCard(
@@ -279,6 +282,7 @@ class _DashboardTabState extends State<DashboardTab> {
                         : theme.colorScheme.error,
                     delta: _delta(cur.net, prev.net),
                     compareLabel: _period.compareLabel,
+                    onTap: widget.onOpenFinance,
                   ),
                 if (!financial)
                   _MetricCard(

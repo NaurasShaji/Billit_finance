@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/employee.dart';
 import '../../../services/boxes.dart';
 import '../../../utils/theme_colors.dart';
+import '../../../widgets/responsive_page.dart';
 
 class AddEmployeeScreen extends StatefulWidget {
   const AddEmployeeScreen({super.key});
@@ -30,13 +31,13 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       backgroundColor:
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
         title: const Text('Employee Management'),
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 0,
         centerTitle: true,
       ),
@@ -72,12 +73,12 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withValues(alpha: 0.12),
+                                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
                                 Icons.person_add_alt_1_outlined,
-                                color: Colors.blue.shade600,
+                                color: Theme.of(context).colorScheme.primary,
                                 size: 24,
                               ),
                             ),
@@ -127,7 +128,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
 
                         // Employee Type Dropdown
                         DropdownButtonFormField<String>(
-                          initialValue: _employeeType,
+                          value: _employeeType,
                           decoration: InputDecoration(
                             labelText: 'Employee Type',
                             prefixIcon: const Icon(Icons.work_outline),
@@ -172,13 +173,13 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _isLoading ? null : _addEmployee,
                             icon: _isLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
+                                          Theme.of(context).colorScheme.onPrimary),
                                     ),
                                   )
                                 : const Icon(Icons.person_add),
@@ -192,8 +193,8 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade600,
-                              foregroundColor: Colors.white,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16)),
                               elevation: 0,
@@ -232,12 +233,12 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withValues(alpha: 0.12),
+                              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               Icons.people_outline,
-                              color: Colors.blue.shade600,
+                              color: Theme.of(context).colorScheme.primary,
                               size: 20,
                             ),
                           ),
@@ -325,15 +326,15 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
                                       color: isDailyWage
-                                          ? Colors.orange.withValues(alpha: 0.12)
-                                          : Colors.green.withValues(alpha: 0.12),
+                                          ? Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.35)
+                                          : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
                                       Icons.person_outline,
                                       color: isDailyWage
-                                          ? Colors.orange.shade600
-                                          : Colors.green.shade600,
+                                          ? Theme.of(context).colorScheme.tertiary
+                                          : Theme.of(context).colorScheme.primary,
                                       size: 20,
                                     ),
                                   ),
@@ -360,8 +361,8 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                                                       vertical: 2),
                                               decoration: BoxDecoration(
                                                 color: isDailyWage
-                                                    ? Colors.orange.withValues(alpha: 0.18)
-                                                    : Colors.green.withValues(alpha: 0.18),
+                                                    ? Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.45)
+                                                    : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.45),
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                               ),
@@ -373,8 +374,8 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w500,
                                                   color: isDailyWage
-                                                      ? Colors.orange.shade700.adaptive(context)
-                                                      : Colors.green.shade700.adaptive(context),
+                                                      ? Theme.of(context).colorScheme.tertiary
+                                                      : Theme.of(context).colorScheme.primary,
                                                 ),
                                               ),
                                             ),
@@ -398,13 +399,13 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                                           children: [
                                             Container(
                                               decoration: BoxDecoration(
-                                                color: Colors.blue.withValues(alpha: 0.12),
+                                                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
                                               child: IconButton(
                                                 icon: Icon(Icons.edit_outlined,
-                                                    color: Colors.blue.shade600,
+                                                    color: Theme.of(context).colorScheme.primary,
                                                     size: 20),
                                                 onPressed: () =>
                                                     _editEmployee(e),
@@ -414,13 +415,13 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                                             const SizedBox(width: 8),
                                             Container(
                                               decoration: BoxDecoration(
-                                                color: Colors.red.withValues(alpha: 0.12),
+                                                color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
                                               child: IconButton(
                                                 icon: Icon(Icons.delete_outline,
-                                                    color: Colors.red.shade600,
+                                                    color: Theme.of(context).colorScheme.error,
                                                     size: 20),
                                                 onPressed: () =>
                                                     _deleteEmployee(e),
@@ -448,7 +449,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _addEmployee() async {
@@ -483,7 +484,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Employee "${employee.name}" added successfully!'),
-          backgroundColor: Colors.green.shade600,
+          backgroundColor: Theme.of(context).colorScheme.primary,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -501,7 +502,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              Icon(Icons.warning_amber_outlined, color: Colors.red.shade600),
+              Icon(Icons.warning_amber_outlined, color: Theme.of(context).colorScheme.error),
               const SizedBox(width: 8),
               const Text('Delete Employee'),
             ],
@@ -515,13 +516,13 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.12),
+                  color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
                     Icon(Icons.person_outline,
-                        color: Colors.red.shade600, size: 20),
+                        color: Theme.of(context).colorScheme.error, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -531,14 +532,14 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                             employee.name,
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: Colors.red.shade700.adaptive(context),
+                              color: Theme.of(context).colorScheme.error,
                             ),
                           ),
                           Text(
                             '${employee.type == 'daily' ? 'Daily Wage' : 'Monthly Salary'} - ₹${employee.wage.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.red.shade600,
+                              color: Theme.of(context).colorScheme.error,
                             ),
                           ),
                         ],
@@ -552,7 +553,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                 'This action cannot be undone.',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.red.shade600,
+                  color: Theme.of(context).colorScheme.error,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -566,8 +567,8 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
             ElevatedButton(
               onPressed: () => Navigator.of(ctx).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
               ),
@@ -586,7 +587,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Employee "${employee.name}" deleted successfully!'),
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -610,7 +611,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                   borderRadius: BorderRadius.circular(16)),
               title: Row(
                 children: [
-                  Icon(Icons.edit, color: Colors.blue.shade600),
+                  Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
                   Text('Edit ${e.name}'),
                 ],
@@ -619,7 +620,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: type,
+                    value: type,
                     decoration: InputDecoration(
                       labelText: 'Employee Type',
                       border: OutlineInputBorder(
@@ -669,7 +670,7 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                           SnackBar(
                             content: Text(
                                 'Employee "${e.name}" updated successfully!'),
-                            backgroundColor: Colors.green.shade600,
+                            backgroundColor: Theme.of(context).colorScheme.primary,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
@@ -679,8 +680,8 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade600,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),

@@ -1,5 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/adapters.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import '../services/drive_backup_service.dart';
 import '../services/drive_sync_service.dart';
 import '../services/boxes.dart';
@@ -78,6 +80,20 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             .values
             .map((e) => e.toJson())
             .toList(),
+        'appSettings': {
+          for (final key in [
+            'hr_employee_documents',
+            'hr_employment_history',
+            'hr_leave_policies',
+            'hr_employee_terms',
+            'hr_overtime_entries',
+            'hr_bonus_entries',
+            'hr_employee_advances',
+            'hr_advance_payroll_deductions',
+          ])
+            if (Hive.box<dynamic>('app_settings').containsKey(key))
+              key: Hive.box<dynamic>('app_settings').get(key),
+        },
       };
 
       await DriveBackupService.instance
@@ -149,6 +165,259 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     try {
       final data = await DriveBackupService.instance.downloadJson(file.id);
 
+      // Validate employee document payloads before clearing any live data.
+      final rawAppSettings = data['appSettings'];
+      final rawDocuments = rawAppSettings is Map
+          ? rawAppSettings['hr_employee_documents']
+          : null;
+      final rawBonuses = rawAppSettings is Map
+          ? rawAppSettings['hr_bonus_entries']
+          : null;
+      if (rawBonuses == null) {
+        final existingBonuses = Hive.box<dynamic>('app_settings')
+            .get('hr_bonus_entries');
+        if (existingBonuses is Map && existingBonuses.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates bonus records. Export a current backup before restoring it, or remove existing bonus records explicitly.',
+          );
+        }
+      }
+      if (rawBonuses != null) {
+        if (rawBonuses is! Map) {
+          throw const FormatException('Bonus backup is malformed.');
+        }
+        final employeeIds = (data['employees'] as List? ?? [])
+            .whereType<Map>()
+            .map((item) => item['id'])
+            .whereType<String>()
+            .toSet();
+        for (final entry in rawBonuses.entries) {
+          if (entry.key is! String ||
+              !employeeIds.contains(entry.key) ||
+              entry.value is! List) {
+            throw const FormatException('Bonus record references an unknown employee.');
+          }
+          for (final item in entry.value as List) {
+            if (item is! Map ||
+                item['id'] is! String ||
+                item['date'] is! String ||
+                item['description'] is! String ||
+                item['description'].toString().trim().isEmpty ||
+                item['amountPaise'] is! int ||
+                (item['amountPaise'] as int) <= 0) {
+              throw const FormatException('Bonus record contains invalid fields.');
+            }
+            DateTime.parse(item['date'] as String);
+          }
+        }
+      }
+      final rawOvertime = rawAppSettings is Map
+          ? rawAppSettings['hr_overtime_entries']
+          : null;
+      if (rawOvertime == null) {
+        final existingOvertime = Hive.box<dynamic>('app_settings')
+            .get('hr_overtime_entries');
+        if (existingOvertime is Map && existingOvertime.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates overtime records. Export a current backup before restoring it, or remove existing overtime records explicitly.',
+          );
+        }
+      }
+      if (rawOvertime != null) {
+        if (rawOvertime is! Map) {
+          throw const FormatException('Overtime backup is malformed.');
+        }
+        final employeeIds = (data['employees'] as List? ?? [])
+            .whereType<Map>()
+            .map((item) => item['id'])
+            .whereType<String>()
+            .toSet();
+        for (final entry in rawOvertime.entries) {
+          if (entry.key is! String ||
+              !employeeIds.contains(entry.key) ||
+              entry.value is! List) {
+            throw const FormatException('Overtime record references an unknown employee.');
+          }
+          for (final item in entry.value as List) {
+            if (item is! Map ||
+                item['id'] is! String ||
+                item['date'] is! String ||
+                item['hoursMilli'] is! int ||
+                item['hourlyRatePaise'] is! int ||
+                item['amountPaise'] is! int ||
+                (item['hoursMilli'] as int) <= 0 ||
+                (item['hoursMilli'] as int) > 24000 ||
+                (item['hourlyRatePaise'] as int) <= 0 ||
+                (item['amountPaise'] as int) <= 0) {
+              throw const FormatException('Overtime record contains invalid fields.');
+            }
+            DateTime.parse(item['date'] as String);
+          }
+        }
+      }
+      final rawAdvances = rawAppSettings is Map ? rawAppSettings['hr_employee_advances'] : null;
+      final existingAdvances = Hive.box<dynamic>('app_settings').get('hr_employee_advances');
+      if (rawAdvances == null && existingAdvances is Map && existingAdvances.isNotEmpty) {
+        throw const FormatException('This backup predates employee advances. Export a current backup before restoring it, or remove existing advances explicitly.');
+      }
+      final employeeIdsForAdvances = (data['employees'] as List? ?? [])
+          .whereType<Map>().map((item) => item['id']).whereType<String>().toSet();
+      if (rawAdvances != null) {
+        if (rawAdvances is! Map) throw const FormatException('Employee advance backup is malformed.');
+        for (final entry in rawAdvances.entries) {
+          if (entry.key is! String || !employeeIdsForAdvances.contains(entry.key) || entry.value is! List) {
+            throw const FormatException('Employee advance references an unknown employee.');
+          }
+          for (final item in entry.value as List) {
+            if (item is! Map || item['id'] is! String || item['description'] is! String ||
+                item['description'].toString().trim().isEmpty ||
+                item['principalPaise'] is! int || item['outstandingPaise'] is! int ||
+                item['installmentPaise'] is! int || item['principalPaise'] <= 0 ||
+                item['outstandingPaise'] < 0 || item['outstandingPaise'] > item['principalPaise'] ||
+                item['installmentPaise'] <= 0 || item['installmentPaise'] > item['principalPaise'] ||
+                !{'active', 'settled'}.contains(item['status']) ||
+                item['issueDate'] is! String || item['nextDueDate'] is! String ||
+                item['repayments'] is! List) {
+              throw const FormatException('Employee advance contains invalid fields.');
+            }
+            final issue = DateTime.parse(item['issueDate'] as String);
+            DateTime.parse(item['nextDueDate'] as String);
+            var repaid = 0;
+            for (final repayment in item['repayments'] as List) {
+              if (repayment is! Map || repayment['id'] is! String ||
+                  repayment['date'] is! String || repayment['amountPaise'] is! int ||
+                  repayment['amountPaise'] <= 0 ||
+                  !{'manual', 'payroll'}.contains(repayment['source'])) {
+                throw const FormatException('Advance repayment contains invalid fields.');
+              }
+              DateTime.parse(repayment['date'] as String);
+              repaid += repayment['amountPaise'] as int;
+            }
+            if (repaid != (item['principalPaise'] as int) - (item['outstandingPaise'] as int)) {
+              throw const FormatException('Advance repayment history does not reconcile to its outstanding balance.');
+            }
+            if (issue.isAfter(DateTime.parse(item['nextDueDate'] as String)) &&
+                item['status'] == 'active') {
+              // Future first-due dates are valid; this branch intentionally performs no mutation.
+            }
+          }
+        }
+      }
+      final rawAdvanceSnapshots = rawAppSettings is Map ? rawAppSettings['hr_advance_payroll_deductions'] : null;
+      final existingAdvanceSnapshots = Hive.box<dynamic>('app_settings').get('hr_advance_payroll_deductions');
+      if (rawAdvanceSnapshots == null && existingAdvanceSnapshots is Map && existingAdvanceSnapshots.isNotEmpty) {
+        throw const FormatException('This backup predates payroll advance deductions. Export a current backup before restoring it.');
+      }
+      if (rawAdvanceSnapshots != null) {
+        if (rawAdvanceSnapshots is! Map) throw const FormatException('Payroll advance deduction backup is malformed.');
+        for (final entry in rawAdvanceSnapshots.entries) {
+          if (entry.key is! String || entry.key.toString().isEmpty || entry.value is! List) {
+            throw const FormatException('Payroll advance deduction record is malformed.');
+          }
+          for (final item in entry.value as List) {
+            if (item is! Map || item['employeeId'] is! String ||
+                !employeeIdsForAdvances.contains(item['employeeId']) ||
+                item['advanceId'] is! String || item['amountPaise'] is! int ||
+                item['amountPaise'] <= 0) {
+              throw const FormatException('Payroll advance deduction contains invalid fields.');
+            }
+            final employeeAdvanceList = rawAdvances is Map ? rawAdvances[item['employeeId']] : null;
+            if (employeeAdvanceList is! List || !employeeAdvanceList.any((a) => a is Map && a['id'] == item['advanceId'])) {
+              throw const FormatException('Payroll advance deduction references an unknown advance.');
+            }
+          }
+        }
+      }
+      final rawEmployeeTerms = rawAppSettings is Map
+          ? rawAppSettings['hr_employee_terms']
+          : null;
+      if (rawEmployeeTerms != null) {
+        if (rawEmployeeTerms is! Map) {
+          throw const FormatException('Employee work terms backup is malformed.');
+        }
+        final employeeIds = (data['employees'] as List? ?? [])
+            .whereType<Map>()
+            .map((item) => item['id'])
+            .whereType<String>()
+            .toSet();
+        for (final entry in rawEmployeeTerms.entries) {
+          final terms = entry.value;
+          if (entry.key is! String ||
+              !employeeIds.contains(entry.key) ||
+              terms is! Map ||
+              !{'permanent', 'contract', 'temporary', 'intern', 'part_time', 'casual'}
+                  .contains(terms['employmentType']) ||
+              !{'daily', 'weekly', 'fortnightly', 'monthly'}
+                  .contains(terms['payFrequency'])) {
+            throw const FormatException('Employee work terms contain invalid values or an unknown employee.');
+          }
+        }
+      }
+      final rawHistory = rawAppSettings is Map
+          ? rawAppSettings['hr_employment_history']
+          : null;
+      if (rawEmployeeTerms == null) {
+        final existingTerms = Hive.box<dynamic>('app_settings')
+            .get('hr_employee_terms');
+        if (existingTerms is Map && existingTerms.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates employee work terms. Export a current backup before restoring it, or remove existing employee work terms explicitly.',
+          );
+        }
+      }
+      if (rawHistory == null) {
+        final existingHistory = Hive.box<dynamic>('app_settings')
+            .get('hr_employment_history');
+        if (existingHistory is Map && existingHistory.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates employment history backup. Export a current backup before restoring it, or remove existing employment history explicitly.',
+          );
+        }
+      }
+      if (rawDocuments == null) {
+        final existingDocuments = Hive.box<dynamic>('app_settings')
+            .get('hr_employee_documents');
+        if (existingDocuments is Map && existingDocuments.isNotEmpty) {
+          throw const FormatException(
+            'This backup predates employee document storage. Export a current backup before restoring it, or remove the existing employee documents explicitly.',
+          );
+        }
+      }
+      if (rawDocuments != null) {
+        if (rawDocuments is! Map) {
+          throw const FormatException('Employee document backup is malformed.');
+        }
+        final employeeIds = (data['employees'] as List? ?? [])
+            .whereType<Map>()
+            .map((item) => item['id'])
+            .whereType<String>()
+            .toSet();
+        for (final entry in rawDocuments.entries) {
+          if (entry.key is! String ||
+              !employeeIds.contains(entry.key) ||
+              entry.value is! List) {
+            throw const FormatException('Employee document references an unknown employee.');
+          }
+          for (final item in entry.value as List) {
+            if (item is! Map ||
+                item['id'] is! String ||
+                item['name'] is! String ||
+                item['base64'] is! String) {
+              throw const FormatException('Employee document record is malformed.');
+            }
+            final name = item['name'] as String;
+            final extension = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+            if (!{'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}.contains(extension)) {
+              throw const FormatException('Employee document file type is not allowed.');
+            }
+            final bytes = base64Decode(item['base64'] as String);
+            if (bytes.isEmpty || bytes.length > 2 * 1024 * 1024) {
+              throw const FormatException('Employee document exceeds the 2 MB limit or is empty.');
+            }
+          }
+        }
+      }
+
       // Clear existing data
       await Hive.box<Product>(Boxes.products).clear();
       await Hive.box<Sale>(Boxes.sales).clear();
@@ -179,6 +448,23 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           (data['employees'] as List)
               .map((e) => Employee.fromJson(e as Map<String, dynamic>)),
         );
+      }
+      if (rawAppSettings is Map) {
+        final settings = Hive.box<dynamic>('app_settings');
+        for (final key in [
+          'hr_employee_documents',
+          'hr_employment_history',
+          'hr_leave_policies',
+          'hr_employee_terms',
+          'hr_overtime_entries',
+          'hr_bonus_entries',
+          'hr_employee_advances',
+          'hr_advance_payroll_deductions',
+        ]) {
+          if (rawAppSettings.containsKey(key)) {
+            await settings.put(key, rawAppSettings[key]);
+          }
+        }
       }
 
       if (!mounted) return;

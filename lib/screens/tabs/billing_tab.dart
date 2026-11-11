@@ -2,11 +2,12 @@ import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/finance_source_sync_service.dart';
 import '../../services/whatsapp_service.dart';
 import '../../widgets/whatsapp_icon.dart';
 import '../../utils/platform_support.dart';
@@ -1504,6 +1505,9 @@ class _BillingTabState extends State<BillingTab> with TickerProviderStateMixin {
         final taxable = _lineTaxableAmount(item);
         final rate = _applyGst ? _lineGstRate(item) : 0.0;
         item
+          // Capture the current weighted-average inventory cost at checkout,
+          // not a potentially stale cost from when the cart item was added.
+          ..costPrice = product?.costPrice ?? item.costPrice
           ..hsnCode = product?.hsnCode ?? ''
           ..gstRate = rate
           ..taxableAmount = taxable
@@ -1557,6 +1561,31 @@ class _BillingTabState extends State<BillingTab> with TickerProviderStateMixin {
         if (product != null) {
           product.stock = (product.stock - item.qty).clamp(0, double.infinity);
           await product.save();
+        }
+      }
+
+      // Journal sync is retryable at next startup; it must not undo a completed POS sale.
+      try {
+        await FinanceSourceSyncService().syncSale(
+          sale: sale,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+        );
+      } catch (financeError) {
+        await FinanceSourceSyncService.recordIssue(
+          Hive.box<dynamic>('app_settings'),
+          'Sale ${sale.id}: $financeError',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Sale saved; finance journal sync will retry on next launch: $financeError'),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
         }
       }
 
@@ -1732,6 +1761,28 @@ class _BillingTabState extends State<BillingTab> with TickerProviderStateMixin {
   Future<void> _deleteInvoice(Sale sale) async {
     final salesBox = Hive.box<Sale>(Boxes.sales);
     final productsBox = Hive.box<Product>(Boxes.products);
+
+    // Reverse immutable journal history before deleting the operational invoice.
+    try {
+      await FinanceSourceSyncService().reverseSale(
+        sale: sale,
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+        transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+        categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+        partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+      );
+    } catch (financeError) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invoice was not deleted because its journal reversal failed: $financeError'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
     // Remove sale from Hive
     await salesBox.delete(sale.id);

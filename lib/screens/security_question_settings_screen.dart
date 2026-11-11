@@ -106,7 +106,7 @@ class _SecurityQuestionSettingsScreenState
             key: _formKey,
             child: Column(children: [
               DropdownButtonFormField<String>(
-                initialValue: _question,
+                value: _question,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Security question',

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui' show Size;
 
 import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// Sets up the desktop window: title, minimum size, and remembers the last

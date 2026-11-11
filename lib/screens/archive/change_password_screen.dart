@@ -193,7 +193,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
                 // User Type Selection
                 DropdownButtonFormField<UserType>(
-                  initialValue: _selectedChangeUserType,
+                  value: _selectedChangeUserType,
                   decoration: const InputDecoration(
                     labelText: 'Change Password For',
                     border: OutlineInputBorder(),

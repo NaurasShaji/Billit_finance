@@ -1,6 +1,6 @@
 # Billit
 
-Billit is a point-of-sale and retail management app for billing, inventory, GST, reporting, backups, and printer workflows. It uses Hive for local data storage and includes billing, inventory, reporting, backup, and printer workflows.
+Billit is a point-of-sale and retail management app for billing, inventory, GST, reporting, backups, and printer workflows. It uses Hive CE for local data storage and includes billing, inventory, reporting, backup, and printer workflows.
 
 ![Billit app logo](assets/icon/billit_logo.svg)
 
@@ -28,18 +28,34 @@ Billit is a point-of-sale and retail management app for billing, inventory, GST,
 - See revenue, profit, and invoice counts for the selected reporting period.
 - Browse recorded sales and access invoice actions from the report views.
 
-### Expenses and employee payroll
+### Finance and Team
 
-- Record business expenses with an amount, description, date, and category.
+Finance and Team are top-level tabs for admins.
+
+Finance includes the existing POS/expense summary plus an accounting ledger:
+- Record manual income, expenses, and cash/bank transfers.
+- Review the chart of accounts, normal balances, and posted journal.
+- View journal-based period income, expenses, accounting profit, and cash flow.
+- POS sales, GST collected, general expenses, and payroll expenses are imported into the ledger with stable source references.
+- Invoice edits and deletions create reversal entries instead of changing posted accounting history.
+- POS gross profit remains separate from journal-based accounting profit.
+- Legacy expense and POS records remain in their existing Hive boxes and continue to drive the operational screens.
+
+Team includes employee profile and HR foundations:
+- Manage employee codes, contact details, departments, designations, joining dates, employment status, and notes.
+- Mark daily attendance as present, absent, half-day, leave, or holiday.
+- Submit leave requests, prevent overlapping requests, and approve or reject them.
+- Approved leave creates locked attendance records.
+- Existing daily-wage/monthly-salary payroll and partial payment tracking remain available.
 - Use built-in expense categories such as rent, utilities, transport, supplies, maintenance, and miscellaneous, or add a category.
 - Browse expense history by day, month, or year; navigate between periods and filter salary expenses separately from other expenses.
 - Add employees as daily-wage or monthly-salary staff, set their pay amount, edit their pay type or amount, and delete employee records.
-- Record daily wage payments and monthly salary payments, with summaries of employees and payments for the current day or month.
+- Record daily wage payments and monthly salary payments, with summaries of employees and payments for the current day or month. Each payment is linked to the employee by id, so renaming or duplicate names never mix up who was paid.
 - Review payroll/expense totals by day, month, or year, including daily wages, monthly salaries, other expenses, and net expenses.
 
 ### Backup, printer, and account tools
 
-- Back up products, sales, expenses, and employee records to Google Drive, browse available backups, and restore a selected backup.
+- Back up products, sales, expenses, employees, settings, and all finance ledger records to Google Drive, browse available backups, and restore a selected backup.
 - Configure recurring Google Drive backups by interval. Restoring replaces current business data, so keep a current backup before restoring.
 - Scan paired Bluetooth devices and select a default thermal printer.
 - Change account passwords through the admin account.
@@ -48,11 +64,11 @@ Billit is a point-of-sale and retail management app for billing, inventory, GST,
 ### Accounts and access
 
 - Admin and worker accounts are seeded on first launch.
-- Admins have access to the Archive area for expenses, payroll, backups, customer lookup, and account tools. Workers see the Billing, Products, and Reports tabs, with daily reports.
+- Admins see the Overview, Billing, Inventory, Reports, Finance, and Team tabs. Backups, bulk import, report exports, customer lookup, and account tools are under Settings > Business Tools. Workers see the Billing, Products, and Reports tabs, with daily reports.
 
 ## Requirements
 
-- Flutter SDK with Dart **3.3 or later**
+- Flutter SDK with Dart **3.6 or later**
 - A supported Flutter target, such as Chrome or an Android device/emulator
 
 ## Getting started
@@ -91,7 +107,7 @@ These are default credentials for a new local installation. Change the admin pas
 
 ## Development
 
-Hive adapters are checked into `lib/models/`. After changing a Hive model, regenerate the adapters:
+Hive CE adapters are checked into `lib/models/`. After changing a persisted model, regenerate the adapters:
 
 ```bash
 dart run build_runner build --delete-conflicting-outputs
@@ -118,7 +134,9 @@ assets/         App icons and other bundled assets
 
 ## Data and backups
 
-The app stores business data locally with Hive. Export backups regularly and store them somewhere safe. Google Drive backup requires signing in to a Google account and an available Google Sign-In configuration for the target platform.
+The app stores business data locally with Hive CE.
+Storage engine migration and release validation requirements are documented in [`docs/hive_ce_migration.md`](docs/hive_ce_migration.md).
+ The accounting journal uses integer paise, balanced debit/credit postings, and reversal records for corrections. Export backups regularly and store them somewhere safe. Legacy backups without finance collections remain supported; restoring one preserves the current finance boxes. Google Drive backup requires signing in to a Google account and an available Google Sign-In configuration for the target platform.
 
 ## Android launcher icon
 

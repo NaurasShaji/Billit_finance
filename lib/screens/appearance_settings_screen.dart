@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 
 import '../utils/theme_colors.dart';
 import '../widgets/responsive_page.dart';
@@ -459,8 +459,11 @@ class AppearanceSettingsScreen extends StatelessWidget {
             _navigationIconPicker(context, 'Reports', 'reports',
                 Icons.bar_chart_outlined, s.iconOverrides),
             const Divider(height: 24),
-            _navigationIconPicker(context, 'Archive', 'archive',
-                Icons.archive_outlined, s.iconOverrides),
+            _navigationIconPicker(context, 'Finance', 'finance',
+                Icons.account_balance_wallet_outlined, s.iconOverrides),
+            const Divider(height: 24),
+            _navigationIconPicker(context, 'Team', 'team',
+                Icons.groups_outlined, s.iconOverrides),
           ],
         ),
       ),
@@ -723,6 +726,10 @@ class AppearanceSettingsScreen extends StatelessWidget {
       'chart': 'Bar chart',
       'analytics': 'Analytics',
       'trending': 'Trending',
+      'wallet': 'Wallet',
+      'savings': 'Savings',
+      'people': 'People',
+      'badge': 'Badge',
       'archive': 'Archive',
       'folder': 'Folder',
       'history': 'History',
@@ -740,6 +747,10 @@ class AppearanceSettingsScreen extends StatelessWidget {
       'chart': Icons.bar_chart_outlined,
       'analytics': Icons.analytics_outlined,
       'trending': Icons.trending_up_outlined,
+      'wallet': Icons.account_balance_wallet_outlined,
+      'savings': Icons.savings_outlined,
+      'people': Icons.groups_outlined,
+      'badge': Icons.badge_outlined,
       'archive': Icons.archive_outlined,
       'folder': Icons.folder_open_outlined,
       'history': Icons.history,
@@ -764,7 +775,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: DropdownButtonFormField<String>(
-            initialValue: choices.containsKey(selected) ? selected : 'default',
+            value: choices.containsKey(selected) ? selected : 'default',
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Icon',

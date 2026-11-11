@@ -1,11 +1,12 @@
 import 'package:excel_community/excel_community.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/models.dart';
 import '../../services/boxes.dart';
+import '../../services/finance_inventory_service.dart';
 
 class BulkProductImportScreen extends StatefulWidget {
   const BulkProductImportScreen({super.key});
@@ -109,6 +110,8 @@ class _BulkProductImportScreenState extends State<BulkProductImportScreen> {
           error = 'Invalid cost price';
         } else if (stock == null || stock < 0) {
           error = 'Invalid stock quantity';
+        } else if (stock > 0 && cost <= 0) {
+          error = 'Opening stock requires a purchase cost greater than zero';
         } else if (unitText.isNotEmpty &&
             !['pcs', 'piece', 'pieces', 'kg', 'sqft', 'sq ft']
                 .contains(unitText)) {
@@ -227,7 +230,7 @@ class _BulkProductImportScreenState extends State<BulkProductImportScreen> {
           ..name = r.name
           ..sellingPrice = r.selling
           ..costPrice = r.cost
-          ..stock = r.stock
+          ..stock = 0
           ..unit = r.unit
           ..category = r.category
           ..subCategory = r.subcategory
@@ -236,6 +239,18 @@ class _BulkProductImportScreenState extends State<BulkProductImportScreen> {
           ..hsnCode = r.hsn
           ..gstRate = r.gst;
         await box.put(p.id, p);
+        if (r.stock > 0) {
+          await FinanceInventoryService().receiveStock(
+            product: p,
+            quantity: r.stock,
+            unitCost: r.cost,
+            offsetAccountId: 'system:opening-equity',
+            accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+            transactionsBox:
+                Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+            postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          );
+        }
       }
       if (!mounted) return;
       setState(() {

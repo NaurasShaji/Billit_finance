@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart' as pp;
 
@@ -10,6 +10,11 @@ import 'services/boxes.dart';
 import 'services/auth_service.dart';
 import 'services/desktop_window_service.dart';
 import 'services/drive_sync_service.dart';
+import 'services/finance_schema_migration.dart';
+import 'services/finance_source_sync_service.dart';
+import 'services/finance_inventory_service.dart';
+import 'services/finance_recurring_service.dart';
+import 'services/schema_migration_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -31,6 +36,19 @@ Future<void> main() async {
   Hive.registerAdapter(SaleAdapter());
   Hive.registerAdapter(ExpenseAdapter()); // typeId 8
   Hive.registerAdapter(EmployeeAdapter()); // typeId 9
+  Hive.registerAdapter(FinanceAccountAdapter()); // typeId 10
+  Hive.registerAdapter(FinanceTransactionAdapter()); // typeId 11
+  Hive.registerAdapter(FinancePostingAdapter()); // typeId 12
+  Hive.registerAdapter(FinanceCategoryAdapter()); // typeId 13
+  Hive.registerAdapter(FinancePartyAdapter()); // typeId 14
+  Hive.registerAdapter(HrDepartmentAdapter()); // typeId 15
+  Hive.registerAdapter(EmployeeAttendanceAdapter()); // typeId 16
+  Hive.registerAdapter(LeaveRequestAdapter()); // typeId 17
+  Hive.registerAdapter(SalaryComponentAdapter()); // typeId 18
+  Hive.registerAdapter(PayrollRunAdapter()); // typeId 19
+  Hive.registerAdapter(PayslipAdapter()); // typeId 20
+  Hive.registerAdapter(FinanceBudgetAdapter()); // typeId 21
+  Hive.registerAdapter(FinanceRecurringTemplateAdapter()); // typeId 22
 
   await Hive.openBox<User>(Boxes.users);
   await Hive.openBox<Product>(Boxes.products);
@@ -39,6 +57,77 @@ Future<void> main() async {
   await Hive.openBox<Employee>(Boxes.employees);
   await Hive.openBox('session');
   final settings = await Hive.openBox<dynamic>('app_settings');
+
+  // Sequential migrations add finance (v2/v3/v6/v7) and HR (v4/v5).
+  await SchemaMigrationService(
+    currentVersion: 13,
+    migrations: [
+      FinanceSchemaMigration.versionOneToTwo,
+      FinanceSchemaMigration.versionTwoToThree,
+      FinanceSchemaMigration.versionThreeToFour,
+      FinanceSchemaMigration.versionFourToFive,
+      FinanceSchemaMigration.versionFiveToSix,
+      FinanceSchemaMigration.versionSixToSeven,
+      FinanceSchemaMigration.versionSevenToEight,
+      FinanceSchemaMigration.versionEightToNine,
+      FinanceSchemaMigration.versionNineToTen,
+      FinanceSchemaMigration.versionTenToEleven,
+      FinanceSchemaMigration.versionElevenToTwelve,
+      FinanceSchemaMigration.versionTwelveToThirteen,
+    ],
+  ).run(settings);
+
+  // Import legacy POS and expense history into the journal. Stable source keys
+  // make this safe to repeat after an interrupted startup or restored backup.
+  final financeSyncIssues = await FinanceSourceSyncService().syncAll(
+    salesBox: Hive.box<Sale>(Boxes.sales),
+    expensesBox: Hive.box<Expense>(Boxes.expenses),
+    employeesBox: Hive.box<Employee>(Boxes.employees),
+    accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+    transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+    postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+    categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+    partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+    settingsBox: settings,
+  );
+  // Do not establish the opening inventory baseline while any historical
+  // sale is still missing its COGS journal. Otherwise a later retry would
+  // deduct old COGS from an already reduced stock valuation a second time.
+  final unresolvedSaleSync = financeSyncIssues.any(
+    (issue) => issue.startsWith('Sale '),
+  );
+  if (!unresolvedSaleSync) {
+    try {
+      await FinanceInventoryService().initializeOpeningInventory(
+        products: Hive.box<Product>(Boxes.products).values,
+        accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+        transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+        postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+      );
+    } catch (inventoryError) {
+      financeSyncIssues.add('Opening inventory valuation: $inventoryError');
+    }
+  } else {
+    financeSyncIssues.add(
+      'Opening inventory valuation deferred until all historical sale journals sync successfully.',
+    );
+  }
+
+  if (financeSyncIssues.isEmpty) {
+    await settings.delete('finance_sync_errors');
+  } else {
+    await settings.put('finance_sync_errors', financeSyncIssues);
+  }
+
+  // Process due recurring journal entries. Stable source keys make startup
+  // retries safe if the app closes between posting and schedule advancement.
+  final recurringResult = await FinanceRecurringService().processDue();
+  if (recurringResult.issues.isEmpty) {
+    await settings.delete('finance_recurring_errors');
+  } else {
+    await settings.put('finance_recurring_errors', recurringResult.issues);
+  }
+
   Future<void> setDefaultSetting(String key, dynamic value) async {
     if (!settings.containsKey(key)) await settings.put(key, value);
   }

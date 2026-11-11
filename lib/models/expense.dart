@@ -1,4 +1,4 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 
 part 'expense.g.dart';
 
@@ -15,12 +15,21 @@ class Expense extends HiveObject {
   @HiveField(4)
   String description;
 
+  @HiveField(5)
+  String? employeeId;
+
+  // Reserved for immutable finance journal revisions.
+  @HiveField(6)
+  int financeRevision;
+
   Expense({
     required this.id,
     required this.date,
     required this.category,
     required this.amount,
     required this.description,
+    this.employeeId,
+    this.financeRevision = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -29,6 +38,8 @@ class Expense extends HiveObject {
         'category': category,
         'amount': amount,
         'description': description,
+        if (employeeId != null) 'employeeId': employeeId,
+        'financeRevision': financeRevision,
       };
 
   static Expense fromJson(Map<String, dynamic> json) {
@@ -38,6 +49,8 @@ class Expense extends HiveObject {
       category: json['category'] as String,
       amount: (json['amount'] as num).toDouble(),
       description: json['description'] as String,
+      employeeId: json['employeeId'] as String?,
+      financeRevision: json['financeRevision'] as int? ?? 0,
     );
   }
 }

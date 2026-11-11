@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../services/boxes.dart';
-import '../../../models/expense.dart';
+import '../../../services/finance_source_sync_service.dart';
+import '../../../models/models.dart';
 import '../../../utils/theme_colors.dart';
+import '../../../widgets/responsive_page.dart';
 
 class ExpensesListScreen extends StatefulWidget {
   const ExpensesListScreen({super.key});
@@ -40,13 +42,13 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
     final dateFmt = DateFormat('dd MMM yyyy');
     final monthFmt = DateFormat('MMMM yyyy');
 
-    return Scaffold(
+    return ResponsivePage(child: Scaffold(
       backgroundColor:
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       appBar: AppBar(
         title: const Text('Expense Records'),
-        backgroundColor: Colors.red.shade600,
-        foregroundColor: Colors.white,
+        backgroundColor: theme.colorScheme.surface,
+        foregroundColor: theme.colorScheme.onSurface,
         elevation: 0,
         centerTitle: true,
         bottom: PreferredSize(
@@ -54,7 +56,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: TabBar(
@@ -67,8 +69,8 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 color: context.panelColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              labelColor: Colors.red.shade600,
-              unselectedLabelColor: Colors.white,
+              labelColor: theme.colorScheme.primary,
+              unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
               tabs: const [
@@ -154,13 +156,13 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.12),
+                          color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: IconButton(
                           tooltip: 'Previous',
                           icon: Icon(Icons.chevron_left,
-                              color: Colors.red.shade600),
+                              color: theme.colorScheme.error),
                           onPressed: () =>
                               setState(() => _anchor = _previous(_anchor)),
                         ),
@@ -169,13 +171,13 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.12),
+                            color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.35),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: TextButton.icon(
                             onPressed: _pickPeriod,
                             icon: Icon(Icons.calendar_today,
-                                color: Colors.blue.shade600, size: 20),
+                                color: theme.colorScheme.secondary, size: 20),
                             label: Text(
                               _tab.index == 0
                                   ? dateFmt.format(_anchor)
@@ -184,7 +186,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                       : _anchor.year.toString(),
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: Colors.blue.shade700.adaptive(context),
+                                color: theme.colorScheme.secondary,
                                 fontSize: 16,
                               ),
                             ),
@@ -194,13 +196,13 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                       const SizedBox(width: 8),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.12),
+                          color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: IconButton(
                           tooltip: 'Next',
                           icon: Icon(Icons.chevron_right,
-                              color: Colors.red.shade600),
+                              color: theme.colorScheme.error),
                           onPressed: () =>
                               setState(() => _anchor = _next(_anchor)),
                         ),
@@ -240,12 +242,12 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.green.withValues(alpha: 0.12),
+                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
                                       Icons.analytics_outlined,
-                                      color: Colors.green.shade600,
+                                      color: theme.colorScheme.primary,
                                       size: 24,
                                     ),
                                   ),
@@ -285,21 +287,21 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                 'Monthly Salaries',
                                 currency.format(salaryMonthly),
                                 Icons.payments_outlined,
-                                Colors.blue,
+                                theme.colorScheme.secondary,
                               ),
                               const SizedBox(height: 12),
                               _buildSummaryRow(
                                 'Daily Wages',
                                 currency.format(salaryDaily),
                                 Icons.schedule_outlined,
-                                Colors.orange,
+                                theme.colorScheme.tertiary,
                               ),
                               const SizedBox(height: 12),
                               _buildSummaryRow(
                                 'Other Expenses',
                                 currency.format(otherExpenses),
                                 Icons.receipt_long_outlined,
-                                Colors.purple,
+                                theme.colorScheme.primary,
                               ),
 
                               const SizedBox(height: 16),
@@ -313,7 +315,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                 'Total Expenses',
                                 currency.format(netExpenses),
                                 Icons.account_balance_wallet_outlined,
-                                Colors.red,
+                                theme.colorScheme.error,
                                 isBold: true,
                               ),
                             ],
@@ -404,12 +406,12 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: Colors.indigo.withValues(alpha: 0.12),
+                                      color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.35),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Icon(
                                       Icons.receipt_long_outlined,
-                                      color: Colors.indigo.shade600,
+                                      color: theme.colorScheme.tertiary,
                                       size: 20,
                                     ),
                                   ),
@@ -501,23 +503,23 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           );
         },
       ),
-    );
+    ));
   }
 
   Widget _buildSummaryRow(
-      String title, String value, IconData icon, MaterialColor color,
+      String title, String value, IconData icon, Color color,
       {bool isBold = false}) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.shade50,
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: color.shade600,
+            color: color,
             size: 18,
           ),
         ),
@@ -538,7 +540,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
             fontSize: isBold ? 16 : 15,
             fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
             color: isBold
-                ? color.shade700
+                ? color
                 : Theme.of(context).colorScheme.onSurface,
           ),
         ),
@@ -576,7 +578,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 icon,
                 size: 16,
                 color: isSelected
-                    ? Colors.white
+                    ? Theme.of(context).colorScheme.onPrimary
                     : theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
               const SizedBox(width: 8),
@@ -586,7 +588,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: isSelected
-                      ? Colors.white
+                      ? Theme.of(context).colorScheme.onPrimary
                       : theme.colorScheme.onSurface.withValues(alpha: 0.8),
                 ),
               ),
@@ -601,7 +603,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
       DateFormat dateFmt, ThemeData theme) {
     final isSalary = expense.category == 'Salary-Monthly' ||
         expense.category == 'Salary-Daily';
-    final color = isSalary ? Colors.blue : Colors.orange;
+    final color = isSalary ? theme.colorScheme.secondary : theme.colorScheme.tertiary;
     final icon = isSalary ? Icons.payments_outlined : Icons.receipt_outlined;
 
     return Padding(
@@ -611,12 +613,12 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.shade50,
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
-              color: color.shade600,
+              color: color,
               size: 20,
             ),
           ),
@@ -641,7 +643,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                       expense.category,
                       style: TextStyle(
                         fontSize: 13,
-                        color: color.shade600,
+                        color: color,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -666,29 +668,42 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Colors.red.shade600,
+                  color: theme.colorScheme.error,
                 ),
               ),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: IconButton(
-                  onPressed: () => _deleteExpense(expense),
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: Colors.red.shade600,
-                    size: 18,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!expense.id.startsWith('payroll-payment:'))
+                    IconButton(
+                      onPressed: () => _editExpense(expense),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      tooltip: 'Correct expense',
+                    ),
+                  IconButton(
+                    onPressed: () => _showExpenseCorrectionHistory(expense),
+                    icon: const Icon(Icons.history, size: 18),
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    tooltip: 'Correction history',
                   ),
-                  padding: const EdgeInsets.all(6),
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: IconButton(
+                      onPressed: () => _deleteExpense(expense),
+                      icon: Icon(Icons.delete_outline, color: theme.colorScheme.error, size: 18),
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      tooltip: 'Delete expense',
+                    ),
                   ),
-                  tooltip: 'Delete expense',
-                ),
+                ],
               ),
             ],
           ),
@@ -765,7 +780,254 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
     }
   }
 
+  Future<void> _showExpenseCorrectionHistory(Expense expense) async {
+    final raw = Hive.box<dynamic>('app_settings')
+        .get('finance_expense_corrections');
+    final records = <Map<String, dynamic>>[];
+    if (raw is Map) {
+      for (final entry in raw.entries) {
+        if (!entry.key.toString().startsWith('${expense.id}:') ||
+            entry.value is! Map) {
+          continue;
+        }
+        records.add(Map<String, dynamic>.from(entry.value as Map));
+      }
+    }
+    records.sort((a, b) {
+      final aRevision = int.tryParse(a['id'].toString().split(':').last) ?? 0;
+      final bRevision = int.tryParse(b['id'].toString().split(':').last) ?? 0;
+      return aRevision.compareTo(bRevision);
+    });
+    String amount(Map? value) {
+      final paise = value?['amountPaise'];
+      return NumberFormat.simpleCurrency(locale: 'en_IN')
+          .format((paise is num ? paise.toDouble() : 0) / 100);
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Expense correction history'),
+        content: SizedBox(
+          width: 520,
+          child: records.isEmpty
+              ? const Text('No corrections have been recorded for this expense.')
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: records.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final record = records[index];
+                    final before = record['before'] is Map
+                        ? Map<String, dynamic>.from(record['before'] as Map)
+                        : <String, dynamic>{};
+                    final after = record['after'] is Map
+                        ? Map<String, dynamic>.from(record['after'] as Map)
+                        : <String, dynamic>{};
+                    final date = DateTime.tryParse(record['date']?.toString() ?? '');
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Revision ${record['id']?.toString().split(':').last ?? '-'}'),
+                      subtitle: Text(
+                        '${record['reason'] ?? 'No reason recorded'}\n'
+                        '${before['category'] ?? '-'} • ${amount(before)} → '
+                        '${after['category'] ?? '-'} • ${amount(after)}\n'
+                        '${date == null ? 'Date unavailable' : DateFormat('dd MMM yyyy, hh:mm a').format(date)}',
+                      ),
+                      isThreeLine: true,
+                      trailing: Text(
+                        record['status'] == 'posted' ? 'Posted' : 'Pending',
+                        style: TextStyle(
+                          color: record['status'] == 'posted'
+                              ? Theme.of(context).colorScheme.tertiary
+                              : Theme.of(context).colorScheme.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editExpense(Expense expense) async {
+    if (expense.id.startsWith('payroll-payment:')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payroll payments must be corrected through payroll.')),
+      );
+      return;
+    }
+    final category = TextEditingController(text: expense.category);
+    final amount = TextEditingController(text: expense.amount.toStringAsFixed(2));
+    final description = TextEditingController(text: expense.description);
+    final reason = TextEditingController();
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Correct expense'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: category,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amount,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Amount', prefixText: '₹ '),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: description,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reason,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Correction reason (required)',
+                    hintText: 'Explain what was incorrect',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'The original date and payment account are retained. The previous journal entry will be reversed and a new revision posted.',
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Post correction')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final nextCategory = category.text.trim();
+      final nextAmount = double.tryParse(amount.text.trim());
+      final correctionReason = reason.text.trim();
+      if (nextCategory.isEmpty || nextAmount == null || !nextAmount.isFinite || nextAmount <= 0 || correctionReason.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a category, positive valid amount, and correction reason.')),
+        );
+        return;
+      }
+
+      final transactions = Hive.box<FinanceTransaction>(Boxes.financeTransactions);
+      final postings = Hive.box<FinancePosting>(Boxes.financePostings);
+      final sourceId = '${expense.id}:${expense.financeRevision}';
+      final sourceJournals = transactions.values.where((tx) =>
+          tx.sourceType == 'legacy_expense' && tx.sourceId == sourceId).toList();
+      var paymentAccountId = 'system:cash';
+      if (sourceJournals.length > 1) {
+        throw StateError('Duplicate source journals exist. Reconcile this expense before correcting it.');
+      }
+      if (sourceJournals.length == 1) {
+        final credits = postings.values.where((line) =>
+            line.transactionId == sourceJournals.single.id && line.creditPaise > 0).toList();
+        if (credits.length != 1) {
+          throw StateError('The original expense payment account cannot be identified. Reconcile it before correcting this expense.');
+        }
+        paymentAccountId = credits.single.accountId;
+      }
+
+      final oldRevision = expense.financeRevision;
+      final oldCategory = expense.category;
+      final oldAmountPaise = (expense.amount * 100).round();
+      final oldDescription = expense.description;
+      final nextRevision = oldRevision + 1;
+      expense
+        ..category = nextCategory
+        ..amount = nextAmount
+        ..description = description.text.trim()
+        ..financeRevision = nextRevision;
+      await Hive.box<Expense>(Boxes.expenses).put(expense.id, expense);
+      final settingsBox = Hive.box<dynamic>('app_settings');
+      final rawHistory = settingsBox.get('finance_expense_corrections');
+      final history = <String, dynamic>{
+        if (rawHistory is Map) ...Map<String, dynamic>.from(rawHistory),
+      };
+      final correctionSourceId = '${expense.id}:$nextRevision';
+      history[correctionSourceId] = {
+        'id': correctionSourceId,
+        'reason': correctionReason,
+        'date': DateTime.now().toIso8601String(),
+        'before': {
+          'revision': oldRevision,
+          'category': oldCategory,
+          'amountPaise': oldAmountPaise,
+          'description': oldDescription,
+        },
+        'after': {
+          'revision': nextRevision,
+          'category': nextCategory,
+          'amountPaise': (nextAmount * 100).round(),
+          'description': description.text.trim(),
+        },
+        'status': 'pending',
+      };
+      await settingsBox.put('finance_expense_corrections', history);
+      try {
+        await FinanceSourceSyncService().syncExpense(
+          expense: expense,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: transactions,
+          postingsBox: postings,
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+          employeesBox: Hive.box<Employee>(Boxes.employees),
+          settingsBox: settingsBox,
+          paymentAccountId: paymentAccountId,
+        );
+      } catch (error) {
+        await FinanceSourceSyncService.recordIssue(
+          Hive.box<dynamic>('app_settings'),
+          'Expense correction ${expense.id} revision ${expense.financeRevision}: $error',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Correction saved, but journal sync failed. Retry Finance reconciliation before editing it again: $error')),
+          );
+        }
+        return;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Expense corrected. The previous journal was reversed and the new revision posted.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not correct expense: $error')),
+        );
+      }
+    } finally {
+      category.dispose();
+      amount.dispose();
+      description.dispose();
+      reason.dispose();
+    }
+  }
+
   Future<void> _deleteExpense(Expense expense) async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -774,7 +1036,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           children: [
             Icon(
               Icons.warning_amber_outlined,
-              color: Colors.orange.shade600,
+              color: Theme.of(context).colorScheme.tertiary,
               size: 24,
             ),
             const SizedBox(width: 12),
@@ -796,9 +1058,9 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.12),
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.4)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -817,7 +1079,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
                     '${expense.category} • ${NumberFormat.simpleCurrency(locale: 'en_IN').format(expense.amount)}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.red.shade700.adaptive(context),
+                      color: Theme.of(context).colorScheme.error,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -829,7 +1091,7 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
               'This action cannot be undone.',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.red.shade600,
+                color: theme.colorScheme.error,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -843,8 +1105,8 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: theme.colorScheme.onError,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
             ),
@@ -856,22 +1118,30 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
 
     if (confirmed == true) {
       try {
+        await FinanceSourceSyncService().reverseExpense(
+          expense: expense,
+          accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+          transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+          postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+          categoriesBox: Hive.box<FinanceCategory>(Boxes.financeCategories),
+          partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
+        );
         await expense.delete();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Row(
+              content: Row(
                 children: [
                   Icon(
                     Icons.check_circle_outline,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 20,
                   ),
                   SizedBox(width: 12),
                   Text('Expense deleted successfully'),
                 ],
               ),
-              backgroundColor: Colors.green.shade600,
+              backgroundColor: theme.colorScheme.primary,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
@@ -885,16 +1155,16 @@ class _ExpensesListScreenState extends State<ExpensesListScreen>
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
                   Text('Failed to delete expense: $e'),
                 ],
               ),
-              backgroundColor: Colors.red.shade600,
+              backgroundColor: theme.colorScheme.error,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
