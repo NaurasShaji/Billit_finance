@@ -124,6 +124,56 @@ class _FinanceBankReconciliationScreenState
     }
   }
 
+  Future<void> _completeBatch(Map<String, dynamic> batch) async {
+    final controller = TextEditingController();
+    final closingBalance = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Complete statement reconciliation'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+          decoration: const InputDecoration(
+            labelText: 'Statement closing balance',
+            prefixText: '₹ ',
+            helperText: 'Enter the bank balance at the end of this statement period.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final amount = double.tryParse(controller.text.trim().replaceAll(',', ''));
+              if (amount == null || !amount.isFinite) return;
+              Navigator.pop(dialogContext, (amount * 100).round());
+            },
+            child: const Text('Reconcile'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (closingBalance == null || _accountId == null) return;
+    try {
+      final ledgerBalance = await _service.completeBatch(
+        batchId: batch['batchId'] as String,
+        accountId: _accountId!,
+        statementClosingBalancePaise: closingBalance,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reconciliation completed. Closing balance: ${_money(ledgerBalance)}.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reconciliation not completed: $error')),
+        );
+      }
+    }
+  }
   Future<void> _showHistory(Map<String, dynamic> line) async {
     final raw = line['matchHistory'];
     final history = raw is List
@@ -305,6 +355,25 @@ class _FinanceBankReconciliationScreenState
                       ),
                     ),
                     const SizedBox(height: 16),
+                    Text('Statement batches', style: Theme.of(context).textTheme.titleMedium),
+                    for (final batch in _accountId == null ? <Map<String, dynamic>>[] : _service.batches(accountId: _accountId!))
+                      Card(
+                        child: ListTile(
+                          title: Text('${DateFormat('dd MMM yyyy').format(DateTime.parse(batch['firstDate'] as String))} – ${DateFormat('dd MMM yyyy').format(DateTime.parse(batch['lastDate'] as String))}'),
+                          subtitle: Text(batch['completed'] == true
+                              ? 'Completed · closing balance ${_money(batch['statementClosingBalancePaise'] as int)}'
+                              : '${batch['matchedCount']} / ${batch['lineCount']} lines matched'),
+                          trailing: batch['completed'] == true
+                              ? const Icon(Icons.check_circle_outline)
+                              : TextButton(
+                                  onPressed: batch['matchedCount'] == batch['lineCount']
+                                      ? () => _completeBatch(batch)
+                                      : null,
+                                  child: const Text('Complete'),
+                                ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
                     Text('Imported statement lines',
                         style: Theme.of(context).textTheme.titleMedium),
                     if (lines.isEmpty)
@@ -327,7 +396,8 @@ class _FinanceBankReconciliationScreenState
                           subtitle: Text(
                             '${DateFormat('dd MMM yyyy').format(DateTime.parse(line['date'] as String))}'
                             '${(line['reference'] as String?)?.isNotEmpty == true ? ' • ${line['reference']}' : ''}'
-                            ' • ${line['status'] == 'matched' ? 'Matched' : 'Unmatched'}',
+                            ' • ${line['status'] == 'matched' ? 'Matched' : 'Unmatched'}'
+                            '${line['batchStatus'] == 'completed' ? ' · Reconciled' : ''}',
                           ),
                           isThreeLine: true,
                           onTap: () => _showHistory(line),
@@ -347,9 +417,11 @@ class _FinanceBankReconciliationScreenState
                                   ),
                                 ),
                                 TextButton(
-                                  onPressed: line['status'] == 'matched'
-                                      ? () => _unmatch(line)
-                                      : () => _match(line),
+                                  onPressed: line['batchStatus'] == 'completed'
+                                      ? null
+                                      : line['status'] == 'matched'
+                                          ? () => _unmatch(line)
+                                          : () => _match(line),
                                   child: Text(
                                     line['status'] == 'matched' ? 'Unmatch' : 'Match',
                                   ),
