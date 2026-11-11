@@ -6,7 +6,6 @@ import '../../../models/employee.dart';
 import '../../../models/expense.dart';
 import '../../../services/boxes.dart';
 import 'attendance_screen.dart';
-import '../../../utils/theme_colors.dart';
 import '../../../widgets/responsive_page.dart';
 
 class DailyWageScreen extends StatelessWidget {
