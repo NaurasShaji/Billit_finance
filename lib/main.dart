@@ -12,6 +12,7 @@ import 'services/desktop_window_service.dart';
 import 'services/drive_sync_service.dart';
 import 'services/finance_schema_migration.dart';
 import 'services/finance_source_sync_service.dart';
+import 'services/finance_inventory_service.dart';
 import 'services/finance_recurring_service.dart';
 import 'services/schema_migration_service.dart';
 import 'screens/login_screen.dart';
@@ -59,7 +60,7 @@ Future<void> main() async {
 
   // Sequential migrations add finance (v2/v3/v6/v7) and HR (v4/v5).
   await SchemaMigrationService(
-    currentVersion: 12,
+    currentVersion: 13,
     migrations: [
       FinanceSchemaMigration.versionOneToTwo,
       FinanceSchemaMigration.versionTwoToThree,
@@ -72,6 +73,7 @@ Future<void> main() async {
       FinanceSchemaMigration.versionNineToTen,
       FinanceSchemaMigration.versionTenToEleven,
       FinanceSchemaMigration.versionElevenToTwelve,
+      FinanceSchemaMigration.versionTwelveToThirteen,
     ],
   ).run(settings);
 
@@ -88,6 +90,17 @@ Future<void> main() async {
     partiesBox: Hive.box<FinanceParty>(Boxes.financeParties),
     settingsBox: settings,
   );
+  try {
+    await FinanceInventoryService().initializeOpeningInventory(
+      products: Hive.box<Product>(Boxes.products).values,
+      accountsBox: Hive.box<FinanceAccount>(Boxes.financeAccounts),
+      transactionsBox: Hive.box<FinanceTransaction>(Boxes.financeTransactions),
+      postingsBox: Hive.box<FinancePosting>(Boxes.financePostings),
+    );
+  } catch (inventoryError) {
+    financeSyncIssues.add('Opening inventory valuation: $inventoryError');
+  }
+
   if (financeSyncIssues.isEmpty) {
     await settings.delete('finance_sync_errors');
   } else {
