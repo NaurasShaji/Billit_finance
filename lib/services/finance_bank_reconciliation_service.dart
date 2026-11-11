@@ -317,12 +317,15 @@ class FinanceBankReconciliationService {
       final transaction = transactions.get(posting.transactionId);
       if (transaction == null ||
           transaction.status != 'posted' ||
-          transaction.date.difference(date).inDays.abs() > 5) {
+          false) {
         continue;
       }
       candidates.add((transaction: transaction, posting: posting));
     }
     return candidates
-      ..sort((a, b) => a.transaction.date.compareTo(b.transaction.date));
+      ..sort((a, b) =>
+          a.transaction.date.difference(date).inDays.abs().compareTo(
+            b.transaction.date.difference(date).inDays.abs(),
+          ));
   }
 }
