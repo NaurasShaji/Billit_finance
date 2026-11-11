@@ -469,14 +469,14 @@ class _NetProfitCard extends StatelessWidget {
               Icon(
                 positive ? Icons.savings_outlined : Icons.warning_amber_rounded,
                 size: 20,
-                color: tone.shade700.adaptive(context),
+                color: tone.adaptive(context),
               ),
               const SizedBox(width: 8),
               Text(
                 'POS net profit estimate',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: tone.shade700.adaptive(context),
+                  color: tone.adaptive(context),
                 ),
               ),
             ],
@@ -546,7 +546,7 @@ class _MetricTile extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
-  final MaterialColor color;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -568,7 +568,7 @@ class _MetricTile extends StatelessWidget {
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 20, color: color.shade700.adaptive(context)),
+            child: Icon(icon, size: 20, color: color.adaptive(context)),
           ),
           const SizedBox(height: 10),
           Text(
@@ -720,7 +720,7 @@ class _ExpenseRow extends StatelessWidget {
         ),
         child: Icon(
           salary ? Icons.payments_outlined : Icons.receipt_long_outlined,
-          color: color.shade700.adaptive(context),
+          color: color.adaptive(context),
           size: 21,
         ),
       ),
