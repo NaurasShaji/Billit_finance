@@ -124,6 +124,25 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
       return;
     }
 
+    final requestedStock =
+        double.tryParse(_stockController.text.trim()) ?? 0;
+    final requestedCost =
+        double.tryParse(_costPriceController.text.trim()) ?? 0;
+    if (!requestedStock.isFinite ||
+        requestedStock < 0 ||
+        !requestedCost.isFinite ||
+        requestedCost < 0 ||
+        (widget.product == null && requestedStock > 0 && requestedCost <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Stock and cost must be valid. Initial stock requires a purchase cost greater than zero.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -537,6 +556,8 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
                           Expanded(
                             child: TextFormField(
                               controller: _costPriceController,
+                              readOnly: widget.product != null &&
+                                  widget.product!.stock > 0,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                       decimal: true),
@@ -615,6 +636,7 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
                       Expanded(
                         child: TextFormField(
                           controller: _stockController,
+                          readOnly: widget.product != null,
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
                           decoration: InputDecoration(
