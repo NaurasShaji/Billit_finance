@@ -607,6 +607,7 @@ class HrService {
       start: yearStart,
       end: date,
       excludeWeekends: policy.excludeWeekends,
+      excludeHolidays: policy.excludeHolidays,
     );
     return LeaveBalance(
       leaveType: leaveType,
