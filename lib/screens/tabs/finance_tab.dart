@@ -140,73 +140,78 @@ class _FinanceTabState extends State<FinanceTab> {
                   const SizedBox(height: 24),
                   _sectionTitle(theme, scheme, 'MORE'),
                   const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
+                  GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 2.65,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Expense history',
+                        icon: Icons.receipt_long_outlined,
                         onPressed: () => _open(const ExpensesListScreen()),
-                        icon: const Icon(Icons.receipt_long_outlined),
-                        label: const Text('Expense history'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Reports & exports',
+                        icon: Icons.file_download_outlined,
                         onPressed: () => _open(const GstExportsScreen()),
-                        icon: const Icon(Icons.file_download_outlined),
-                        label: const Text('Reports & exports'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Accounting reports',
+                        icon: Icons.assessment_outlined,
                         onPressed: () => _open(const FinanceReportsScreen()),
-                        icon: const Icon(Icons.assessment_outlined),
-                        label: const Text('Accounting reports'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Accounts & journal',
+                        icon: Icons.account_balance_outlined,
                         onPressed: () => _open(const FinanceLedgerScreen()),
-                        icon: const Icon(Icons.account_balance_outlined),
-                        label: const Text('Accounts & journal'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Reconciliation',
+                        icon: Icons.fact_check_outlined,
                         onPressed: () =>
                             _open(const FinanceReconciliationScreen()),
-                        icon: const Icon(Icons.fact_check_outlined),
-                        label: const Text('Reconciliation'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Bank reconciliation',
+                        icon: Icons.account_balance_wallet_outlined,
                         onPressed: () =>
                             _open(const FinanceBankReconciliationScreen()),
-                        icon: const Icon(Icons.account_balance_wallet_outlined),
-                        label: const Text('Bank reconciliation'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Bank statements',
+                        icon: Icons.account_balance_outlined,
                         onPressed: () =>
                             _open(const FinanceBankReconciliationScreen()),
-                        icon: const Icon(Icons.account_balance_outlined),
-                        label: const Text('Bank statements'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Categories',
+                        icon: Icons.category_outlined,
                         onPressed: () =>
                             _open(const FinanceCategoryManagementScreen()),
-                        icon: const Icon(Icons.category_outlined),
-                        label: const Text('Categories'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Customers & suppliers',
+                        icon: Icons.people_outline,
                         onPressed: () => _open(const FinancePartiesScreen()),
-                        icon: const Icon(Icons.people_outline),
-                        label: const Text('Customers & suppliers'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Budgets',
+                        icon: Icons.pie_chart_outline,
                         onPressed: () => _open(const FinanceBudgetsScreen()),
-                        icon: const Icon(Icons.pie_chart_outline),
-                        label: const Text('Budgets'),
                       ),
-                      OutlinedButton.icon(
+                      _financeAction(
+                        label: 'Recurring',
+                        icon: Icons.event_repeat_outlined,
                         onPressed: () => _open(const FinanceRecurringScreen()),
-                        icon: const Icon(Icons.event_repeat_outlined),
-                        label: const Text('Recurring'),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => _open(const FinancePaymentSettingsScreen()),
-                        icon: const Icon(Icons.account_balance_wallet_outlined),
-                        label: const Text('Payment accounts'),
+                      _financeAction(
+                        label: 'Payment accounts',
+                        icon: Icons.account_balance_wallet_outlined,
+                        onPressed: () =>
+                            _open(const FinancePaymentSettingsScreen()),
                       ),
                     ],
                   ),
@@ -217,6 +222,28 @@ class _FinanceTabState extends State<FinanceTab> {
         ),
       ),
     ),
+    );
+  }
+
+  Widget _financeAction({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        minimumSize: Size.zero,
+      ),
+      icon: Icon(icon, size: 20),
+      label: Text(
+        label,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.left,
+      ),
     );
   }
 
