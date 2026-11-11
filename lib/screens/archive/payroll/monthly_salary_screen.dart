@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../../models/employee.dart';
 import '../../../models/expense.dart';
 import '../../../services/boxes.dart';
-import '../../../utils/theme_colors.dart';
 import '../../../widgets/responsive_page.dart';
 
 class MonthlySalaryScreen extends StatelessWidget {
