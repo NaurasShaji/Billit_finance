@@ -1,7 +1,6 @@
 import 'package:hive_ce/hive_ce.dart';
 
 import '../models/models.dart';
-import 'boxes.dart';
 import 'finance_ledger_service.dart';
 
 /// Keeps product average cost and the inventory control account aligned.
