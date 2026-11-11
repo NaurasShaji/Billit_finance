@@ -185,11 +185,6 @@ class _BillingTabState extends State<BillingTab> with TickerProviderStateMixin {
     }
   }
 
-  // Get current cart quantity for a product
-  double _getCartQuantity(String productId) {
-    return _cartService.getCartQuantity(productId);
-  }
-
   // Get available stock for a product (stock - cart quantity)
   double _getAvailableStock(Product product) {
     return _cartService.getAvailableStock(product);
